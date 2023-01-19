@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_KVSET_H
@@ -355,14 +355,14 @@ kvset_set_rule(struct kvset *ks, enum cn_rule rule);
  */
 /* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_alen(struct kvset *km, uint32_t index);
+kvset_get_nth_vblock_alen(const struct kvset *km, uint32_t index);
 
 /**
  * Get written length of useful data in nth vblock
  */
 /* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_wlen(struct kvset *km, uint32_t index);
+kvset_get_nth_vblock_wlen(const struct kvset *km, uint32_t index);
 
 /* MTF_MOCK */
 void
@@ -403,7 +403,7 @@ struct cn_tree *
 kvset_get_tree(struct kvset *kvset);
 
 struct vblock_desc *
-kvset_get_nth_vblock_desc(struct kvset *ks, uint32_t index);
+kvset_get_nth_vblock_desc(const struct kvset *ks, uint32_t index);
 
 /* MTF_MOCK */
 void

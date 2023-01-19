@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_VBLOCK_READER_H
@@ -113,7 +113,7 @@ vbr_readahead(
  * @vbd:   vblock descriptor
  */
 void
-vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice);
+vbr_madvise(const struct vblock_desc *vbd, uint off, uint len, int advice);
 
 /**
  * vbr_value() - Get ptr to a value stored in a vblock
@@ -122,6 +122,6 @@ vbr_madvise(struct vblock_desc *vbd, uint off, uint len, int advice);
  * @vlen:  length of value
  */
 void *
-vbr_value(struct vblock_desc *vbd, uint vboff, uint vlen);
+vbr_value(const struct vblock_desc *vbd, uint vboff, uint vlen);
 
 #endif

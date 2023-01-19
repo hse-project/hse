@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_MBSET_H
@@ -74,25 +74,25 @@ void
 mbset_set_delete_flag(struct mbset *self);
 
 static HSE_ALWAYS_INLINE struct mpool *
-mbset_get_mp(struct mbset *self)
+mbset_get_mp(const struct mbset *self)
 {
     return self->mbs_mp;
 }
 
 static HSE_ALWAYS_INLINE uint64_t
-mbset_get_wlen(struct mbset *self)
+mbset_get_wlen(const struct mbset *self)
 {
     return self->mbs_wlen;
 }
 
 static HSE_ALWAYS_INLINE uint64_t
-mbset_get_alen(struct mbset *self)
+mbset_get_alen(const struct mbset *self)
 {
     return self->mbs_alen;
 }
 
 static HSE_ALWAYS_INLINE uint64_t
-mbset_get_mbid(struct mbset *self, uint blk_num)
+mbset_get_mbid(const struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_mblkc;
 
@@ -101,13 +101,13 @@ mbset_get_mbid(struct mbset *self, uint blk_num)
 }
 
 static HSE_ALWAYS_INLINE uint
-mbset_get_blkc(struct mbset *self)
+mbset_get_blkc(const struct mbset *self)
 {
     return self->mbs_mblkc;
 }
 
 static HSE_ALWAYS_INLINE void *
-mbset_get_udata(struct mbset *self, uint blk_num)
+mbset_get_udata(const struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_mblkc;
 

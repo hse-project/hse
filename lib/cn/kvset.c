@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdint.h>
@@ -115,27 +115,27 @@ static struct kmem_cache *kvset_iter_cache HSE_READ_MOSTLY;
  * from a logical vblock index.
  */
 static HSE_ALWAYS_INLINE struct mbset *
-lvx2mbs(struct kvset *ks, uint i)
+lvx2mbs(const struct kvset *ks, uint i)
 {
     return ks->ks_vblk2mbs[i].mbs;
 }
 
 static HSE_ALWAYS_INLINE uint
-lvx2mbs_bnum(struct kvset *ks, uint i)
+lvx2mbs_bnum(const struct kvset *ks, uint i)
 {
     return ks->ks_vblk2mbs[i].idx;
 }
 
 /* Map logical vblock index (as stored in KMD) to an mblock ID */
 static HSE_ALWAYS_INLINE uint64_t
-lvx2mbid(struct kvset *ks, uint i)
+lvx2mbid(const struct kvset *ks, uint i)
 {
     return mbset_get_mbid(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
 }
 
 /* Map logical vblock index (as stored in KMD) to a vblock descriptor */
 static HSE_ALWAYS_INLINE struct vblock_desc *
-lvx2vbd(struct kvset *ks, uint i)
+lvx2vbd(const struct kvset *ks, uint i)
 {
     return mbset_get_udata(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
 }
@@ -161,7 +161,7 @@ kvset_put_ref_final(struct kvset *ks)
      */
     for (tries = 0; tries < maxtries; ++tries) {
         for (i = 0; i < ks->ks_st.kst_vblks; ++i) {
-            struct vblock_desc *vbd = lvx2vbd(ks, i);
+            const struct vblock_desc *vbd = lvx2vbd(ks, i);
 
             if (atomic_read(&vbd->vbd_refcnt) > 0)
                 break;
@@ -1233,7 +1233,7 @@ extern const size_t tls_vbufsz;
 static merr_t
 kvset_lookup_val_direct(
     struct kvset *      ks,
-    struct vblock_desc *vbd,
+    const struct vblock_desc *vbd,
     uint16_t            vbidx,
     uint32_t            vboff,
     void *              vbuf,
@@ -1299,7 +1299,7 @@ kvset_lookup_val_direct(
 static merr_t
 kvset_lookup_val_direct_decompress(
     struct kvset       *ks,
-    struct vblock_desc *vbd,
+    const struct vblock_desc *vbd,
     uint16_t            vbidx,
     uint32_t            vboff,
     void               *vbuf,
@@ -1350,7 +1350,7 @@ static
 merr_t
 kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 {
-    struct vblock_desc *vbd;
+    const struct vblock_desc *vbd;
     merr_t              err;
     void               *src, *dst;
     uint                omlen, copylen;
@@ -1775,7 +1775,7 @@ kvset_get_nth_vblock_id(struct kvset *ks, uint32_t index)
 }
 
 uint32_t
-kvset_get_nth_vblock_alen(struct kvset *ks, uint32_t index)
+kvset_get_nth_vblock_alen(const struct kvset *ks, uint32_t index)
 {
     const struct vblock_desc *vbd = lvx2vbd(ks, index);
 
@@ -1783,7 +1783,7 @@ kvset_get_nth_vblock_alen(struct kvset *ks, uint32_t index)
 }
 
 uint32_t
-kvset_get_nth_vblock_wlen(struct kvset *ks, uint32_t index)
+kvset_get_nth_vblock_wlen(const struct kvset *ks, uint32_t index)
 {
     const struct vblock_desc *vbd = lvx2vbd(ks, index);
 
@@ -1791,7 +1791,7 @@ kvset_get_nth_vblock_wlen(struct kvset *ks, uint32_t index)
 }
 
 struct vblock_desc *
-kvset_get_nth_vblock_desc(struct kvset *ks, uint32_t index)
+kvset_get_nth_vblock_desc(const struct kvset *ks, uint32_t index)
 {
     return lvx2vbd(ks, index);
 }
@@ -3288,7 +3288,7 @@ kvset_iter_get_valptr_read(
     const void **          vdata)
 {
     merr_t                 err;
-    struct vblock_desc *   vbd;
+    const struct vblock_desc *vbd;
     struct vblk_reader *   vr;
     struct vr_buf *        active;
     struct cn_merge_stats *ms = iter->stats;
@@ -3374,7 +3374,7 @@ have_data:
         off = active->off + active->len;
 
         if (off >= vr->vr_mblk_dlen) {
-            struct vblock_desc *ra_vbd;
+            const struct vblock_desc *ra_vbd;
 
             off = 0;
             vbidx++;
