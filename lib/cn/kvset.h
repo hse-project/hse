@@ -351,11 +351,18 @@ void
 kvset_set_rule(struct kvset *ks, enum cn_rule rule);
 
 /**
- * kvset_get_nth_vblock_len() - Get len of useful data in nth vblock
+ * Get allocated length of useful data in nth vblock
  */
 /* MTF_MOCK */
 uint32_t
-kvset_get_nth_vblock_len(struct kvset *km, uint32_t index);
+kvset_get_nth_vblock_alen(struct kvset *km, uint32_t index);
+
+/**
+ * Get written length of useful data in nth vblock
+ */
+/* MTF_MOCK */
+uint32_t
+kvset_get_nth_vblock_wlen(struct kvset *km, uint32_t index);
 
 /* MTF_MOCK */
 void
