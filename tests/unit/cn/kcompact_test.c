@@ -15,11 +15,11 @@
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/kvset_builder.h>
 
-#include <cn/cn_tree_compact.h>
-#include <cn/kcompact.h>
-#include <cn/kvset.h>
-#include <cn/cn_metrics.h>
-#include <cn/vgmap.h>
+#include "cn/cn_tree_compact.h"
+#include "cn/kcompact.h"
+#include "cn/kvset.h"
+#include "cn/cn_metrics.h"
+#include "cn/vgmap.h"
 
 #include <mocks/mock_kvset.h>
 #include <mocks/mock_kvset_builder.h>

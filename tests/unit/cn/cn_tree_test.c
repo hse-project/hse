@@ -18,15 +18,15 @@
 #include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/cn.h>
 
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_iter.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_compact.h>
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_iter.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_compact.h"
 
-#include <cn/cn_internal.h>
-#include <cn/kvset.h>
-#include <cn/kv_iterator.h>
+#include "cn/cn_internal.h"
+#include "cn/kvset.h"
+#include "cn/kv_iterator.h"
 
 struct mpool *     mock_ds = (void *)0x1234abcd;
 struct kvdb_health mock_health;

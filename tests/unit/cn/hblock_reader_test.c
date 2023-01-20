@@ -8,13 +8,13 @@
 
 #include <mtf/framework.h>
 
-#include <cn/hblock_builder.h>
-#include <cn/hblock_reader.h>
-#include <cn/kvs_mblk_desc.h>
-#include <cn/omf.h>
-#include <cn/wbt_reader.h>
-#include <cn/vgmap.h>
-#include <cn/kvset.h>
+#include "cn/hblock_builder.h"
+#include "cn/hblock_reader.h"
+#include "cn/kvs_mblk_desc.h"
+#include "cn/omf.h"
+#include "cn/wbt_reader.h"
+#include "cn/vgmap.h"
+#include "cn/kvset.h"
 
 #include <hse/util/hlog.h>
 #include <hse/error/merr.h>

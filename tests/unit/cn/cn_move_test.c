@@ -8,10 +8,10 @@
 
 #include <hse/util/platform.h>
 
-#include <cn/cn_tree_compact.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/kvset.h>
-#include <cn/move.h>
+#include "cn/cn_tree_compact.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/kvset.h"
+#include "cn/move.h"
 
 #include <mocks/mock_kvset.h>
 

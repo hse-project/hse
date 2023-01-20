@@ -14,8 +14,8 @@
 #include <hse/util/minmax.h>
 
 #include <hse/mpool/mpool.h>
-#include <mdc.h>
-#include <mdc_file.h>
+#include "mdc.h"
+#include "mdc_file.h"
 
 #include "common.h"
 

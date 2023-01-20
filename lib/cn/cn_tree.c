@@ -54,7 +54,7 @@
 #include <hse/ikvdb/csched.h>
 #include <hse/ikvdb/kvs_rparams.h>
 
-#include <cn/cn_cursor.h>
+#include "cn/cn_cursor.h"
 
 #include "cn_tree.h"
 #include "cn_tree_compact.h"

@@ -15,10 +15,10 @@
 #include <hse/ikvdb/cn_kvdb.h>
 #include <hse/ikvdb/kvdb_health.h>
 
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_internal.h>
-#include <cn/cn_perfc.h>
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_internal.h"
+#include "cn/cn_perfc.h"
 
 static int
 init(struct mtf_test_info *lcl_ti)

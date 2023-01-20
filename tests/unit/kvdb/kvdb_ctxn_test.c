@@ -29,9 +29,9 @@
 
 #include <mocks/mock_c0cn.h>
 
-#include <kvdb/kvdb_ctxn_internal.h>
-#include <kvdb/kvdb_keylock.h>
-#include <kvdb/viewset.h>
+#include "kvdb/kvdb_ctxn_internal.h"
+#include "kvdb/kvdb_keylock.h"
+#include "kvdb/viewset.h"
 
 uint64_t              tn_delay = 256 * 1000;
 uint64_t              tn_timeout = 1000 * 60 * 5;

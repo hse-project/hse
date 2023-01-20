@@ -19,9 +19,9 @@
 
 #include <hse/limits.h>
 
-#include <cn/vblock_builder.h>
-#include <cn/blk_list.h>
-#include <cn/omf.h>
+#include "cn/vblock_builder.h"
+#include "cn/blk_list.h"
+#include "cn/omf.h"
 
 #include <mocks/mock_mpool.h>
 

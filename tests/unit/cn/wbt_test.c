@@ -10,12 +10,12 @@
 
 #include <hse/limits.h>
 
-#include <cn/omf.h>
-#include <cn/kblock_reader.h>
-#include <cn/wbt_builder.h>
-#include <cn/wbt_internal.h>
-#include <cn/wbt_reader.h>
-#include <cn/kvs_mblk_desc.h>
+#include "cn/omf.h"
+#include "cn/kblock_reader.h"
+#include "cn/wbt_builder.h"
+#include "cn/wbt_internal.h"
+#include "cn/wbt_reader.h"
+#include "cn/kvs_mblk_desc.h"
 
 #include <mocks/mock_mpool.h>
 #include <hse/test/support/ref_tree.h>

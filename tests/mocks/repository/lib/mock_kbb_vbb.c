@@ -9,9 +9,9 @@
 
 #include <mock/api.h>
 
-#include <cn/hblock_builder.h>
-#include <cn/kblock_builder.h>
-#include <cn/vblock_builder.h>
+#include "cn/hblock_builder.h"
+#include "cn/kblock_builder.h"
+#include "cn/vblock_builder.h"
 
 #include <mocks/mock_kbb_vbb.h>
 #include <mocks/mock_mpool.h>

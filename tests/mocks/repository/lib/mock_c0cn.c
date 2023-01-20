@@ -18,7 +18,7 @@
 
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/cn.h>
-#include <cn/cn_cursor.h>
+#include "cn/cn_cursor.h"
 #include <hse/ikvdb/c0.h>
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/wal.h>

@@ -11,12 +11,12 @@
 #include <hse/util/bloom_filter.h>
 #include <hse/util/page.h>
 
-#include <cn/omf.h>
-#include <cn/kblock_reader.h>
-#include <cn/bloom_reader.h>
-#include <cn/wbt_internal.h>
-#include <cn/wbt_reader.h>
-#include <cn/cn_metrics.h>
+#include "cn/omf.h"
+#include "cn/kblock_reader.h"
+#include "cn/bloom_reader.h"
+#include "cn/wbt_internal.h"
+#include "cn/wbt_reader.h"
+#include "cn/cn_metrics.h"
 
 /* 1 header page + 4 wbtree pages + 3 bloom pages */
 #define FAKE_WBTREE_DOFF_PG  1

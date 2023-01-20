@@ -20,12 +20,12 @@
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/tuple.h>
 
-#include <cn/hblock_builder.h>
-#include <cn/kblock_builder.h>
-#include <cn/kblock_reader.h>
-#include <cn/omf.h>
-#include <cn/blk_list.h>
-#include <cn/bloom_reader.h>
+#include "cn/hblock_builder.h"
+#include "cn/kblock_builder.h"
+#include "cn/kblock_reader.h"
+#include "cn/omf.h"
+#include "cn/blk_list.h"
+#include "cn/bloom_reader.h"
 
 #include <mocks/mock_mpool.h>
 

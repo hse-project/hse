@@ -16,9 +16,9 @@
 
 #include <hse/mpool/mpool.h>
 
-#include <cn/kvset.h>
+#include "cn/kvset.h"
 
-#include <cndb/omf.h>
+#include "cndb/omf.h"
 
 struct mock_mdc_record {
     struct mock_mdc_record *next;

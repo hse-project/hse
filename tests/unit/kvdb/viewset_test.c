@@ -7,7 +7,7 @@
 #include <mock/api.h>
 #include <mock/alloc_tester.h>
 
-#include <kvdb/viewset.h>
+#include "kvdb/viewset.h"
 
 #include <pthread.h>
 #include <stdio.h>

@@ -3,7 +3,7 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <cndb/omf.h>
+#include "cndb/omf.h"
 #include <hse/util/page.h>
 
 #include "cndb_record.h"

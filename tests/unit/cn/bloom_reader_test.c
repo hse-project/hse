@@ -13,9 +13,9 @@
 #include <hse/util/page.h>
 #include <hse/util/bloom_filter.h>
 
-#include <cn/omf.h>
-#include <cn/bloom_reader.h>
-#include <cn/wbt_internal.h>
+#include "cn/omf.h"
+#include "cn/bloom_reader.h"
+#include "cn/wbt_internal.h"
 
 #include <mocks/mock_mpool.h>
 

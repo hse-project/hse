@@ -14,9 +14,9 @@
 #include <hse/ikvdb/omf_version.h>
 
 #include <hse/mpool/mpool.h>
-#include <mblock_file.h>
-#include <mblock_fset.h>
-#include <mpool_internal.h>
+#include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mpool_internal.h"
 
 #include <limits.h>
 #include <fcntl.h>

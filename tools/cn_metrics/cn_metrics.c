@@ -6,11 +6,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <cn/cn_metrics.h>
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_tree_iter.h>
-#include <cn/kvset.h>
+#include "cn/cn_metrics.h"
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/cn_tree_iter.h"
+#include "cn/kvset.h"
 
 #include <hse/cli/program.h>
 #include <hse/hse.h>

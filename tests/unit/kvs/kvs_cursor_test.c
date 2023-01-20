@@ -11,7 +11,7 @@
 
 #include <hse/util/seqno.h>
 
-#include <kvdb/kvdb_kvs.h>
+#include "kvdb/kvdb_kvs.h"
 
 #include <mocks/mock_c0cn.h>
 

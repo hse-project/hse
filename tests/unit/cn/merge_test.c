@@ -24,19 +24,19 @@
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cndb.h>
 
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_compact.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/spill.h>
-#include <cn/kcompact.h>
-#include <cn/cn_metrics.h>
-#include <cn/kvs_mblk_desc.h>
-#include <cn/kv_iterator.h>
-#include <cn/kvset.h>
-#include <cn/route.h>
-#include <cn/omf.h>
-#include <cn/vgmap.h>
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_compact.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/spill.h"
+#include "cn/kcompact.h"
+#include "cn/cn_metrics.h"
+#include "cn/kvs_mblk_desc.h"
+#include "cn/kv_iterator.h"
+#include "cn/kvset.h"
+#include "cn/route.h"
+#include "cn/omf.h"
+#include "cn/vgmap.h"
 
 #include <dirent.h>
 

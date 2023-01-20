@@ -11,7 +11,7 @@
 #include <hse/error/merr.h>
 #include <hse/mpool/mpool.h>
 
-#include <cn/mbset.h>
+#include "cn/mbset.h"
 
 #define ds ((struct mpool *)1)
 

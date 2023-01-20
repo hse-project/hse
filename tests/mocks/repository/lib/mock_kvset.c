@@ -14,8 +14,8 @@
 
 #include <hse/ikvdb/limits.h>
 
-#include <cn/kvset.h>
-#include <cn/cn_tree_internal.h>
+#include "cn/kvset.h"
+#include "cn/cn_tree_internal.h"
 
 #include <mocks/mock_mpool.h>
 #include <mocks/mock_kvset.h>

@@ -10,9 +10,9 @@
 
 #include <hse/util/page.h>
 
-#include <cn/cn_metrics.h>
-#include <cn/kv_iterator.h>
-#include <cn/kvset.h>
+#include "cn/cn_metrics.h"
+#include "cn/kv_iterator.h"
+#include "cn/kvset.h"
 
 /**
  * struct mock_kvset - test harness

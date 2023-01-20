@@ -20,8 +20,8 @@
 #include <hse/util/parse_num.h>
 #include <hse/util/fmt.h>
 
-#include <cn/omf.h>
-#include <cn/wbt_internal.h>
+#include "cn/omf.h"
+#include "cn/wbt_internal.h"
 
 #include "cndb_reader.h"
 #include "cndb_record.h"

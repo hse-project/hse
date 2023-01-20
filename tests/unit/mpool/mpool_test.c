@@ -10,9 +10,9 @@
 #include <mock/api.h>
 
 #include <hse/mpool/mpool.h>
-#include <mpool_internal.h>
-#include <mclass.h>
-#include <mblock_fset.h>
+#include "mpool_internal.h"
+#include "mclass.h"
+#include "mblock_fset.h"
 
 #include "common.h"
 

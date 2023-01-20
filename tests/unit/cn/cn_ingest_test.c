@@ -17,13 +17,13 @@
 #include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs_rparams.h>
 
-#include <cn/blk_list.h>
-#include <cn/cn_internal.h>
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_mblocks.h>
-#include <cn/kvset.h>
+#include "cn/blk_list.h"
+#include "cn/cn_internal.h"
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/cn_mblocks.h"
+#include "cn/kvset.h"
 
 static struct mpool *mock_ds = (void *)-1;
 

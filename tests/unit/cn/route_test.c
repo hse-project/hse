@@ -9,8 +9,8 @@
 
 #include <hse/ikvdb/cn.h>
 
-#include <cn/route.h>
-#include <cn/cn_tree_internal.h>
+#include "cn/route.h"
+#include "cn/cn_tree_internal.h"
 
 MTF_BEGIN_UTEST_COLLECTION(route_test)
 

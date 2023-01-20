@@ -6,8 +6,8 @@
 #include <mtf/framework.h>
 #include <mock/api.h>
 
-#include <cn/kvset.c>
-#include <cndb/txn.h>
+#include "cn/kvset.c"
+#include "cndb/txn.h"
 
 #define CHECK_TRUE(cond) if (!(cond)) {                                      \
                             fprintf(stderr, "Assert at line:%d\n", __LINE__); \

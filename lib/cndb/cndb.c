@@ -18,8 +18,8 @@
 
 #include <bsd/string.h>
 
-#include <cn/kvset.h>
-#include <cn/kvset_internal.h>
+#include "cn/kvset.h"
+#include "cn/kvset_internal.h"
 
 #include "txn.h"
 #include "omf.h"

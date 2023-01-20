@@ -11,7 +11,7 @@
 
 #include <hse/ikvdb/limits.h>
 
-#include <cn/cn_mblocks.h>
+#include "cn/cn_mblocks.h"
 
 #define KiB (((size_t)1) << 10)
 #define MiB (((size_t)1) << 20)

@@ -10,8 +10,8 @@
 
 #include <hse/util/xrand.h>
 
-#include <kvdb/kvdb_pfxlock.h>
-#include <kvdb/viewset.h>
+#include "kvdb/kvdb_pfxlock.h"
+#include "kvdb/viewset.h"
 
 #include <hse/ikvdb/key_hash.h>
 

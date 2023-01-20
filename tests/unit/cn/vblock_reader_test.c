@@ -11,8 +11,8 @@
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 
-#include <cn/vblock_reader.h>
-#include <cn/omf.h>
+#include "cn/vblock_reader.h"
+#include "cn/omf.h"
 
 struct workqueue_struct *vbr_wq;
 

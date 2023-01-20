@@ -16,7 +16,7 @@
 #include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/kvdb_ctxn.h>
 
-#include <kvdb/kvdb_keylock.h>
+#include "kvdb/kvdb_keylock.h"
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 
