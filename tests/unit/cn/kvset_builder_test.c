@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/error/merr.h>
 
@@ -13,7 +13,7 @@
 
 #include <hse/limits.h>
 
-#include <mocks/mock_kbb_vbb.h>
+#include <hse/test/mock/mock_kbb_vbb.h>
 
 static struct key_obj kobj;
 

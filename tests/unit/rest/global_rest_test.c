@@ -10,7 +10,7 @@
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>

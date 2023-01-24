@@ -4,7 +4,7 @@
  */
 
 #include <hse/error/merr.h>
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/ikvdb/kvdb_meta.h>
 #include <hse/ikvdb/omf_version.h>

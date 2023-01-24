@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/conditions.h>
-#include <mock/api.h>
+#include <hse/test/mtf/conditions.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/util/arch.h>
 #include <hse/util/assert.h>

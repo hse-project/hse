@@ -9,8 +9,8 @@
 
 #include <hse/flags.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
@@ -32,7 +32,7 @@
 #include <c0/c0_cursor.h>
 #include <c0/c0sk_internal.h>
 
-#include <mocks/mock_c0cn.h>
+#include <hse/test/mock/mock_c0cn.h>
 
 void
 _hse_meminfo(ulong *freep, ulong *availp, uint shift)

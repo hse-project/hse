@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/logging/logging.h>
 
@@ -14,7 +14,7 @@
 #include "cn/wbt_internal.h"
 #include "cn/kblock_reader.h"
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
 char data_path[PATH_MAX];
 

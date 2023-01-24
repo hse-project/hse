@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
 #include "cn/blk_list.h"
 #include "cn/hblock_builder.h"

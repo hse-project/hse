@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-#include <mtf/conditions.h>
+#include <hse/test/mtf/conditions.h>
 
 void
 mtf_test_failure(void)

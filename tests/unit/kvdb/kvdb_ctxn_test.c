@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/hse.h>
 
@@ -24,10 +24,10 @@
 #include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/limits.h>
 
-#include <tools/key_generation.h>
+#include <hse/tools/key_generation.h>
 #include <hse/ikvdb/tuple.h>
 
-#include <mocks/mock_c0cn.h>
+#include <hse/test/mock/mock_c0cn.h>
 
 #include "kvdb/kvdb_ctxn_internal.h"
 #include "kvdb/kvdb_keylock.h"

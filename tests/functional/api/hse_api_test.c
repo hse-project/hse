@@ -7,7 +7,7 @@
 
 #include <hse/hse.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 int
 test_collection_setup(struct mtf_test_info *const lcl_ti)

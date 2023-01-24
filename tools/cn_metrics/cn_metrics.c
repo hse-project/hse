@@ -20,8 +20,8 @@
 #include <hse/ikvdb/csched.h>
 #include <hse/util/parse_num.h>
 
-#include <tools/parm_groups.h>
-#include <tools/common.h>
+#include <hse/tools/parm_groups.h>
+#include <hse/tools/common.h>
 
 #include <hse/mpool/mpool.h>
 

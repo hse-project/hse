@@ -3,8 +3,8 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/util/platform.h>
 
@@ -13,7 +13,7 @@
 #include "cn/kvset.h"
 #include "cn/move.h"
 
-#include <mocks/mock_kvset.h>
+#include <hse/test/mock/mock_kvset.h>
 
 int
 pre(struct mtf_test_info *info)

@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/err_ctx.h>

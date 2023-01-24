@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <mock/alloc_tester.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/alloc_tester.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/timer.h>

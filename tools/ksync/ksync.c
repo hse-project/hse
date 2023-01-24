@@ -17,7 +17,7 @@
 #include <hse/hse.h>
 #include <hse/util/arch.h>
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
 const char *mp_name, *kvs_name;
 ulong       kwrite, kflush, ksync, ktxn;

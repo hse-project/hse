@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
@@ -21,8 +21,8 @@
 #include "cn/cn_metrics.h"
 #include "cn/vgmap.h"
 
-#include <mocks/mock_kvset.h>
-#include <mocks/mock_kvset_builder.h>
+#include <hse/test/mock/mock_kvset.h>
+#include <hse/test/mock/mock_kvset_builder.h>
 
 /*
  * The functions with leading underscores are the mocked variants.

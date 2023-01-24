@@ -1,4 +1,3 @@
-subdir('include')
 subdir('lib')
 
 hse_mock_repository = static_library(
@@ -7,7 +6,6 @@ hse_mock_repository = static_library(
     include_directories: [
         hse_include_directories,
         hse_mock_include_directories,
-        hse_mock_repository_includes,
     ],
     dependencies: [
         hse_mock_dep,
@@ -18,6 +16,5 @@ hse_mock_repository = static_library(
 hse_mock_repository_dep = declare_dependency(
     link_with: hse_mock_repository,
     include_directories: [
-        hse_mock_repository_includes,
     ],
 )

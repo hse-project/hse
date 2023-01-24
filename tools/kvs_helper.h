@@ -10,8 +10,8 @@
 
 #include <hse/hse.h>
 
-#include <tools/common.h>
-#include <tools/parm_groups.h>
+#include <hse/tools/common.h>
+#include <hse/tools/parm_groups.h>
 
 typedef void kh_func(void *);
 

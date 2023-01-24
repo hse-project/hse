@@ -7,7 +7,7 @@
 #include <hse/util/page.h>
 #include <hse/util/vlb.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(vlb_test);
 

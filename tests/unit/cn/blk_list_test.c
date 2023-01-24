@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <mtf/conditions.h>
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/conditions.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/kvset_builder.h>

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include "cn/hblock_builder.h"
 #include "cn/hblock_reader.h"

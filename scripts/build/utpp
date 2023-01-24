@@ -147,7 +147,7 @@ function emit_header(name, set_name, prefix, args)
 {
     if (++first_time_mock == 1) {
         printf("#include <stdint.h>\n\n") > TARGET_FILE;
-        printf("#include <mock/api.h>\n") > TARGET_FILE;
+        printf("#include <hse/test/mock/api.h>\n") > TARGET_FILE;
     }
 
     printf("\n\n/* %s\n */\n", name) > TARGET_FILE;

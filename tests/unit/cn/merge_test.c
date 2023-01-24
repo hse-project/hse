@@ -8,9 +8,9 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <mocks/mock_kvset_builder.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset_builder.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/parse_num.h>

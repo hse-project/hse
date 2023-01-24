@@ -11,7 +11,7 @@
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/pidfile/pidfile.h>
 
 static const char *capdir = "capacity";

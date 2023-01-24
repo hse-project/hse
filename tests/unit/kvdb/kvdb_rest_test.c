@@ -12,7 +12,7 @@
 #include <curl/curl.h>
 
 #include <hse/hse.h>
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>

@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/seqno.h>
@@ -18,7 +18,7 @@
 
 #include "cn_mock.h"
 #include "c0sk_mock.h"
-#include <tools/key_generation.h>
+#include <hse/tools/key_generation.h>
 #include <hse/test/support/random_buffer.h>
 
 struct c0sk *ikvdb_get_c0sk_gv_c0sk = 0;

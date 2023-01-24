@@ -3,13 +3,13 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/error/merr.h>
 
 #include <hse/ikvdb/kvset_builder.h>
 
-#include <mocks/mock_kvset_builder.h>
+#include <hse/test/mock/mock_kvset_builder.h>
 
 static merr_t
 _kvset_builder_create(

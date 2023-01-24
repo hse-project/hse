@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/c0.h>
@@ -13,7 +13,7 @@
 
 #include "kvdb/kvdb_kvs.h"
 
-#include <mocks/mock_c0cn.h>
+#include <hse/test/mock/mock_c0cn.h>
 
 #include <bsd/string.h>
 

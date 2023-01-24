@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/seqno.h>
@@ -25,7 +25,7 @@
 #include <hse/ikvdb/cndb.h>
 
 #include "cn_mock.h"
-#include <tools/key_generation.h>
+#include <hse/tools/key_generation.h>
 #include <hse/ikvdb/tuple.h>
 #include <hse/test/support/random_buffer.h>
 

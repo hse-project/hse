@@ -14,8 +14,8 @@
 
 #include <hse/util/storage.h>
 
-#include <mtf/common.h>
-#include <mtf/framework.h>
+#include <hse/test/mtf/common.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/mpool/mpool.h>
 
 #include "common.h"

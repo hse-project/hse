@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/allocation.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/allocation.h>
 
 #include <hse/util/arch.h>
 #include <hse/util/base.h>

@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/util/hash.h>
 #include <hse/util/hlog.h>
 

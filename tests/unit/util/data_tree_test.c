@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mtf/common.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mtf/common.h>
 
 #include <hse/util/data_tree.h>
 

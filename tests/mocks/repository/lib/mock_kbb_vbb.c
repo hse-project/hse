@@ -7,14 +7,14 @@
 
 #include <hse/error/merr.h>
 
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 
 #include "cn/hblock_builder.h"
 #include "cn/kblock_builder.h"
 #include "cn/vblock_builder.h"
 
-#include <mocks/mock_kbb_vbb.h>
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_kbb_vbb.h>
+#include <hse/test/mock/mock_mpool.h>
 
 static merr_t
 _hbb_create(struct hblock_builder **bld_out, const struct cn *cn, struct perfc_set *pc)

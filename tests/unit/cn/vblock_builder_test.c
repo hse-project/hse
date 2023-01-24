@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/alloc_tester.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/alloc_tester.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
@@ -23,7 +23,7 @@
 #include "cn/blk_list.h"
 #include "cn/omf.h"
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
 struct kvs_rparams kvsrp;
 int                salt;

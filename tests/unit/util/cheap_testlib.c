@@ -9,7 +9,7 @@
 #include <hse/util/cursor_heap.h>
 #include <hse/util/xrand.h>
 
-#include <mtf/conditions.h>
+#include <hse/test/mtf/conditions.h>
 
 #include "cheap_testlib.h"
 

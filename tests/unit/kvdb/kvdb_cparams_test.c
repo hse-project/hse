@@ -5,7 +5,7 @@
 
 #include <stdarg.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_cparams.h>

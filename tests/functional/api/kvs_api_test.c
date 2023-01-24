@@ -10,7 +10,7 @@
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/util/base.h>
 #include <hse/ikvdb/limits.h>

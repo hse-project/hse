@@ -55,7 +55,7 @@ mocked_headers = [
     meson.project_source_root() / 'lib/util/include/hse/util/rmlock.h',
     meson.project_source_root() / 'lib/util/include/hse/util/slab.h',
     meson.project_source_root() / 'lib/util/include/hse/util/token_bucket.h',
-    meson.project_source_root() / 'tests/mocks/include/mock/allocation.h',
+    meson.project_source_root() / 'tests/mocks/include/hse/test/mock/allocation.h',
 ]
 
 mapi_idx_h = custom_target(
@@ -83,7 +83,7 @@ mocked_components = {
     'kvdb': meson.project_source_root() / 'lib/kvdb',
     'kvs': meson.project_source_root() / 'lib/kvs',
     'mpool': meson.project_source_root() / 'lib/mpool/include/hse/mpool',
-    'mock': meson.project_source_root() / 'tests/mocks/include/mock',
+    'mock': meson.project_source_root() / 'tests/mocks/include/hse/test/mock',
     'util': meson.project_source_root() / 'lib/util/include/hse/util',
     'util-internal': meson.project_source_root() / 'lib/util/lib',
 }

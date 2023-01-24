@@ -3,7 +3,7 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <errno.h>
 #include <getopt.h>

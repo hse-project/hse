@@ -229,7 +229,7 @@ hse_err_to_errno(hse_err_t err);
 #define KM_REC_KEY_MAX          HSE_KVS_KEY_LEN_MAX
 #endif
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
 
 const char    *cf_dir = "/var/tmp";
