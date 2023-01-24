@@ -24,10 +24,10 @@ kvdb_storage_info_print(
     const char *const *  paramv);
 
 enum kvdb_compact_request {
-    req_status,
-    req_compact,
-    req_compact_full,
-    req_cancel,
+    REQ_STATUS,
+    REQ_COMPACT,
+    REQ_COMPACT_FULL,
+    REQ_CANCEL,
 };
 
 int

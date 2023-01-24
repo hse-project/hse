@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021-2023 Micron Technology, Inc. All rights reserved.
+# Copyright (C) 2023 Micron Technology, Inc. All rights reserved.
 
 #doc: Test the full compaction cli commandline
 

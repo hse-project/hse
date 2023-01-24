@@ -129,7 +129,7 @@ kvdb_compact_request(
 
     /* Full compactions need a few extra params.
      */
-    if (request == req_compact_full) {
+    if (request == REQ_COMPACT_FULL) {
         kvdb_paramv[kvdb_paramc++] = "csched_full_compact=true";
         assert(kvdb_paramc <= NELEM(kvdb_paramv));
         kvs_paramv[kvs_paramc++] = "cn_close_wait=true";
@@ -139,7 +139,7 @@ kvdb_compact_request(
     err = hse_kvdb_open(kvdb_home, kvdb_paramc, kvdb_paramv, &handle);
     if (err) {
         handle = 0;
-        if (hse_err_to_errno(err) == EBUSY && request == req_compact_full) {
+        if (hse_err_to_errno(err) == EBUSY && request == REQ_COMPACT_FULL) {
             char buf[256];
 
             hse_strerror(err, buf, sizeof(buf));
@@ -205,9 +205,9 @@ kvdb_compact_request(
 
     switch (request) {
 
-    case req_compact:
-    case req_compact_full:
-        err = rest_kvdb_compact(content.alias, request == req_compact_full);
+    case REQ_COMPACT:
+    case REQ_COMPACT_FULL:
+        err = rest_kvdb_compact(content.alias, request == REQ_COMPACT_FULL);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -264,7 +264,7 @@ kvdb_compact_request(
             status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
         break;
 
-    case req_cancel:
+    case REQ_CANCEL:
         err = rest_kvdb_cancel_compaction(content.alias);
         if (err) {
             char buf[256];
@@ -276,7 +276,7 @@ kvdb_compact_request(
         printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
         break;
 
-    case req_status:
+    case REQ_STATUS:
         err = rest_kvdb_get_compaction_status(&status, content.alias);
         if (err) {
             char buf[256];

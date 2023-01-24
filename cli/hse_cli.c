@@ -962,7 +962,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 
     const char *kvdb_home = NULL;
     uint32_t timeout_secs = 300;
-    enum kvdb_compact_request request = req_compact;
+    enum kvdb_compact_request request = REQ_COMPACT;
     bool help = false;
     int c, requests = 0;
 
@@ -973,18 +973,18 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
             case 'f':
-                request = req_compact_full;
+                request = REQ_COMPACT_FULL;
                 requests++;
                 break;
             case 'h':
                 help = true;
                 break;
             case 's':
-                request = req_status;
+                request = REQ_STATUS;
                 requests++;
                 break;
             case 'x':
-                request = req_cancel;
+                request = REQ_CANCEL;
                 requests++;
                 break;
             case 't':
