@@ -16,6 +16,7 @@
 
 #include "csched_sp3_work.h"
 
+#include "cn_internal.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
 #include "kvset.h"
@@ -152,6 +153,7 @@ sp3_work_wtype_root(
     uint runlen_min, runlen_max, runlen;
     struct kvset_list_entry *le;
     size_t wlen_max, wlen;
+    const struct kvdb_rparams *kvdb_rp = ikvdb_rparams(tn->tn_tree->cn->ikvdb);
 
     *action = CN_ACTION_SPILL;
     *rule = CN_RULE_RSPILL;
@@ -184,7 +186,7 @@ sp3_work_wtype_root(
     wlen = kvset_get_kwlen(le->le_kvset) + kvset_get_vwlen(le->le_kvset);
     wlen_max = thresh->rspill_wlen_max;
 
-    runlen_min = thresh->rspill_runlen_min;
+    runlen_min = kvdb_rp->csched_full_compact ? 1 : thresh->rspill_runlen_min;
     runlen_max = thresh->rspill_runlen_max;
     runlen = 1;
 
@@ -756,8 +758,19 @@ sp3_work_wtype_length(
     uint runlen_min = thresh->llen_runlen_min;
     uint runlen_max = thresh->llen_runlen_max;
     uint kvsets;
+    const struct kvdb_rparams *rp = ikvdb_rparams(tn->tn_tree->cn->ikvdb);
 
     kvsets = cn_ns_kvsets(&tn->tn_ns);
+
+    if (rp->csched_full_compact && kvsets > 1) {
+        struct kvset_list_entry *le;
+
+        *mark = list_last_entry(&tn->tn_kvset_list, typeof(*le), le_link);
+        *action = CN_ACTION_COMPACT_KV;
+        *rule = CN_RULE_LENGTH_FULL_KV;
+
+        return kvsets;
+    }
 
     if (kvsets >= runlen_min) {
         const struct kvset_stats *stats = NULL;
@@ -774,7 +787,7 @@ sp3_work_wtype_length(
         *action = CN_ACTION_COMPACT_K;
         *rule = CN_RULE_LENGTH_MIN;
 
-        if (!atomic_read(&tn->tn_readers)) {
+        if (!rp->csched_full_compact && !atomic_read(&tn->tn_readers)) {
             runlen_max *= 2;
             runlen_min += 1;
         }

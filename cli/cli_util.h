@@ -23,7 +23,17 @@ kvdb_storage_info_print(
     const size_t         paramc,
     const char *const *  paramv);
 
+enum kvdb_compact_request {
+    REQ_STATUS,
+    REQ_COMPACT,
+    REQ_COMPACT_FULL,
+    REQ_CANCEL,
+};
+
 int
-kvdb_compact_request(const char *kvdb_home, const char *request_type, unsigned timeout_sec);
+kvdb_compact_request(
+    const char *kvdb_home,
+    enum kvdb_compact_request request,
+    unsigned timeout_sec);
 
 #endif

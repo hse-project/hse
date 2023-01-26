@@ -53,6 +53,8 @@ enum cn_rule {
     CN_RULE_LENGTH_WLEN,    /* length >= runlen_min, tiny wlen, kv-compact */
     CN_RULE_LENGTH_VWLEN,   /* length >= runlen_min, tiny vwlen, kv-compact */
     CN_RULE_LENGTH_CLEN,    /* length >= runlen_min, tiny clen, kv-compact */
+    CN_RULE_LENGTH_FULL_K,  /* length >= 1, partial node, k-compact */
+    CN_RULE_LENGTH_FULL_KV, /* length >= 1, full node, kv-compact */
     CN_RULE_INDEX,          /* length >= runlen_max, tiny vwlen, kvcompact */
     CN_RULE_COMPC,          /* length >= runlen_max, heavily compacted */
     CN_RULE_IDLE_INDEX,     /* idle leaf, index node */
@@ -92,6 +94,10 @@ cn_rule2str(enum cn_rule rule)
         return "vwlen";
     case CN_RULE_LENGTH_CLEN:
         return "clen";
+    case CN_RULE_LENGTH_FULL_K:
+        return "fullk";
+    case CN_RULE_LENGTH_FULL_KV:
+        return "fullkv";
     case CN_RULE_INDEX:
         return "index";
     case CN_RULE_COMPC:

@@ -16,6 +16,7 @@
 #include <hse/util/log2.h>
 #include <hse/util/page.h>
 #include <hse/util/event_counter.h>
+#include <hse/logging/logging.h>
 
 #define MTF_MOCK_IMPL_viewset
 

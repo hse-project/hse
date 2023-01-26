@@ -27,7 +27,7 @@ merr_t
 rest_kvdb_cancel_compaction(const char *alias);
 
 merr_t
-rest_kvdb_compact(const char *alias);
+rest_kvdb_compact(const char *alias, bool full);
 
 void
 rest_kvdb_free_kvs_names(char **namev);
