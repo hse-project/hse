@@ -46,8 +46,6 @@
 
 #include <xoroshiro.h>
 
-/* clang-format off */
-
 #ifndef __aligned
 #define __aligned(_sz)      __attribute__((__aligned__(_sz)))
 #endif
@@ -77,18 +75,18 @@ struct suftab {
  */
 struct suftab suftab_iec = {
     "kmgtpezybw",
-    { 0x1p10, 0x1p20, 0x1p30, 0x1p40, 0x1p50, 0x1p60, 0x1p70, 0x1p80, 512, sizeof(int) }
+    { 0x1p10, 0x1p20, 0x1p30, 0x1p40, 0x1p50, 0x1p60, 0x1p70, 0x1p80, 512, sizeof(int) },
 };
 
 /* kilo, mega, giga, ...
  */
-struct suftab suftab_si = { "kmgtpezy", { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 } };
+struct suftab suftab_si = { "kmgtpezy", { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }, };
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
 struct suftab suftab_time_t = {
     "smhdwyc",
-    { 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul, }
+    { 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul },
 };
 
 typedef struct timespec tsi_t;
@@ -1549,5 +1547,3 @@ bnt_check_main(void *arg)
 
     pthread_exit(NULL);
 }
-
-/* clang-format on */

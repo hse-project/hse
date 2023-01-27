@@ -19,7 +19,7 @@ const char *mclass_policy_names[] = { "capacity_only",
                                       "staging_max_capacity",
                                       "staging_min_capacity",
                                       "pmem_only",
-                                      "pmem_max_capacity"};
+                                      "pmem_max_capacity", };
 
 /*
  * Expressed using 3 bits:
@@ -44,7 +44,7 @@ const char *mclass_policy_defaults[] = { NULL,
                                          "pmem_only",
                                          "pmem_max_capacity",
                                          NULL,
-                                         "pmem_max_capacity"};
+                                         "pmem_max_capacity", };
 
 const char **
 mclass_policy_names_get()
@@ -94,7 +94,7 @@ static const struct mclass_policy_map dtypes[] = {
     { HSE_MPOLICY_DTYPE_VALUE, "values" },
 };
 
-static const struct mclass_policy_map *mclass_policy_fields[] = { agegroups, dtypes };
+static const struct mclass_policy_map *mclass_policy_fields[] = { agegroups, dtypes, };
 
 static const unsigned int mclass_policy_nentries[] = {
     NELEM(agegroups),
@@ -110,9 +110,8 @@ mclass_policy_get_num_fields()
 const struct mclass_policy_map *
 mclass_policy_get_map(int index)
 {
-    if (index < mclass_policy_get_num_fields()) {
+    if (index < mclass_policy_get_num_fields())
         return mclass_policy_fields[index];
-    }
 
     return 0;
 }

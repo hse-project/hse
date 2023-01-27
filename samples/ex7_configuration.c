@@ -37,7 +37,7 @@ main(int argc, const char **argv)
     const char *     home;
     const char *     hi_paramv[] = { "logging.destination=stdout",
                                 "logging.level=3",
-                                "rest.enabled=false" };
+                                "rest.enabled=false", };
     const size_t     hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
     const char *     kvdb_paramv[] = { "mode=rdonly" };
     const size_t     kvdb_paramc = sizeof(kvdb_paramv) / sizeof(kvdb_paramv[0]);

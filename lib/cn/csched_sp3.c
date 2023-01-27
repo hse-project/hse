@@ -416,6 +416,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
     vblk_read_efficiency =
         safe_div(1.0 * ms->ms_val_bytes_out, ms->ms_vblk_read1.op_size + ms->ms_vblk_read2.op_size);
 
+    // clang-format off
     log_info(
         "type=%s job=%u action=%s rule=%s "
         "cnid=%lu nodeid=%lu leaf=%u pct=%3.1f "
@@ -446,6 +447,7 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         ms->ms_kblk_read.op_cnt, ms->ms_kblk_read.op_size, ms->ms_kblk_read.op_time,
         ms->ms_kblk_read_wait.op_cnt, ms->ms_kblk_read_wait.op_time,
         ms->ms_vblk_wasted_reads, qt, pt, bt, ct);
+    // clang-format on
 }
 
 static void
@@ -556,15 +558,17 @@ sp3_refresh_samp(struct sp3 *sp)
     sp->samp_max = samp;
     sp->samp_lpct = leaf;
 
+    // clang-format off
     log_info("sp3 samp derived params:"
-             " samp lo/hi/max: %.3f %.3f %.3f"
-             " good/leaf ratio min/lo/hi: %.3f %.3f %.3f",
-             scale2dbl(sp->samp_lwm),
-             scale2dbl(sp->samp_hwm),
-             scale2dbl(sp->samp_max),
-             scale2dbl(good_min),
-             scale2dbl(good_lwm),
-             scale2dbl(good_hwm));
+        " samp lo/hi/max: %.3f %.3f %.3f"
+        " good/leaf ratio min/lo/hi: %.3f %.3f %.3f",
+        scale2dbl(sp->samp_lwm),
+        scale2dbl(sp->samp_hwm),
+        scale2dbl(sp->samp_max),
+        scale2dbl(good_min),
+        scale2dbl(good_lwm),
+        scale2dbl(good_hwm));
+    // clang-format on
 }
 
 static void
@@ -655,14 +659,16 @@ sp3_refresh_thresholds(struct sp3 *sp)
         sp3_dirty_node(sp, spn2tn(spn));
     }
 
+    // clang-format off
     log_info("sp3 thresholds: rspill: min/max/wlenmb %u/%u/%lu, lcomp: max/pct/keys %u/%u%%/%u,"
              " llen: min/max %u/%u, idlec: %u, idlem: %u, lscat: hwm/max %u/%u split %u",
-             thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_wlen_max >> 20,
-             thresh.lcomp_runlen_max, thresh.lcomp_join_pct, thresh.lcomp_split_keys >> 20,
-             thresh.llen_runlen_min, thresh.llen_runlen_max,
-             thresh.llen_idlec, thresh.llen_idlem,
-             thresh.lscat_hwm, thresh.lscat_runlen_max,
-             thresh.split_cnt_max);
+        thresh.rspill_runlen_min, thresh.rspill_runlen_max, thresh.rspill_wlen_max >> 20,
+        thresh.lcomp_runlen_max, thresh.lcomp_join_pct, thresh.lcomp_split_keys >> 20,
+        thresh.llen_runlen_min, thresh.llen_runlen_max,
+        thresh.llen_idlec, thresh.llen_idlem,
+        thresh.lscat_hwm, thresh.lscat_runlen_max,
+        thresh.split_cnt_max);
+    // clang-format on
 }
 
 static void
@@ -984,6 +990,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
     }
 
     if (debug_dirty_node(sp)) {
+        // clang-format off
         log_info(
             "cnid=%lu nodeid=%-2lu kvsets=%-2lu "
             "keys=%lu uniq=%lu tombs=%lu ptombs=%lu "
@@ -993,6 +1000,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
             cn_ns_keys(ns), cn_ns_keys_uniq(ns), cn_ns_tombs(ns), cn_ns_ptombs(ns),
             cn_ns_alen(ns), cn_ns_clen(ns), cn_ns_vgarb(ns),
             garbage, scatter);
+        // clang-format on
     }
 }
 
@@ -1749,6 +1757,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
         const ulong hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
         const uint busycnt = atomic_read(&w->cw_node->tn_busycnt) >> 16;
 
+        // clang-format off
         log_info(
             "job=%u jcnt=%u bcnt=%u qnum=%u reduce=%d "
             "cnid=%lu comp=%s rule=%s nodeid=%lu "
@@ -1760,6 +1769,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
             w->cw_nk, w->cw_nv, w->cw_kvset_cnt,
             cn_ns_kvsets(ns), cn_ns_keys(ns), hll_pct, cn_ns_clen(ns) >> MB_SHIFT,
             cn_ns_samp(ns));
+        // clang-format on
     }
 }
 
@@ -1835,10 +1845,12 @@ sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
         spn = (void *)(rbe - tx);
         tn = spn2tn(spn);
 
+        // clang-format off
         log_info("cn_rbt rbt=%u item=%u weight=%lx cnid=%lu nodeid=%lu len=%u "
             "lalen_b=%ld lgood_b=%ld lgarb_b=%ld", tx, count, rbe->rbe_weight,
-                 tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns),
+            tn->tn_tree->cnid, tn->tn_nodeid, cn_ns_kvsets(&tn->tn_ns),
             tn->tn_samp.l_alen, tn->tn_samp.l_good, tn->tn_samp.l_alen - tn->tn_samp.l_good);
+        // clang-format on
 
         if (count++ == count_max)
             break;
@@ -1857,12 +1869,14 @@ sp3_tree_shape_log(const struct cn_tree_node *tn, bool bad, const char *category
     ns = &tn->tn_ns;
     hll_pct = cn_ns_keys(ns) ? ((100 * ns->ns_keys_uniq) / cn_ns_keys(ns)) : 0;
 
+    // clang-format off
     log_info("%4s %s cnid=%lu nodeid=%-3lu "
-             "kvsets=%-2u alen=%lum wlen=%lum "
-             "clen=%lum hll%%=%lu samp=%u",
-             bad ? "bad" : "good", category, tn->tn_tree->cnid, tn->tn_nodeid,
-             cn_ns_kvsets(ns), cn_ns_alen(ns) >> MB_SHIFT, cn_ns_wlen(ns) >> MB_SHIFT,
-             cn_ns_clen(ns) >> MB_SHIFT, hll_pct, cn_ns_samp(ns));
+        "kvsets=%-2u alen=%lum wlen=%lum "
+        "clen=%lum hll%%=%lu samp=%u",
+        bad ? "bad" : "good", category, tn->tn_tree->cnid, tn->tn_nodeid,
+        cn_ns_kvsets(ns), cn_ns_alen(ns) >> MB_SHIFT, cn_ns_wlen(ns) >> MB_SHIFT,
+        cn_ns_clen(ns) >> MB_SHIFT, hll_pct, cn_ns_samp(ns));
+    // clang-format on
 }
 
 /**
@@ -2388,15 +2402,16 @@ sp3_stats(struct sp3 *sp)
         if (stats->ms_jobs == 0)
             continue;
 
+        // clang-format off
         log_info("%8s %6u %12lu %12lu %7lu %7lu %8lu %8lu",
-                 (stats == sp->sp_mstatsv) ? "total" : cn_rule2str(stats - sp->sp_mstatsv),
-                 stats->ms_jobs,
-                 stats->ms_keys_in, stats->ms_keys_out,
-                 stats->ms_kblk_read.op_size >> 20,
-                 stats->ms_kblk_write.op_size >> 20,
-                 (stats->ms_vblk_read1.op_size +
-                  stats->ms_vblk_read2.op_size) >> 20,
-                 stats->ms_vblk_write.op_size >> 20);
+            (stats == sp->sp_mstatsv) ? "total" : cn_rule2str(stats - sp->sp_mstatsv),
+            stats->ms_jobs,
+            stats->ms_keys_in, stats->ms_keys_out,
+            stats->ms_kblk_read.op_size >> 20,
+            stats->ms_kblk_write.op_size >> 20,
+            (stats->ms_vblk_read1.op_size + stats->ms_vblk_read2.op_size) >> 20,
+            stats->ms_vblk_write.op_size >> 20);
+        // clang-format on
 
         cn_merge_stats_add(&sp->sp_mstatsv[CN_RULE_NONE], stats);
     }

@@ -232,6 +232,7 @@ hse_err_to_errno(hse_err_t err);
 #include <hse/tools/parm_groups.h>
 
 
+// clang-format off
 const char    *cf_dir = "/var/tmp";
 char           chk_path[PATH_MAX];
 char           kvdb_home_realpath[PATH_MAX];
@@ -293,6 +294,7 @@ struct svec         db_oparms = { 0 };
 struct svec         kv_oparms_notxn = { 0 };
 struct svec         kv_oparms_txn = { 0 };
 bool                kvs_txn;
+// clang-format on
 
 char perfc_buf[32];
 int perfc = -1;
@@ -302,27 +304,25 @@ struct suftab {
     double      mult[]; /* list of multipliers */
 };
 
-/* clang-format off */
-
 /* kibibytes, mebibytes, ..., including the dd suffixes b and w.
  */
 struct suftab suftab_iec = {
     "kmgtpezybw",
-    { 0x1p10, 0x1p20, 0x1p30, 0x1p40, 0x1p50, 0x1p60, 0x1p70, 0x1p80, 512, sizeof(int) }
+    { 0x1p10, 0x1p20, 0x1p30, 0x1p40, 0x1p50, 0x1p60, 0x1p70, 0x1p80, 512, sizeof(int) },
 };
 
 /* kilo, mega, giga, ...
  */
 struct suftab suftab_si = {
     "kmgtpezy",
-    { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }
+    { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 },
 };
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
 struct suftab suftab_time_t = {
     "smhdwyc",
-    { 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul }
+    { 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul },
 };
 
 sig_atomic_t sigusr1, sigusr2, sigalrm, sigint;
@@ -349,14 +349,12 @@ enum km_op {
     OP_TXN_ABORT,
 };
 
-#define KMT_LAT_REC_CNT ((OP_KVS_DEL - OP_KVS_GET) + 1)
-
 static const char *const op2txt[] = {
     "null", "start", "lock", "unlock", "alloc", "abort", "commit", "delete", "read",  "write",
     "get",  "put",   "del",  "verify", "run",   "exit",  "begin",  "commit", "abort", "?",
 };
 
-/* clang-format on */
+#define KMT_LAT_REC_CNT ((OP_KVS_DEL - OP_KVS_GET) + 1)
 
 struct km_stats {
     enum km_op op;
@@ -1696,7 +1694,7 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     int             i;
 
     if (!once++) {
-        printf("%7s %17s %17s %5s %9s %16s %-32s\n",
+        printf("%7s %17s %17s %5s %9s %16s %-32s\n", // eol
                "RID",
                "HASH", "CHK_HASH",
                "KLEN", "VLEN",
@@ -1719,17 +1717,15 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
 
     dst = vbuf;
     for (i = 0; i < 32 && i < r->vlen; ++i) {
-        const char tab[] = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-        };
+        const char tab[] = { // eol
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
         *dst++ = tab[(r->data[i] >> 4) & 0x0f];
         *dst++ = tab[r->data[i] & 0x0f];
     }
     *dst = '\000';
 
-    printf("%7lu %17lx %17lx %5u %9u %16lx %-32s %s\n",
+    printf("%7lu %17lx %17lx %5u %9u %16lx %-32s %s\n", // eol
            r->rid,
            r->hash, chk_hash,
            r->klen, r->vlen,
@@ -3321,6 +3317,7 @@ status(
                 width_tfs = n;
         }
 
+        // clang-format off
         printf(
             "\n%-6s %*s %6s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %6s %*s %*s %*s %5s %5s\n",
             "MODE",
@@ -3341,6 +3338,7 @@ status(
             width_secs, "MSECS",
             xstats ? 7 : 10, xstats ? "ELAPSED" : "DATE",
             "tRA", "tWA");
+        // clang-format on
     }
 
     errmsg[0] = '\000';
@@ -3406,6 +3404,7 @@ status(
         }
 
         if (verbosity > 1 || errmsg[0]) {
+            // clang-format off
             printf(
                 "%-6s %*u %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*s %*lu %*ld"
                 " %s\n",
@@ -3427,6 +3426,7 @@ status(
                 width_secs, total_ms,
                 xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
                 errmsg);
+            // clang-format on
 
             errmsg[0] = '\000';
         }
@@ -3445,6 +3445,7 @@ status(
         ++inst;
     }
 
+    // clang-format off
     printf(
         "%-6s %*d %6s %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %*lu %6lu %*ld %*lu %*ld"
         " %5.2lf %5.2lf\n",
@@ -3467,6 +3468,7 @@ status(
         xstats ? 7 : 10, tv_now.tv_sec - (xstats ? tv_init.tv_sec : 0),
         getbytes_total ? (double)(rusage.ru_inblock * 512) / getbytes_total : 0,
         putbytes_total ? (double)(rusage.ru_oublock * 512) / putbytes_total : 0);
+    // clang-format on
 
     if (mark >= 1000)
         fflush(stdout);
@@ -3615,14 +3617,16 @@ print_latency(struct km_impl *impl, const char *mode)
     bool                  print_hdr = true;
     struct hdr_histogram *histogram;
 
+    // clang-format off
     snprintf(hdr, sizeof(hdr),
-             "%-9s %8s %8s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s",
-             "LATMODE", "PHASE", "OP",
-             "SAMPLES", "SAMPLES_ERR",
-             "MIN_us", "MAX_us", "AVG_us",
-             "L90_us", "L95_us",
-             "L99_us", "L99.9_us",
-             "L99.99_us");
+        "%-9s %8s %8s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s",
+        "LATMODE", "PHASE", "OP",
+        "SAMPLES", "SAMPLES_ERR",
+        "MIN_us", "MAX_us", "AVG_us",
+        "L90_us", "L95_us",
+        "L99_us", "L99.9_us",
+        "L99.99_us");
+    // clang-format on
 
     for (i = 0; i < KMT_LAT_REC_CNT; i++) {
         unsigned long min, max, avg, lt90, lt95, lt99, lt999, lt9999;

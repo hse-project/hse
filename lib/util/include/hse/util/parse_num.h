@@ -92,7 +92,9 @@ parse_long(const char *str, long *result);
 
 #pragma GCC visibility pop
 
-/* definitions */
+// clang-format off
+/* Definitions - these are macros expanded into functions
+ */
 __parse_unsigned_func(parse_u8, uint8_t, (uint8_t)0, UINT8_MAX)
 __parse_signed_func(parse_s8, int8_t, INT8_MIN, INT8_MAX)
 
@@ -110,5 +112,6 @@ __parse_signed_func(parse_int, int, INT_MIN, INT_MAX)
 
 __parse_unsigned_func(parse_ulong, unsigned long, (unsigned long)0, ULONG_MAX)
 __parse_signed_func(parse_long, long, LONG_MIN, LONG_MAX)
+// clang-format on
 
 #endif

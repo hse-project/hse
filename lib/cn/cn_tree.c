@@ -2083,20 +2083,24 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          * Canceled jobs are expected, so there's no need to log them
          * unless debugging.
          */
-        if (!w->cw_canceled)
-            log_errx("compaction error sts/job %u action %s rule %s"
-                     " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d"
-                     " build_ms %lu",
-                     w->cw_err,
-                     sts_job_id_get(&w->cw_job),
-                     cn_action2str(w->cw_action),
-                     cn_rule2str(w->cw_rule),
-                     cn_tree_get_cnid(w->cw_tree),
-                     w->cw_node->tn_nodeid,
-                     w->cw_dgen_hi_min,
-                     w->cw_dgen_hi,
-                     w->cw_tree->ct_rspills_wedged,
-                     (w->cw_t3_build - w->cw_t2_prep) / 1000000);
+        if (!w->cw_canceled) {
+            // clang-format off
+            log_errx(
+                "compaction error sts/job %u action %s rule %s"
+                " cnid %lu nodeid %lu dgenlo %lu dgenhi %lu wedge %d"
+                " build_ms %lu",
+                w->cw_err,
+                sts_job_id_get(&w->cw_job),
+                cn_action2str(w->cw_action),
+                cn_rule2str(w->cw_rule),
+                cn_tree_get_cnid(w->cw_tree),
+                w->cw_node->tn_nodeid,
+                w->cw_dgen_hi_min,
+                w->cw_dgen_hi,
+                w->cw_tree->ct_rspills_wedged,
+                (w->cw_t3_build - w->cw_t2_prep) / 1000000);
+            // clang-format on
+        }
 
         if (split) {
             for (uint i = 0; i < w->cw_outc && w->cw_split.commit; i++) {

@@ -31,7 +31,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     char   errinfo[256];
     char   errbuf[300], *errmsg;
     const char *file;
-    int    rval, i;
+    int    rval, i, line;
     merr_t err;
 
     rval = 0;
@@ -53,8 +53,14 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     ASSERT_EQ(0, strcmp(errinfo, "success"));
 
     rval = EINVAL;
+
+    // clang-format off
+    // - cannot let clang-format add or remove newlines
     err = merr(rval);
-    ASSERT_EQ(__LINE__ - 1, merr_lineno(err)); /* Hardcoded __LINE__-1 */
+    line = __LINE__ - 1; // line number were merr() was used
+    // clang-format on
+
+    ASSERT_EQ(line, merr_lineno(err));
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_NE(NULL, strstr(_hse_merr_file, merr_file(err)));
 
@@ -111,7 +117,12 @@ MTF_DEFINE_UTEST(hse_err_test, ctx)
     err = merr(EUSERS);
     ASSERT_EQ(0, merr_ctx(err));
 
-    err = merrx(ERESTART, 1); line = __LINE__;
+    // clang-format off
+    // - cannot let clang-format add or remove newlines
+    err = merrx(ERESTART, 1);
+    line = __LINE__ - 1; // line number were merrx() was used
+    // clang-format on
+
     rc = merr_errno(err);
     ctx = merr_ctx(err);
     ASSERT_EQ(ERESTART, rc);
