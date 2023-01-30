@@ -18,7 +18,7 @@
 #include <hse/util/fmt.h>
 #include <hse/util/minmax.h>
 
-#include <tools/common.h>
+#include <hse/tools/common.h>
 
 struct app_opts Opts;
 

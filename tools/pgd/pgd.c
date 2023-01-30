@@ -30,8 +30,8 @@
 #include <hse/hse.h>
 #include <hse/util/fmt.h>
 
-#include <tools/common.h>
-#include <tools/parm_groups.h>
+#include <hse/tools/common.h>
+#include <hse/tools/parm_groups.h>
 
 enum Actions { PUT = 0, GET = 1, DEL = 2, VFY = 3 };
 

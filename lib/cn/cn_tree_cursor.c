@@ -29,7 +29,7 @@
 
 #include <hse/ikvdb/cn.h>
 
-#include <cn/cn_cursor.h>
+#include "cn/cn_cursor.h"
 
 #include "route.h"
 

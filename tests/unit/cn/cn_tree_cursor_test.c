@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/util/base.h>
 #include <hse/util/keycmp.h>
@@ -13,11 +13,11 @@
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/omf_kmd.h>
 
-#include <cn/cn_tree_cursor.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_cursor.h>
-#include <cn/kvset.h>
-#include <cn/route.h>
+#include "cn/cn_tree_cursor.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/cn_cursor.h"
+#include "cn/kvset.h"
+#include "cn/route.h"
 
 struct cn_kv_item;
 

@@ -11,7 +11,7 @@
 #include <hse/ikvdb/hse_gparams.h>
 
 #if HSE_MOCKING
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 #endif
 
 #include "common.h"

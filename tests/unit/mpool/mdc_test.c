@@ -6,16 +6,16 @@
 #include <fcntl.h>
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/minmax.h>
 
 #include <hse/mpool/mpool.h>
-#include <mdc.h>
-#include <mdc_file.h>
+#include "mdc.h"
+#include "mdc_file.h"
 
 #include "common.h"
 

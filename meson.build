@@ -480,21 +480,6 @@ if get_option('tests')
     subdir('tests')
 endif
 
-format = find_program('scripts/dev/format.sh')
-run_target(
-    'format',
-    command: [
-        format,
-    ]
-)
-run_target(
-    'format-check',
-    command: [
-        format,
-        '-c',
-    ]
-)
-
 run_target(
     'checkoss',
     command: [

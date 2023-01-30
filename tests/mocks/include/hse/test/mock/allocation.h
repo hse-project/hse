@@ -8,7 +8,7 @@
 
 #include <stddef.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 /* MTF_MOCK_DECL(allocation) */
 

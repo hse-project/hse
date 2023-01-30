@@ -3,7 +3,7 @@
  * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/ikvdb/kvdb_modes.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_modes_test)

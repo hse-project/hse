@@ -23,9 +23,9 @@
 #include <hse/util/compiler.h>
 #include <hse/util/parse_num.h>
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
-#include <tools/key_generation.h>
+#include <hse/tools/key_generation.h>
 
 /* Default key/value lengths */
 #define KLEN_DEFAULT   23

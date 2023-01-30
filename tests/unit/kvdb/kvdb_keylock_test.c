@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/atomic.h>
@@ -16,7 +16,7 @@
 #include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/kvdb_ctxn.h>
 
-#include <kvdb/kvdb_keylock.h>
+#include "kvdb/kvdb_keylock.h"
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 

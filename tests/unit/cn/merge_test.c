@@ -8,9 +8,9 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <mocks/mock_kvset_builder.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset_builder.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/parse_num.h>
@@ -24,19 +24,19 @@
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cndb.h>
 
-#include <cn/cn_tree.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_compact.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/spill.h>
-#include <cn/kcompact.h>
-#include <cn/cn_metrics.h>
-#include <cn/kvs_mblk_desc.h>
-#include <cn/kv_iterator.h>
-#include <cn/kvset.h>
-#include <cn/route.h>
-#include <cn/omf.h>
-#include <cn/vgmap.h>
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_compact.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/spill.h"
+#include "cn/kcompact.h"
+#include "cn/cn_metrics.h"
+#include "cn/kvs_mblk_desc.h"
+#include "cn/kv_iterator.h"
+#include "cn/kvset.h"
+#include "cn/route.h"
+#include "cn/omf.h"
+#include "cn/vgmap.h"
 
 #include <dirent.h>
 

@@ -3,11 +3,11 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
-#include <cn/kvset.c>
-#include <cndb/txn.h>
+#include "cn/kvset.c"
+#include "cndb/txn.h"
 
 #define CHECK_TRUE(cond) if (!(cond)) {                                      \
                             fprintf(stderr, "Assert at line:%d\n", __LINE__); \

@@ -7,18 +7,18 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/keycmp.h>
 
 #include <hse/ikvdb/limits.h>
 
-#include <cn/kvset.h>
-#include <cn/cn_tree_internal.h>
+#include "cn/kvset.h"
+#include "cn/cn_tree_internal.h"
 
-#include <mocks/mock_mpool.h>
-#include <mocks/mock_kvset.h>
+#include <hse/test/mock/mock_mpool.h>
+#include <hse/test/mock/mock_kvset.h>
 
 /* ------------------------------------------------------------
  * Fake kvset data

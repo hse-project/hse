@@ -12,7 +12,7 @@
 
 #include <hse/logging/logging.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 int verbose = 0;
 

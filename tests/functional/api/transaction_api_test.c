@@ -11,7 +11,7 @@
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 struct hse_kvdb *kvdb_handle = NULL;
 struct hse_kvs  *kvs_handle = NULL;

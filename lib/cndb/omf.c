@@ -7,7 +7,7 @@
 
 #include <hse/ikvdb/cn.h>
 
-#include <cn/kvset.h>
+#include "cn/kvset.h"
 
 #include "omf.h"
 

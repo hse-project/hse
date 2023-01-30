@@ -10,7 +10,7 @@
 
 #include <hse/error/merr.h>
 
-#include <kvdb/kvdb_pfxlock.h>
+#include "kvdb/kvdb_pfxlock.h"
 
 struct kvdb_ctxn_pfxlock;
 struct kvdb_pfxlock;

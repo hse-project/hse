@@ -3,10 +3,10 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 #include <hse/util/xrand.h>
-#include <mock/alloc_tester.h>
+#include <hse/test/mock/alloc_tester.h>
 
 #include <hse/util/platform.h>
 

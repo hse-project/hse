@@ -9,7 +9,7 @@
 #include <hse/util/parse_num.h>
 #include <hse/util/storage.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #define HSE_SUCCESS 0
 

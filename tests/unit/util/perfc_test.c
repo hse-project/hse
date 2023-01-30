@@ -7,7 +7,7 @@
 
 #include <rbtree.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>

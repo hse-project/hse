@@ -27,7 +27,7 @@ main(int argc, char **argv)
 
     const char * paramv[] = { "logging.destination=stdout",
                              "logging.level=3",
-                             "rest.enabled=false" };
+                             "rest.enabled=false", };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     if (argc < 3) {

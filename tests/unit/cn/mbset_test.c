@@ -6,12 +6,12 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/error/merr.h>
 #include <hse/mpool/mpool.h>
 
-#include <cn/mbset.h>
+#include "cn/mbset.h"
 
 #define ds ((struct mpool *)1)
 

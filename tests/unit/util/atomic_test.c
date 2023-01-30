@@ -10,7 +10,7 @@
 #include <hse/util/atomic.h>
 
 #include "multithreaded_tester.h"
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(atomic_test);
 

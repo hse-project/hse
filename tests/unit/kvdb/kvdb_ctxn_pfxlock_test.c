@@ -5,13 +5,13 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/util/xrand.h>
 
-#include <kvdb/kvdb_ctxn_pfxlock.h>
-#include <kvdb/viewset.h>
+#include "kvdb/kvdb_ctxn_pfxlock.h"
+#include "kvdb/viewset.h"
 
 #include <hse/ikvdb/key_hash.h>
 

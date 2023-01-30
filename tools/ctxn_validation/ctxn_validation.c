@@ -24,7 +24,7 @@
 #include <hse/util/compiler.h>
 #include <hse/util/minmax.h>
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
 const char *mp_name, *kvs_name;
 sig_atomic_t done;

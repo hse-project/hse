@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
@@ -18,10 +18,10 @@
 #include <hse/mpool/mpool.h>
 #include <hse/mpool/mcache.h>
 
-#include <mblock_file.h>
-#include <mblock_fset.h>
-#include <mclass.h>
-#include <mpool_internal.h>
+#include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mclass.h"
+#include "mpool_internal.h"
 
 #include "common.h"
 

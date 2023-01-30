@@ -1,87 +1,121 @@
-#!/bin/sh
+#!/bin/bash
 
 # SPDX-License-Identifier: Apache-2.0
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
-if ! type clang-format > /dev/null 2>&1; then
-    >&2 echo "clang-format not found"
-    exit 1
-fi
+CMD=${0##*/}
 
-if ! type black > /dev/null 2>&1; then
-    >&2 echo "black not found"
-    exit 1
-fi
+CLANG_FORMAT_VERSION=13
+CLANG_FORMAT_REGEX='(1[3-9]|[2-9][0-9])'
 
-usage () {
-    printf "%s\n\n" "Usage: format [OPTIONS]"
-    printf "\t%s\n\n" "Formatting script for HSE source code and files"
-    printf "%s\n" "Options:"
-    printf "\t%s\n" "-h\tPrint help"
-    printf "\t%s\n" "-c\tCheck if files are formatted properly"
+set -u
+
+err () {
+    prefix="$CMD: "
+    while (( $# > 0 )); do
+        echo "$prefix$1"
+        shift
+        prefix=
+    done 1>&2
+    exit 1
 }
 
-# Path to source root. MESON_SOURCE_ROOT is set during script runs, but this
-# script won't always be run through Meson.
-source_root=$(realpath "$(dirname "$(dirname" $(dirname "$0")")")")
+syntax () {
+    err "$@" "Use -h for help"
+}
 
-files=$(find \
-    "${source_root}/cli" \
-    "${source_root}/hsejni" \
-    "${source_root}/include" \
-    "${source_root}/lib" \
-    "${source_root}/samples" \
-    "${source_root}/tests" \
-    "${source_root}/tools" \
-    -type f \( -name "*.[ch]" -o -name "*.h.in" \) -print)
+help () {
+    long_help=$1
+    cat<<EOF
+Usage: $CMD [options] [<path> ...]
+$CMD uses clang-format to recursively format and check HSE source code.
+Options:
+  -c  check if files are formatted properly
+  -h  print help
+  -H  print more help
+  -q  be quiet
+  -v  be verbose
+EOF
 
-clang_format_help=$(clang-format --help)
-echo "$clang_format_help" | grep -- "--Werror"
-clang_format_has_werror=$?
-echo "$clang_format_help" | grep -- "--dry-run"
-clang_format_has_dry_run=$?
+    if (( long_help == 0)); then
+       return
+    fi
+
+    cat <<EOF
+
+$CMD works recursively on all '*.c' and '*.h' files under each given path.  If
+no path is given, the current working directory is used.
+
+Notes:
+- $CMD must be executed from the root of the HSE source tree.
+- Files in subprojects are skipped.
+- Requires clang-format version $CLANG_FORMAT_VERSION or higher.
+- Option '-c' exits with 0 status and no output if and only if there are
+  no errors and all checked files are formatted correctly.
+EOF
+}
 
 check=0
-while getopts "hc" arg; do
-    case "${arg}" in
-        h)
-            usage
-            exit 0
-            ;;
-        c)
-            check=1
-            ;;
-        ?)
-            >&2 echo "Invalid option '${arg}'"
-            usage
-            exit 1
-            ;;
-        *) exit 2;;
+verbose=0
+while getopts ":chHv" op; do
+    case "$op" in
+        (c) check=1;;
+        (h) help 0; exit 0;;
+        (H) help 1; exit 0;;
+        (v) verbose=1;;
+        (:) err "Option -$OPTARG requires an argument";;
+        (*) err "Invalid option: -$OPTARG";;
     esac
 done
 
-if [ "$check" -eq 1 ]; then
-    found_issues=0
+# consume parsed command-line arguments
+shift $((OPTIND - 1))
 
-    if [ "$clang_format_has_dry_run" -eq 0 ] && [ "$clang_format_has_werror" -eq 0 ]; then
-        if ! clang-format --style=file --dry-run --Werror "$files"; then
-            found_issues=1
+if ! type clang-format > /dev/null 2>&1; then
+    err "clang-format not found"
+fi
+
+# don't need pipefail here bc if clang-format fails, so will grep
+if ! clang-format --version 2>&1 | grep -qPi "^clang-format version $CLANG_FORMAT_REGEX"; then
+    err "Need clang-format version $CLANG_FORMAT_VERSION or higher"
+fi
+
+if [[ ! -f lib/kvdb/meson.build ]]; then
+    err "Running from a directory that doesn't seem to be the top of an HSE source tree"
+fi
+
+if (( $# == 0 )); then
+    set -- .  # sets path to current directory
+fi
+
+for p in "$@"; do
+    if [[ -d "$p" ]]; then
+        :
+    elif [[ -f "$p" ]]; then
+        if [[ "$p" =~ .*\.[ch] ]]; then
+            :
+        else
+            err "File '$p' is not a C source file"
         fi
     else
-        if ! clang-format --style=file -i "$files" && git diff-files --quiet; then
-            found_issues=1
-        fi
+        err "Path '$p' is neither a directory or a file"
     fi
+done
 
-    if ! black --check --diff "$source_root"; then
-        found_issues=1
-    fi
-
-    if [ "$found_issues" -ne 0 ]; then
-        exit 2
-    fi
-else
-    clang-format --style=file -i "$files"
-    black "$source_root"
+clang_format_extra_flags=()
+if (( verbose )); then
+    clang_format_extra_flags+=("--verbose")
 fi
+if (( check )); then
+    clang_format_extra_flags+=("--dry-run")
+fi
+
+# need pipefail in unexpected case that find errors out
+set -o pipefail
+find "$@" -name .git -prune -o -name subprojects -prune -o \
+     -type f \( -name '*.[ch]' -o -name '*..h.in' \) -print0 \
+    | xargs -r0 clang-format "${clang_format_extra_flags[@]}" \
+            --Werror -style=file -i -fallback-style=none
+
+exit $?

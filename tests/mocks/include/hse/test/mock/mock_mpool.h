@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/mpool/mpool.h>
 

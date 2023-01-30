@@ -14,8 +14,8 @@
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/util/compiler.h>
 
-#include <cndb/omf.h>
-#include <cn/kvset.h>
+#include "cndb/omf.h"
+#include "cn/kvset.h"
 
 struct cndb_rec_version {
     uint16_t version;

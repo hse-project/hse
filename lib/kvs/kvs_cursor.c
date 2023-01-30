@@ -28,7 +28,7 @@
 #include <hse/ikvdb/cursor.h>
 
 #include <c0/c0_cursor.h>
-#include <cn/cn_cursor.h>
+#include "cn/cn_cursor.h"
 
 /* clang-format off */
 

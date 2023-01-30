@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mock/api.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/hse.h>
 
@@ -18,7 +18,7 @@
 
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/cn.h>
-#include <cn/cn_cursor.h>
+#include "cn/cn_cursor.h"
 #include <hse/ikvdb/c0.h>
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/wal.h>
@@ -26,8 +26,8 @@
 #include <hse/ikvdb/kvdb_meta.h>
 #include <hse/ikvdb/omf_version.h>
 
-#include <mocks/mock_kvset_builder.h>
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_kvset_builder.h>
+#include <hse/test/mock/mock_mpool.h>
 
 #include <bsd/string.h>
 

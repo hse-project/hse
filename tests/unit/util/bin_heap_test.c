@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mock/api.h>
-#include <mtf/framework.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/bin_heap.h>

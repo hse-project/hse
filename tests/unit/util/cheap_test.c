@@ -12,7 +12,7 @@
 
 #include "cheap_testlib.h"
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(cheap_test);
 

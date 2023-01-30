@@ -12,8 +12,8 @@
 #include <hse/ikvdb/diag_kvdb.h>
 #include <hse/mpool/mpool.h>
 
-#include <cndb/omf.h>
-#include <cn/kvset.h>
+#include "cndb/omf.h"
+#include "cn/kvset.h"
 
 #include "cndb_reader.h"
 #include "fatal.h"

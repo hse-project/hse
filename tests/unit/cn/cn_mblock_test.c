@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/util/platform.h>
 #include <hse/util/log2.h>
@@ -11,7 +11,7 @@
 
 #include <hse/ikvdb/limits.h>
 
-#include <cn/cn_mblocks.h>
+#include "cn/cn_mblocks.h"
 
 #define KiB (((size_t)1) << 10)
 #define MiB (((size_t)1) << 20)

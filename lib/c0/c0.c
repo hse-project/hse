@@ -25,7 +25,7 @@
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0_kvmultiset.h>
 
-#include <kvdb/kvdb_keylock.h>
+#include "kvdb/kvdb_keylock.h"
 
 #include "c0_cursor.h"
 

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <tools/key_generation.h>
+#include <hse/tools/key_generation.h>
 
 #include "key_generation_private.h"
 

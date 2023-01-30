@@ -17,7 +17,7 @@
 
 #include <bsd/string.h>
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
 struct mocked_mblock {
     void * mb_base;

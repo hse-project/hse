@@ -3,8 +3,8 @@
  * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>
@@ -14,9 +14,9 @@
 #include <hse/ikvdb/omf_version.h>
 
 #include <hse/mpool/mpool.h>
-#include <mblock_file.h>
-#include <mblock_fset.h>
-#include <mpool_internal.h>
+#include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mpool_internal.h"
 
 #include <limits.h>
 #include <fcntl.h>

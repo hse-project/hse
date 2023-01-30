@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/alloc_tester.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/alloc_tester.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
@@ -20,14 +20,14 @@
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/tuple.h>
 
-#include <cn/hblock_builder.h>
-#include <cn/kblock_builder.h>
-#include <cn/kblock_reader.h>
-#include <cn/omf.h>
-#include <cn/blk_list.h>
-#include <cn/bloom_reader.h>
+#include "cn/hblock_builder.h"
+#include "cn/kblock_builder.h"
+#include "cn/kblock_reader.h"
+#include "cn/omf.h"
+#include "cn/blk_list.h"
+#include "cn/bloom_reader.h"
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
 const struct kvs_rparams mocked_rp_default = {
     .cn_bloom_create = 1,

@@ -27,8 +27,8 @@
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
 
-#include <tools/common.h>
-#include <tools/parm_groups.h>
+#include <hse/tools/common.h>
+#include <hse/tools/parm_groups.h>
 
 void
 showkey(const void *key, size_t klen)

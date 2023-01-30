@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2020,2022 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/util/keycmp.h>
 #include <hse/error/merr.h>

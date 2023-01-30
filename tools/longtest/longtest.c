@@ -23,7 +23,7 @@
 #include <hse/util/parse_num.h>
 #include <hse/version.h>
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
 #include "rsgen.h"
 

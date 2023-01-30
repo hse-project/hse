@@ -6,13 +6,13 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
 
 #include <hse/mpool/mpool.h>
-#include <mpool_internal.h>
-#include <mclass.h>
-#include <mblock_fset.h>
+#include "mpool_internal.h"
+#include "mclass.h"
+#include "mblock_fset.h"
 
 #include "common.h"
 

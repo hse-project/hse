@@ -5,13 +5,13 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
-#include <mocks/mock_mpool.h>
+#include <hse/test/mock/mock_mpool.h>
 
-#include <cn/blk_list.h>
-#include <cn/hblock_builder.h>
-#include <cn/omf.h>
+#include "cn/blk_list.h"
+#include "cn/hblock_builder.h"
+#include "cn/omf.h"
 
 #include <hse/ikvdb/blk_list.h>
 #include <hse/ikvdb/kvs_cparams.h>
@@ -26,7 +26,7 @@
 #include <hse/util/hlog.h>
 #include <hse/util/keycmp.h>
 
-#include <cn/kvset.h>
+#include "cn/kvset.h"
 
 #define WORK_BUF_SIZE (100 * 1024)
 

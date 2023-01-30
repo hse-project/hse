@@ -36,6 +36,7 @@ struct bf_prob_range {
  * point. The min and max probability of each range are 1000000 times the
  * actual probabilities (i.e., 200000 is 20%), again to avoid floating point.
  */
+// clang-format off
 static const struct bf_prob_range bf_ranges[] = {
     {
         .bfpr_min = 100,
@@ -123,6 +124,8 @@ static const struct bf_prob_range bf_ranges[] = {
         .bfpr_bhdesc = { .bhd_bits_per_elt = 2, .bhd_num_hashes = 1 }
     },
 };
+// clang-format on
+
 
 struct bf_bithash_desc
 bf_compute_bithash_est(uint32_t probability)

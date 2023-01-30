@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <pthread.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/cli/rest/client.h>
 #include <hse/rest/headers.h>

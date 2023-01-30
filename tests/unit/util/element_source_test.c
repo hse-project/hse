@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/test/support/random_buffer.h>
 
 #include <hse/error/merr.h>

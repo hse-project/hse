@@ -6,13 +6,13 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <hse/logging/logging.h>
 #include <hse/util/page.h>
 
-#include <cn/vblock_reader.h>
-#include <cn/omf.h>
+#include "cn/vblock_reader.h"
+#include "cn/omf.h"
 
 struct workqueue_struct *vbr_wq;
 

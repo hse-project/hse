@@ -13,7 +13,7 @@
 
 #include <hse/error/merr.h>
 
-#include <tools/parm_groups.h>
+#include <hse/tools/parm_groups.h>
 
 struct grp {
     char        grp_name[PG_NAME_MAX];

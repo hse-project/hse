@@ -20,7 +20,7 @@
 
 #include <util/lib/bonsai_tree_pvt.h>
 
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 
 #include <sysexits.h>
 

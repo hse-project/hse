@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <mtf/framework.h>
-#include <mock/api.h>
-#include <mock/alloc_tester.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/alloc_tester.h>
 
 #include <hse/error/merr.h>
 
@@ -19,14 +19,14 @@
 #include <hse/ikvdb/csched_rp.h>
 #include <hse/ikvdb/cn.h>
 
-#include <cn/csched_sp3.h>
-#include <cn/csched_sp3_work.h>
-#include <cn/cn_tree_create.h>
-#include <cn/cn_tree_internal.h>
-#include <cn/cn_tree_compact.h>
-#include <cn/kvset.h>
+#include "cn/csched_sp3.h"
+#include "cn/csched_sp3_work.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/cn_tree_compact.h"
+#include "cn/kvset.h"
 
-#include <mocks/mock_kvset.h>
+#include <hse/test/mock/mock_kvset.h>
 
 struct kvdb_health   health;
 struct cn_kvdb       cn_kvdb;

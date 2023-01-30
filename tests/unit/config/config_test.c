@@ -11,7 +11,7 @@
 #include <bsd/string.h>
 
 #include <hse/limits.h>
-#include <mtf/framework.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/config/config.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
