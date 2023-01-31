@@ -57,11 +57,11 @@ struct param_spec {
     enum param_type ps_type;
     size_t          ps_offset;
     size_t          ps_size;
-    param_converter_t *ps_convert /* Converts a JSON node into the expected data */;
-    param_validator_t *ps_validate /* Validates data just after ps_convert() */;
-    param_relation_validator_t *ps_validate_relations /* Validates relations after conversion, validation, and updating of all data */;
-    param_stringify_t *ps_stringify /* Returns a JSON string representation of the value */;
-    param_jsonify_t *ps_jsonify /* Returns a JSON representation of the parameter */;
+    param_converter_t *ps_convert; /* Converts a JSON node into the expected data */
+    param_validator_t *ps_validate; /* Validates data just after ps_convert() */
+    param_relation_validator_t *ps_validate_relations; /* Validates relations after conversion, validation, and updating of all data */
+    param_stringify_t *ps_stringify; /* Returns a JSON string representation of the value */
+    param_jsonify_t *ps_jsonify; /* Returns a JSON representation of the parameter */
     union {
         bool     as_bool;
         uint64_t as_uscalar;
@@ -69,7 +69,7 @@ struct param_spec {
         int      as_enum;
         double   as_double;
         char *   as_string;
-        param_default_builder_t *as_builder /* Used for arrays and objects */;
+        param_default_builder_t *as_builder; /* Used for arrays and objects */
     } ps_default_value;
     union {
         struct {
