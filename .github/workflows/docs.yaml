@@ -7,10 +7,11 @@ on:
       - master
       - "v[0-9]+.[0-9]+"
     paths:
-      - "docs/**"
-      - "include/**/*.h"
-      - "include/**/*.h.in"
+      - "docs/doxygen/**"
+      - "include/**.h"
+      - "include/**.h.in"
       - .github/workflows/docs.yaml
+      - docs/meson.build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -25,13 +26,20 @@ jobs:
       image: ghcr.io/hse-project/ci-images/fedora-37:${{ github.base_ref }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Cache Meson packagecache
+        uses: actions/cache@v3
+        with:
+          path: subprojects/packagecache
+          key: meson-packagecache-fedora-37-${{ hashFiles('subprojects/*.wrap') }}
 
       - name: Setup
         run: |
-          meson setup builddir --fatal-meson-warnings -Dwerror=true -Ddocs=enabled \
-            -Dtests=false -Dtools=disabled -Dbindings=none -Dcli=false \
-            -Dsamples=false
+          meson setup builddir --fatal-meson-warnings -Dwerror=true \
+            -Ddocs=enabled -Dtests=false -Dtools=disabled -Dbindings=none \
+            -Dcli=false -Dsamples=false
 
       - name: Build
         run: |
