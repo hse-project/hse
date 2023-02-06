@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2023 Micron Technology, Inc.
+
+name: REUSE
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  reuse:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout HSE
+      uses: actions/checkout@v3
+
+    - name: Lint
+      uses: fsfe/reuse-action@v1
+      with:
+        args: --include-meson-subprojects lint

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2016 Micron Technology, Inc. All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2016 Micron Technology, Inc.
  */
 
 #ifndef MOCK_ALLOCATION_H

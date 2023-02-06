@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+
 if not get_option('cli') and get_option('tools').disabled() and not get_option('tests')
     libhse_cli_dep = disabler()
     subdir_done()

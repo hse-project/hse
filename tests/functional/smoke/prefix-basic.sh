@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
 
 # This test creates a small kvs in which all keys start with an "x"
 # (the primary prefix) followed by one of 13 secondary prefixes,

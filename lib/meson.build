@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+
 # Options that are interesting to view in extended version output
 build_opts = [
     '-Dc_args=\\"@0@\\"'.format(' '.join(get_option('c_args'))),

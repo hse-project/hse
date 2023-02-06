@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2018,2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * This test loads a number of keys and uses multiple cursors to verify the
+ * SPDX-FileCopyrightText: Copyright 2018 Micron Technology, Inc.
+ */
+
+/* This test loads a number of keys and uses multiple cursors to verify the
  * various ranges of the key space.
  *
  * The test launches multiple threads, and each thread:

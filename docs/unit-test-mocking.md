@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+-->
+
 # Unit Test Mocking
 
 Relationship between mockable functions, mock groups, and source files:
@@ -21,8 +27,9 @@ By convention, the group is named after the header file that declares it.
 ### File `foo.c`
 
 ```
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
  */
 
 #define MTF_MOCK_IMPL_foo              <-- Declare that this file implements functions
@@ -70,8 +77,9 @@ void foo_bar(void)                      <-- This function is not mockable since 
 
 ### File `foo.h`
 ```
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
  */
 
 #ifndef FOO_H
@@ -105,8 +113,9 @@ void foo_bar(void);                     <-- This function is not mockable becaus
 
 ### File `foo_print.h`
 ```
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
  */
 
 #ifndef FOO_PRINT_H

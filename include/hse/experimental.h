@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2023 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
 /* The interfaces defined in this file are provided only for use by

@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+-->
+
 # `hsettp`
 
 This tool allows you to interact with the HSE REST API. It supports various

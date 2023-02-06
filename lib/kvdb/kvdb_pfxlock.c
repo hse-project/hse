@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * The pfxlock is a collection of rbtrees that maintain shared and exclusive locks. Each entry
+ * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+ */
+
+/* The pfxlock is a collection of rbtrees that maintain shared and exclusive locks. Each entry
  * contains an end_seqno which is set at the time of commit/abort. An entry can be deleted only
  * when there are no txns in kvdb which have a start seqno larger than the entry's end_seqno.
  * This is handled by the garbage collector thread.

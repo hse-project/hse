@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * The condvar subsystem is an abstraction of the pthread condition
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* The condvar subsystem is an abstraction of the pthread condition
  * variable APIs that provide the same general semantics in both user
  * and kernel space.
  *
@@ -13,6 +14,7 @@
  * hold that mutex.  In practice this is not a burdensome requirement, as
  * this approach is generally necessary in order to avoid lost wakeups.
  */
+
 #ifndef HSE_PLATFORM_CONDVAR_H
 #define HSE_PLATFORM_CONDVAR_H
 

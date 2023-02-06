@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+-->
+
 # Space Amp
 
 Space amp is loosely defined by the total storage space used to store a database

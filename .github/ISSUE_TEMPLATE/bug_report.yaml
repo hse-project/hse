@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+
 name: Bug Report
 description: Create a bug report to help us improve the project.
 labels: [bug]
@@ -41,6 +45,6 @@ body:
     attributes:
       label: Other System details
       placeholder: |
-        CPU: 6 cores 
-        Memory: 32 GB 
+        CPU: 6 cores
+        Memory: 32 GB
         Storage: 512 GB SSD

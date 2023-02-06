@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+
 run_env.prepend('PYTHONPATH', meson.current_source_dir())
 
 # Suites to exclude based on varying factors

@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * Stress + data integrity test tool for HSE KVDB.
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* Stress + data integrity test tool for HSE KVDB.
  *
  * kvt creates simple database and continuously transforms it such that
  * the integrity of the database can be verified at any time.  It performs

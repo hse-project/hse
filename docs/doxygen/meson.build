@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+
 doxygen = find_program('doxygen', required: get_option('docs'))
 if not doxygen.found()
     subdir_done()

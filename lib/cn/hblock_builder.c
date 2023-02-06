@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
- #define MTF_MOCK_IMPL_hblock_builder
+#define MTF_MOCK_IMPL_hblock_builder
 
 #include <errno.h>
 #include <stdlib.h>

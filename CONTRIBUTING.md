@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+-->
+
 # Contributing to the HSE Project
 
 We welcome your contributions to the HSE project.

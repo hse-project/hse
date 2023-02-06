@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+
 openapi_h = custom_target(
     'openapi.h',
     input: meson.project_source_root() / 'docs/openapi.json',

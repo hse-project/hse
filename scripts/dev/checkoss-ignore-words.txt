@@ -11,12 +11,14 @@ destroy
 die
 died
 dirty
+european
 execute
 executed
 execution
 executioner
 failed
 failure
+fear
 gross
 harder
 hole

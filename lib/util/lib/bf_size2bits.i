@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2018 Micron Technology, Inc.
+ */
+
 /*
  * Machine generated on Thu Aug 23 05:20:50 2018 by:
  *     ./page2prime bf_size2bits 4096 2048

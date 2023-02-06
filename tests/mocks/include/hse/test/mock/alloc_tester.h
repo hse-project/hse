@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
+
 #ifndef MOCK_ALLOC_TESTER_H
 #define MOCK_ALLOC_TESTER_H
 

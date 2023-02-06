@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2022 Micron Technology, Inc. All rights reserved.
+# SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
 
 if ! type clang-tidy > /dev/null 2>&1; then
     >&2 echo "clang-tidy not found"

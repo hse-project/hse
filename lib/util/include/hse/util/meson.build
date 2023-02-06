@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+
 if not meson.is_cross_build() and getconf.found()
     page_size = run_command(getconf, 'PAGE_SIZE', check: true).stdout().strip().to_int()
 else

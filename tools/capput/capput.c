@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2018,2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * This test emulates the behavior of a capped kvs.
+ * SPDX-FileCopyrightText: Copyright 2018 Micron Technology, Inc.
+ */
+
+/* This test emulates the behavior of a capped kvs.
  *
  * This test consists of
  * 1. Writer threads: add keys to the kvs

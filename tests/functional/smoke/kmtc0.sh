@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2021-2022 Micron Technology, Inc. All rights reserved.
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
 
 #doc: quick kvdb/c0 read performance test using kmt (60s)
 

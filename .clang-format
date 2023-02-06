@@ -1,4 +1,7 @@
----
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+
 Language: Cpp
 AccessModifierOffset: -2
 AlignAfterOpenBracket: DontAlign
