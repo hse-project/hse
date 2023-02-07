@@ -1,0 +1,53 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/hse-project/hse
+
+Files: docs/openapi.json
+Copyright: Copyright 2022 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: docs/doxygen/doxyfile.in docs/doxygen/doxyfile_layout.xml docs/doxygen/*
+Copyright: Copyright 2021 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: scripts/dev/checkoss-ignore-words.txt
+Copyright: Copyright 2021 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: subprojects/crc32c/*
+Copyright: 2013, 2015 Mark Adler <madler@alumni.caltech.edu>
+License: Zlib
+
+Files: subprojects/rbtree/rbtree.c
+Copyright: 2010 Isilon Systems, Inc.
+           2010 iX Systems, Inc.
+           2010 Panasas, Inc.
+           2013, 2014 Mellanox Technologies, Ltd.
+License: BSD-2-Clause
+
+Files: subprojects/cjson.wrap subprojects/xxhash.wrap
+Copyright: The Meson development team
+License: MIT
+
+Files: tests/unit/cn/mblock_images/README.txt tests/unit/cn/mblock_images/*.xz
+Copyright: Copyright 2021 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: tests/unit/cn/merge-test-cases/*.json
+Copyright: Copyright 2020 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: tests/unit/kvdb/kvdb-conf-files/*/kvdb.conf
+Copyright: Copyright 2021 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: tests/unit/kvdb/kvdb-meta-files/*/kvdb.meta
+Copyright: Copyright 2021 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: tests/unit/pidfile/*/kvdb.pid
+Copyright: Copyright 2022 Micron Technology, Inc.
+License: Apache-2.0 OR MIT
+
+Files: VERSION
+Copyright: Copyright 2022 Micron Technology, Inc.
+License: Apache-2.0 OR MIT

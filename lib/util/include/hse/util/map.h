@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * A map library to store key-value pairs. This is not a thread safe library.
+ * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+ */
+
+/* A map library to store key-value pairs. This is not a thread safe library.
  */
 
 #include <inttypes.h>

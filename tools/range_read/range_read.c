@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2018-2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * The user provides the number of prefixes and suffixes to use in the database.
+ * SPDX-FileCopyrightText: Copyright 2018 Micron Technology, Inc.
+ */
+
+/* The user provides the number of prefixes and suffixes to use in the database.
  * Each prefix will get all the suffixes, i.e. the total number of keys in the
  * DB is the product of number of prefixes and suffixes.
  */

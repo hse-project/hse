@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * kmt (kvs/mpool test) is a tool for stress testing kvs, mpool, and
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* kmt (kvs/mpool test) is a tool for stress testing kvs, mpool, and
  * raw/block devices in a multi-threaded environment.  It performs
  * data-integrity verification on each record retrieved via a "get"
  * operation, and is also useful for performance measurement.

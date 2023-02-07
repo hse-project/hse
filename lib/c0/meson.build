@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+
 c0_sources = files(
     'c0.c',
     'c0snr_set.c',

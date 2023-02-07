@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
 
 # Run this on root of source
 SRC_ROOT=$(realpath "${1:-"./"}")
@@ -16,28 +16,9 @@ pushd "${SRC_ROOT}" > /dev/null || exit
 check_bad_words=$(echo "${files}" | xargs egrep -Hinw "$(echo ${bad_words} | tr ' ' '|')")
 popd > /dev/null || exit
 
-# Check for valid license and copyright
-src_files=$(git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v 'subprojects\|simpledrop')
-shell_files=$(grep -Er '^#!/.*sh' "${SRC_ROOT}" | sed 's/:.*$//pi' | grep -vE '(subprojects|build.*|.git)')
-src_files=$(echo -e "${src_files}\n${shell_files}")
-pushd "${SRC_ROOT}" > /dev/null || exit
-for file in ${src_files}; do
-    if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then
-        check_license="${check_license}\ninvalid or missing SPDX license identifier: ${file}"
-    fi
-    if ! head -10 "${file}" | grep -qE "^(.*)\bCopyright\s+\(C\)\s+([0-9]|,|-|\s)*\s+Micron\s+Technology,\s+Inc\.\s*(.*)"; then
-        check_license="${check_license}\nCopyright check error: ${file}"
-    fi
-done
-popd > /dev/null || exit
-
 exit_code=0
 if [ -n "${check_bad_words}" ]; then
     echo -e "Found the following potentially offensive language:\n${check_bad_words}"
-    exit_code=$((exit_code + 1))
-fi
-if [ -n "${check_license}" ]; then
-    echo -e "Check following files for License/Copyright:\n${check_license}"
     exit_code=$((exit_code + 1))
 fi
 exit "$exit_code"

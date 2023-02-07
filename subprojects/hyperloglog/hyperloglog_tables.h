@@ -1,10 +1,17 @@
-/* SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0 */
-/*
- * The following data tables are dual-licensed under the "Creative Commons 4.0
- * BY License" (https://creativecommons.org/licenses/by/4.0/), and and the
- * "Apache License, Version 2.0".
+/* SPDX-License-Identifier: Apache-2.0 AND CC-BY-4.0
  *
- * References
+ * Copyright information for the tables themselves:
+ *
+ * SPDX-FileCopyrightText: Copyright 2012 Stefan Heule <stheule@ethz.ch>
+ * SPDX-FileCopyrightText: Copyright 2012 Marc Nunkesser <marcnunkesser@google.com>
+ * SPDX-FileCopyrightText: Copyright 2012 Alexander Hall <alexhall@google.com>
+ *
+ * Copyright information for everything else:
+ *
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* References
  * ----------
  *
  * 1. Stefan Heule, Marc Nunkesser, and Alexander Hall.  HyperLogLog in

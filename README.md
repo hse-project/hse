@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+-->
+
 # HSE: Heterogeneous-Memory Storage Engine
 
 **HSE** is a fast embeddable key-value store designed for SSDs and

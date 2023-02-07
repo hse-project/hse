@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
 #ifndef HSE_KVS_CN_INTERNAL_H

@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
+
 #ifndef WAL_INTERNAL_H
 #define WAL_INTERNAL_H
 

@@ -1,3 +1,9 @@
+<!--
+SPDX-License-Identifier: Apache-2.0 OR MIT
+
+SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+-->
+
 # Compaction Merge Loops
 
 Compaction operations transform a set of input kvsets into a set of new output

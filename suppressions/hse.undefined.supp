@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+
 # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
 alignment:_urcu_bp_read_lock
 alignment:_urcu_bp_read_unlock

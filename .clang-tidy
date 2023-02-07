@@ -1,4 +1,7 @@
----
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+
 # https://clang.llvm.org/extra/clang-tidy/checks/list.html
 Checks: >
   clang-diagnostic-*,

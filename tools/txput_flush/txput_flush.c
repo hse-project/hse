@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * Several threads call transactional PUTs in a loop. For a given thread, each
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* Several threads call transactional PUTs in a loop. For a given thread, each
  * time w/ the same key, but a different value.
  * Another thread periodically flushes the kvdb.
  */

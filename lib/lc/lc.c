@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2021-2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * Late Commit (LC) is a layer that sits between c0 and cn. Its primary purpose is to hold
+ * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
+ */
+
+/* Late Commit (LC) is a layer that sits between c0 and cn. Its primary purpose is to hold
  * uncommitted transactions until they are committed and ready for ingest into cn.
  *
  * The ingest thread is responsible for adding kv-tuples to LC. It establishes a view seqno upfront

@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2022 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * The cn cursor provides all keys that match the cursor's filters (prefix, view seqno etc.) in
+ * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
+ */
+
+/* The cn cursor provides all keys that match the cursor's filters (prefix, view seqno etc.) in
  * lexicographical order - forward or reverse.
  *
  * At any given time, a cursor only needs to merge keys across the root node and one leaf node.

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
+
 # Add header here if it needs to be mocked
 mocked_headers = [
     meson.project_source_root() / 'include/hse/hse.h',

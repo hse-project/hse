@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2022 Micron Technology, Inc. All rights reserved.
+# SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
 
 '''
 Set the cndb compaction high watermark to a very low percentage - 0.02%.
@@ -67,4 +67,3 @@ try:
         kvs.close()
 finally:
     hse.fini()
-

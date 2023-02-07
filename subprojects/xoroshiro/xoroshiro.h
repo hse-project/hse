@@ -1,6 +1,8 @@
-/* SPDX-License-Identifier: CC0-1.0 */
-/*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+/* SPDX-License-Identifier: CC0-1.0
+ *
+ * SPDX-FileCopyrightText: Copyright 2016 David Blackman
+ * SPDX-FileCopyrightText: Copyright 2016 Sebastiano Vigna <vigna@acm.org>
+ * SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
  */
 
 #ifndef XOROSHIRO_H

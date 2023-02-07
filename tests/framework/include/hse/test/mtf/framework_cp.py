@@ -1,7 +1,6 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Copyright (C) 2015 Micron Technology, Inc. All rights reserved.
-#
+# SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
 
 #
 # The HSE Unit Test Framework includes the functionality of allowing a unit
@@ -16,8 +15,9 @@
 # CPP macros.
 #
 
-preamble_text = """/*
- * Copyright (C) 2015 Micron Technology, Inc. All rights reserved.
+preamble_text = """/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
 #ifndef HSE_UTEST_FRAMEWORK_CP_H

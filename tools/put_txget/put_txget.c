@@ -1,8 +1,9 @@
-/* SPDX-License-Identifier: Apache-2.0 */
-/*
- * Copyright (C) 2015-2022 Micron Technology, Inc. All rights reserved.
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
  *
- * One  thread calls non-transactional PUTs in a loop. Each time w/ the same
+ * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
+ */
+
+/* One  thread calls non-transactional PUTs in a loop. Each time w/ the same
  * key, but a different value.
  * Another thread repeatedly creates a transaction and reads the key twice with
  * a short sleep b/w the two reads.
