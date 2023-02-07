@@ -235,8 +235,8 @@ svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
 merr_t
 pg_create(struct parm_groups **self_out, ...)
 {
-    merr_t err;
     va_list ap;
+    merr_t err = 0;
     const char *arg;
     struct parm_groups *self;
 
