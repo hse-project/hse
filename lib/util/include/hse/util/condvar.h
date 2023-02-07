@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2022 Micron Technology, Inc.  All rights reserved.
  *
  * The condvar subsystem is an abstraction of the pthread condition
- * variable APIs taht provide the same general semantics in both user
+ * variable APIs that provide the same general semantics in both user
  * and kernel space.
  *
  * Note that this implementation leverages the caller's mutex to protect
