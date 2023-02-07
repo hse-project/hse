@@ -6,9 +6,15 @@
 #ifndef HSE_KVS_CNDB_TXN_H
 #define HSE_KVS_CNDB_TXN_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <hse/error/merr.h>
+
 #include "common.h"
 
 struct cndb_txn;
+struct kvset_meta;
 
 merr_t
 cndb_txn_create(
