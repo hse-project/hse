@@ -46,7 +46,7 @@ struct kvset_split_work {
 };
 
 static void
-free_work(struct kvset_split_work work[static 2])
+free_work(struct kvset_split_work work[2])
 {
     for (int i = LEFT; i <= RIGHT; i++) {
         hbb_destroy(work[i].hbb);
@@ -59,7 +59,7 @@ static merr_t
 alloc_work(
     struct kvset            *ks,
     struct perfc_set        *pc,
-    struct kvset_split_work  work[static 2])
+    struct kvset_split_work  work[2])
 {
     struct cn *cn = cn_tree_get_cn(ks->ks_tree);
     merr_t err;
@@ -227,8 +227,8 @@ kblock_split(
     struct kblock_desc    *kbd,
     const struct key_obj  *split_key,
     struct blk_list       *kblks,
-    struct hlog           *hlogs[static 2],
-    uint64_t               vused[static 2])
+    struct hlog           *hlogs[2],
+    uint64_t               vused[2])
 {
     merr_t err;
 
@@ -300,7 +300,7 @@ static merr_t
 kblocks_split(
     struct kvset            *ks,
     const struct key_obj    *split_key,
-    struct kvset_split_work  work[static 2],
+    struct kvset_split_work  work[2],
     struct kvset_split_res  *result)
 {
     struct hlog *hlog_left = work[LEFT].hlog;
@@ -460,7 +460,7 @@ static merr_t
 vblocks_split(
     struct kvset            *ks,
     const struct key_obj    *split_key,
-    struct kvset_split_work  work[static 2],
+    struct kvset_split_work  work[2],
     struct perfc_set        *pc,
     struct kvset_split_res  *result)
 {
@@ -607,7 +607,7 @@ vblocks_split(
 static merr_t
 hblock_split(
     struct kvset           *ks,
-    struct kvset_split_work work[static 2],
+    struct kvset_split_work work[2],
     struct kvset_split_res *result)
 {
     struct key_obj min_pfx = { 0 }, max_pfx = { 0 };

@@ -305,7 +305,7 @@ on_inexact_request(struct evhttp_request *const req, void *const arg)
 merr_t
 rest_server_add_endpoint(
     const unsigned int flags,
-    rest_handler *handlers[static REST_METHOD_COUNT],
+    rest_handler *handlers[REST_METHOD_COUNT],
     void *const ctx,
     const char *const path_fmt,
     ...)
