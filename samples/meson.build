@@ -22,7 +22,7 @@ foreach s : samples
             c_args: cc_supported_arguments,
             dependencies: [
                 hse_dep,
-                libhse_cli_dep,
+                hse_cli_dep,
             ],
             gnu_symbol_visibility: 'hidden',
         )

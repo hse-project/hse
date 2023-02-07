@@ -17,7 +17,5 @@ kvdb_sources = files(
     'mclass_policy.c',
     'sched_sts.c',
     'throttle.c',
-    'viewset.c',
+    'viewset.c'
 )
-
-kvdb_includes = include_directories('.')

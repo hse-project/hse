@@ -21,22 +21,21 @@ components = {
             ],
         },
         'c0_test': {
-            'sources': [
-                files(
-                    'c0/cn_mock.c',
-                    'c0/c0sk_mock.c',
-                ),
-            ],
+            'sources': files(
+                'c0/cn_mock.c',
+                'c0/c0sk_mock.c',
+            ),
             'dependencies': [
                 hse_test_support_dep,
             ],
         },
         'c0sk_test': {
-            'sources': [
-                files(
-                    'c0/cn_mock.c',
-                    meson.project_source_root() / 'tools/key_generation.c'
-                ),
+            'sources': files(
+                'c0/cn_mock.c',
+                meson.project_source_root() / 'tools/key_generation.c'
+            ),
+            'include_directories': [
+                tools_includes,
             ],
             'dependencies': [
                 hse_test_support_dep,
@@ -139,7 +138,7 @@ components = {
         'kvdb_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libhse_cli_dep,
+                hse_cli_dep,
                 hse_test_fixtures_dep,
             ],
             'suites': ['rest'],
@@ -156,7 +155,7 @@ components = {
         'kvs_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libhse_cli_dep,
+                hse_cli_dep,
                 hse_test_fixtures_dep,
             ],
             'suites': ['rest'],
@@ -165,17 +164,13 @@ components = {
     },
     'mpool': {
         'mpool_test': {
-            'sources': [
-                files('mpool/common.c'),
-            ],
+            'sources': files('mpool/common.c'),
             'include_directories': [
                 mpool_internal_includes,
             ],
         },
         'mblock_test': {
-            'sources': [
-                files('mpool/common.c'),
-            ],
+            'sources': files('mpool/common.c'),
             'include_directories': [
                 mpool_internal_includes,
             ],
@@ -184,9 +179,7 @@ components = {
             ],
         },
         'mdc_test': {
-            'sources': [
-                files('mpool/common.c'),
-            ],
+            'sources': files('mpool/common.c'),
             'include_directories': [
                 mpool_internal_includes,
             ],
@@ -195,9 +188,7 @@ components = {
             ],
         },
         'mcache_test': {
-            'sources': [
-                files('mpool/common.c'),
-            ],
+            'sources': files('mpool/common.c'),
             'include_directories': [
                 mpool_internal_includes,
             ],
@@ -215,12 +206,12 @@ components = {
         'global_rest_test': {
             'dependencies': [
                 cjson_dep,
-                libhse_cli_dep,
+                hse_cli_dep,
             ],
         },
         'rest_test': {
             'dependencies': [
-                libhse_cli_dep,
+                hse_cli_dep,
                 hse_rest_dep,
             ]
         },
@@ -304,7 +295,6 @@ foreach c, tests : components
             include_directories: params.get('include_directories', []),
             dependencies: [
                 hse_mock_dep,
-                hse_mock_repository_dep,
                 hse_dependencies,
                 hse_test_framework_dep,
                 params.get('dependencies', []),

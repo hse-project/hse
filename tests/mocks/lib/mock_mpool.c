@@ -73,7 +73,7 @@ _mpool_mblock_alloc(
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
-    uint64_t              blkid;
+    uint64_t              blkid = 0;
 
     err = mpm_mblock_alloc(KBLOCK_MAX_SIZE, &blkid);
     if (err)
@@ -608,8 +608,8 @@ mpm_mblock_load_file(uint64_t id, const char *filename)
 merr_t
 mpm_mblock_alloc_file(uint64_t *id_out, const char *filename)
 {
-    uint64_t id;
     merr_t   err;
+    uint64_t id = 0;
 
     err = mpm_mblock_alloc(VBLOCK_MAX_SIZE, &id);
     if (err)

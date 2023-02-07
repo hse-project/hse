@@ -291,7 +291,7 @@ foreach t, params : tests
         workdir: fs.parent(meson.current_source_dir()),
         suite: ['functional'] + params.get('suites', []),
         depends: [
-            hse_cli_symlink,
+            hse_exe_symlink,
             params.get('depends', []),
         ]
     )

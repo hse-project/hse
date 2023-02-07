@@ -2,55 +2,91 @@
 #
 # SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
 
-subdir('include')
-subdir('lib')
-
-if not get_option('cli')
-    hse_cli = disabler()
-    hse_cli_symlink = disabler()
+if not get_option('cli') and get_option('tools').disabled() and not get_option('tests')
+    hse_cli_dep = disabler()
+    hse_exe = disabler()
+    hse_exe_symlink = disabler()
     subdir_done()
 endif
 
-cli_name = meson.project_name() + hse_major_version
+subdir('include')
+subdir('lib')
 
-hse_cli_sources = files(
+hse_cli = static_library(
+    '@0@-cli'.format(meson.project_name()),
+    cli_sources,
+    c_args: cc_supported_arguments,
+    include_directories: [
+        cli_includes,
+        rest_includes,
+        # Remove util_includes when compiler.h moves around
+        util_includes,
+    ],
+    dependencies: [
+        cjson_dep,
+        hse_error_dep,
+        libcurl_dep,
+        rbtree_dep,
+    ],
+    gnu_symbol_visibility: 'hidden'
+)
+
+hse_cli_dep = declare_dependency(
+    link_with: hse_cli,
+    include_directories: [
+        cli_includes,
+    ],
+    dependencies: [
+        hse_error_dep,
+        libcurl_dep,
+    ]
+)
+
+if not get_option('cli')
+    hse_exe = disabler()
+    hse_exe_symlink = disabler()
+    subdir_done()
+endif
+
+exe_name = meson.project_name() + hse_major_version
+
+exe_sources = files(
     'cli_util.c',
     'hse_cli.c',
     'storage_info.c',
-    'storage_profile.c',
+    'storage_profile.c'
 )
 
-hse_cli_dependencies = [
-    hse_dep,
-    libhse_cli_dep,
-    hse_dependencies,
-]
-
-hse_cli_include_directories = [
-    component_root_includes,
-    util_includes,
-]
-
-hse_cli = executable(
-    cli_name,
-    hse_cli_sources,
+hse_exe = executable(
+    exe_name,
+    exe_sources,
     c_args: cc_supported_arguments,
-    include_directories: hse_cli_include_directories,
-    dependencies: hse_cli_dependencies,
+    include_directories: [
+        util_includes,
+    ],
+    dependencies: [
+        cjson_dep,
+        hse_dep,
+        hse_cli_dep,
+        hse_pidfile_dep,
+        hse_logging_dep,
+        libbsd_dep,
+        threads_dep,
+    ],
     install: true,
     install_rpath: rpath,
     gnu_symbol_visibility: 'hidden',
 )
 
-hse_cli_symlink = custom_target(
-    'cli-symlink',
+hse_exe_symlink = custom_target(
+    'hse',
     build_by_default: true,
-    input: hse_cli,
+    input: hse_exe,
     command: [
         'ln',
         '--force',
         '--symbolic',
-        fs.name(hse_cli.full_path()),
+        fs.name(hse_exe.full_path()),
         '@OUTPUT@',
     ],
     output: meson.project_name(),
@@ -58,10 +94,10 @@ hse_cli_symlink = custom_target(
 
 install_symlink(
     meson.project_name(),
-    pointing_to: cli_name,
+    pointing_to: exe_name,
     install_dir: get_option('bindir')
 )
 
-meson.override_find_program(cli_name, hse_cli)
+meson.override_find_program(exe_name, hse_exe)
 
 executable_paths += meson.current_build_dir()

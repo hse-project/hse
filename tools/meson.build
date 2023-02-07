@@ -81,13 +81,13 @@ tools = {
     },
     'hsettp': {
         'dependencies': [
-            cc.find_library('dl'),
+            dependency('dl'),
             cjson_dep,
             cjson_utils_dep,
             hse_error_dep,
             libbsd_dep,
-            libhse_cli_dep,
-	    hse_pidfile_dep,
+            hse_cli_dep,
+            hse_pidfile_dep,
             threads_dep,
         ],
         'export_dynamic': true,
@@ -385,12 +385,11 @@ foreach t, params : tools
             params['sources'],
             c_args: params.get('c_args', []),
             include_directories: [
-                component_root_includes,
                 tools_includes,
                 params.get('include_directories', []),
             ],
             dependencies: [
-                libhse_cli_dep,
+                hse_cli_dep,
                 params.get('dependencies', [])
             ],
             install: true,

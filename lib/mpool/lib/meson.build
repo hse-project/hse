@@ -13,7 +13,7 @@ mpool_sources = files(
     'mblock_file.c',
     'mdc.c',
     'mdc_file.c',
-    'mpool_file.c',
+    'mpool_file.c'
 )
 
 if libpmem_dep.found()

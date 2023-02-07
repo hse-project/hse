@@ -7,7 +7,6 @@ subdir('lib')
 
 hse_test_support = static_library(
     '@0@-test-support'.format(meson.project_name()),
-    build_config_h,
     test_support_sources,
     include_directories: [
         test_support_includes,

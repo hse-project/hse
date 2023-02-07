@@ -21,7 +21,7 @@ tests = {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
-            hse_cli,
+            hse_exe,
             hse_java_depends,
         ],
     },
@@ -29,7 +29,7 @@ tests = {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
-            hse_cli,
+            hse_exe,
             hse_java_depends,
         ],
         'env': environment({

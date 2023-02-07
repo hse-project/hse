@@ -10,7 +10,6 @@ hse_rest = static_library(
     rest_sources,
     c_args: cc_supported_arguments,
     include_directories: [
-        component_root_includes,
         public_includes,
         rest_includes,
         util_includes,

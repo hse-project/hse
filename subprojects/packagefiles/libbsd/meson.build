@@ -4,9 +4,10 @@
 
 project(
     'libbsd',
-    ['c'],
+    'c',
     version: '0.9.0',
-    meson_version: '>=0.57.0',
+    license: 'BSD-3-clause',
+    meson_version: '>=0.57.0'
 )
 
 cc = meson.get_compiler('c')

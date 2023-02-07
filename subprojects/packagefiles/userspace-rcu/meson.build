@@ -4,9 +4,10 @@
 
 project(
     'userspace-rcu',
-    ['c'],
+    'c',
     version: '0.10.3',
-    meson_version: '>=0.57.0',
+    license: 'LGPL-2.1-only',
+    meson_version: '>=0.57.0'
 )
 
 cc = meson.get_compiler('c')

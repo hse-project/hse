@@ -6,6 +6,7 @@ project(
     'curl',
     'c',
     version: '7.85.0',
+    license: 'curl',
     meson_version: '>=0.57.0'
 )
 

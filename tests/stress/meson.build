@@ -181,7 +181,7 @@ foreach p, p_params: programs
             hse_internal_dep,
             hse_test_fixtures_dep,
             libbsd_dep,
-            libhse_cli_dep,
+            hse_cli_dep,
             threads_dep,
         ]
     )
