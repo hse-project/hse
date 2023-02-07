@@ -1630,7 +1630,7 @@ static void
 cn_comp_update_split(
     struct cn_compaction_work *w,
     struct kvset *const       *kvsets,
-    struct cn_tree_node       *nodev[2])
+    struct cn_tree_node       *nodev[static 2])
 {
     struct cn_tree *tree = w->cw_tree;
     struct kvset_list_entry *le, *tmp;
