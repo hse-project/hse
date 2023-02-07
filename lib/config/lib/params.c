@@ -69,7 +69,7 @@ json_walk(
 
     if (!bypass) {
         /* Protect against configs like { "prefix.length": 5 } */
-        if (strchr(node->string, '.')) {
+        if (strchr(node->string, '.')) { // NOLINT(clang-analyzer-core.NonNullParamChecker)
             log_err("Keys in config files cannot contain a '.'");
             err = merr(EINVAL);
             goto out;
