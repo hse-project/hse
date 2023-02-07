@@ -6,6 +6,8 @@
 #ifndef HSE_KVS_CNDB_COMMON_H
 #define HSE_KVS_CNDB_COMMON_H
 
+#include <stdint.h>
+
 struct cndb_kvset {
     uint64_t       ck_cnid;
     uint64_t       ck_kvsetid;

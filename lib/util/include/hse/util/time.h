@@ -6,6 +6,8 @@
 #ifndef HSE_PLATFORM_TIME_H
 #define HSE_PLATFORM_TIME_H
 
+#include <limits.h>
+
 /* clang-format off */
 
 #ifndef HSE_HZ

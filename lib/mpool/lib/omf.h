@@ -6,6 +6,7 @@
 #ifndef MPOOL_OMF_H
 #define MPOOL_OMF_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 

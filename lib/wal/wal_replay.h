@@ -6,8 +6,17 @@
 #ifndef WAL_REPLAY_H
 #define WAL_REPLAY_H
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
+
+#include <rbtree_types.h>
+
 #include <hse/error/merr.h>
+#include <hse/util/arch.h>
 #include <hse/util/spinlock.h>
+
+#include "wal.h"
 
 struct wal;
 struct wal_replay_info;

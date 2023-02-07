@@ -6,7 +6,10 @@
 #ifndef HSE_CORE_MOCK_CN_H
 #define HSE_CORE_MOCK_CN_H
 
+#include <stdbool.h>
 #include <stdint.h>
+
+#include <hse/error/merr.h>
 
 struct cn;
 
