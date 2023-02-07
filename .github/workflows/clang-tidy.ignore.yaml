@@ -12,6 +12,7 @@ on:
       - "**.h.in"
       - .clang-tidy
       - .github/workflows/clang-tidy.yaml
+      - scripts/dev/clang-tidy.sh
 
 concurrency:
   group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
