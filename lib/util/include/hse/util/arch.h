@@ -116,7 +116,7 @@ get_time_ns(void)
 
     /* Convert from fractions of (usecs / 1024) to nsecs.
      */
-    return (cycles * 1000) / 1024;
+    return (uint64_t)((cycles * 1000) / 1024);
 }
 
 #else
