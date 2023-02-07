@@ -658,8 +658,8 @@ check_valid_kvsets(const struct cn_compaction_work *w, enum split_side side)
 merr_t
 cn_split_nodes_alloc(
     const struct cn_compaction_work *w,
-    uint64_t                         nodeidv[static 2],
-    struct cn_tree_node             *nodev[static 2])
+    uint64_t                         nodeidv[2],
+    struct cn_tree_node             *nodev[2])
 {
     nodev[LEFT] = nodev[RIGHT] = NULL;
 
@@ -699,7 +699,7 @@ cn_split_nodes_alloc(
 }
 
 void
-cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[static 2])
+cn_split_nodes_free(const struct cn_compaction_work *w, struct cn_tree_node *nodev[2])
 {
     if (nodev[LEFT]) {
         route_node_free(w->cw_tree->ct_route_map, nodev[LEFT]->tn_route_node);

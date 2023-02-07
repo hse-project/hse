@@ -188,7 +188,7 @@ hse_err_t
 hse_kvdb_attach(
     const char *kvdb_home_tgt,
     const char *kvdb_home_src,
-    const char *paths[static HSE_MCLASS_COUNT]);
+    const char *paths[HSE_MCLASS_COUNT]);
 
 /** @brief Close a KVDB.
  *
