@@ -9,36 +9,38 @@ on:
     branches:
       - master
       - "v[0-9]+.[0-9]+"
-    paths:
-      - "**.md"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/workflows/**"
-      - "docs/**"
-      - "!.github/workflows/builds.yaml"
-      - .clang-format
-      - .clang-tidy
-      - .gitattributes
-      - .github/dependabot.yaml
-      - .gitignore
-      - .shellcheckrc
-      - .spectral.yaml
-      - LICENSE
+    paths-ignore:
+      - "**.c"
+      - "**.h"
+      - "**.h.in"
+      - "**/meson.build"
+      - "cross/*.ini"
+      - "scripts/build/*"
+      - "subprojects/*.wrap"
+      - "suppressions/**.supp"
+      - "tests/**.py"
+      - "tests/**.sh"
+      - .github/workflows/builds.yaml
+      - docs/openapi.json
+      - meson_options.txt
+      - VERSION
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - "**.md"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/workflows/**"
-      - "docs/**"
-      - "!.github/workflows/builds.yaml"
-      - .clang-format
-      - .clang-tidy
-      - .gitattributes
-      - .github/dependabot.yaml
-      - .gitignore
-      - .shellcheckrc
-      - .spectral.yaml
-      - LICENSE
+    paths-ignore:
+      - "**.c"
+      - "**.h"
+      - "**.h.in"
+      - "**/meson.build"
+      - "cross/*.ini"
+      - "scripts/build/*"
+      - "subprojects/*.wrap"
+      - "suppressions/**.supp"
+      - "tests/**.py"
+      - "tests/**.sh"
+      - .github/workflows/builds.yaml
+      - docs/openapi.json
+      - meson_options.txt
+      - VERSION
 
 concurrency:
   group: ${{ github.workflow }}-ignore-${{ github.head_ref }}
