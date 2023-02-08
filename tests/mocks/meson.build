@@ -63,7 +63,7 @@ mocked_headers = [
 ]
 
 mapi_idx_h = custom_target(
-    'mapi-idx-h',
+    'mapi_idx.h',
     command: [
         mapi_idx_generate,
         '@OUTPUT@',
@@ -117,7 +117,7 @@ foreach mc, source_dir : mocked_components
 
         hdr = '@0@_ut.h'.format(stem)
         mock_decl = custom_target(
-            '@0@.@1@-utpp-h'.format(mc, stem),
+            hdr,
             input: f,
             command: [
                 utpp,
@@ -128,14 +128,14 @@ foreach mc, source_dir : mocked_components
                 '@INPUT@',
             ],
             depend_files: [f],
-            output: hdr,
+            output: hdr
         )
 
         mocked_sources += mock_decl
 
         src = '@0@_ut_impl.i'.format(stem)
         mock_impl = custom_target(
-            '@0@.@1@-utpp-c'.format(mc, stem),
+            src,
             input: f,
             command: [
                 utpp,
@@ -146,7 +146,7 @@ foreach mc, source_dir : mocked_components
                 '@INPUT@',
             ],
             depend_files: [f],
-            output: src,
+            output: src
         )
 
         mocked_sources += mock_impl
@@ -159,15 +159,14 @@ subdir('lib')
 hse_mock_c_args = ['-DHSE_MOCKING=1']
 
 hse_mock_include_directories = [
-    hse_mock_includes,
+    mock_includes,
     mocked_includes,
-    tools_includes,
 ]
 
 hse_mock = static_library(
     '@0@-mock'.format(lib_name),
     hse_sources,
-    hse_mock_sources,
+    mock_sources,
     mocked_sources,
     c_args: hse_mock_c_args,
     include_directories: [
@@ -183,18 +182,10 @@ hse_mock = static_library(
 
 hse_mock_dep = declare_dependency(
     link_with: hse_mock,
-    version: meson.project_version(),
     compile_args: hse_mock_c_args,
-    sources: [
-        version_h,
-        mapi_idx_h,
-        mocked_sources,
-    ],
+    sources: mocked_sources,
     include_directories: [
-        public_includes,
         hse_include_directories,
         hse_mock_include_directories,
-    ],
+    ]
 )
-
-subdir('repository')

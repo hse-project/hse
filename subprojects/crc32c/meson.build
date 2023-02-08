@@ -4,7 +4,8 @@
 
 project(
     'crc32c',
-    'c'
+    'c',
+    license: 'Zlib'
 )
 
 crc32c = library(

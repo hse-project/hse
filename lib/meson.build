@@ -28,22 +28,8 @@ build_config_h_data = configuration_data({
     'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
     'SUPPORTS_ATTR_PACKED': true,
     'SUPPORTS_ATTR_RETURNS_NONNULL': cc.has_function_attribute('returns_nonnull'),
-    'SUPPORTS_ATTR_SECTION': cc.compiles(
-        '''
-        int x __attribute__((__section__(".read_mostly"))) = 0;
-        ''',
-        name: '__attribute__((__section__(".read_mostly")))',
-    ),
-    'SUPPORTS_ATTR_SENTINEL': cc.compiles(
-        '''
-        int __attribute__((__sentinel__))
-        test_func(const char *fmt, ...)
-        {
-            return 0;
-        }
-        ''',
-        name: '__attribute__((__sentinel__))',
-    ),
+    'SUPPORTS_ATTR_SECTION': cc.has_function_attribute('section'),
+    'SUPPORTS_ATTR_SENTINEL': cc.has_function_attribute('sentinel'),
     'SUPPORTS_ATTR_UNUSED': cc.has_function_attribute('unused'),
     'SUPPORTS_ATTR_USED': cc.has_function_attribute('used'),
     'SUPPORTS_ATTR_WARN_UNUSED_RESULT': cc.has_function_attribute('warn_unused_result'),
@@ -55,13 +41,16 @@ build_config_h_data = configuration_data({
     'WITH_UBSAN': get_option('b_sanitize').contains('undefined'),
 })
 
-build_config_h = configure_file(
+configure_file(
     input: 'build_config.h.in',
     output: 'build_config.h',
     configuration: build_config_h_data,
 )
 
-component_root_includes = include_directories('.')
+# Expose build_config.h globally
+add_project_arguments('-I@0@'.format(meson.current_build_dir()), language: 'c')
+# Hack since some targets reach for this, but it isn't easy to model correctly
+add_project_arguments('-I@0@'.format(meson.current_source_dir()), language: 'c')
 
 lib_name = '@0@-@1@'.format(meson.project_name(), hse_major_version)
 soversion = '0'
@@ -84,25 +73,23 @@ subdir('pidfile')
 subdir('rest')
 
 hse_sources = [
-    build_config_h,
     binding_sources,
     c0_sources,
-    lc_sources,
     cn_sources,
     cndb_sources,
     kvdb_sources,
     kvs_sources,
-    wal_sources,
     mpool_sources,
+    lc_sources,
     util_sources,
+    wal_sources,
 ]
 
 hse_include_directories = [
     ikvdb_includes,
-    component_root_includes,
+    mpool_includes,
     public_includes,
     util_includes,
-    mpool_includes,
 ]
 
 hse_dependencies = [
@@ -113,20 +100,20 @@ hse_dependencies = [
     liblz4_dep,
     cjson_dep,
     cjson_utils_dep,
-    hyperloglog_dep,
-    libbsd_dep,
+    crc32c_dep,
     hse_config_dep,
     hse_error_dep,
     hse_logging_dep,
     hse_pidfile_dep,
     hse_rest_dep,
+    hyperloglog_dep,
+    libbsd_dep,
+    libpmem_dep,
     liburcu_bp_dep,
     m_dep,
-    threads_dep,
     rbtree_dep,
-    crc32c_dep,
+    threads_dep,
     xoroshiro_dep,
-    libpmem_dep,
 ]
 
 hse = library(
@@ -137,15 +124,12 @@ hse = library(
     version: meson.project_version(),
     install: true,
     soversion: soversion,
-    gnu_symbol_visibility: 'hidden',
+    gnu_symbol_visibility: 'hidden'
 )
 
 hse_dep = declare_dependency(
     link_with: hse,
     version: meson.project_version(),
-    sources: [
-        version_h,
-    ],
     include_directories: [
         public_includes,
     ]
@@ -167,9 +151,6 @@ if get_option('tools').allowed() or get_option('tests')
     hse_internal_dep = declare_dependency(
         link_with: hse_internal,
         version: meson.project_version(),
-        sources: [
-            version_h,
-        ],
         include_directories: hse_include_directories,
         dependencies: hse_dependencies
     )

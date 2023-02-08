@@ -14,7 +14,7 @@ tests = {
 }
 
 foreach t, params : tests
-    t_type = params.get('type', 0)
+    t_type = params.get('type')
 
     if t_type == 'shell'
         # Make sure every file is executable
@@ -26,15 +26,11 @@ foreach t, params : tests
         )
 
         t_exe = bash
-        t_depends = [ hse_cli_symlink ]
+        t_depends = [hse_exe_symlink]
         t_workdir = fs.parent(meson.current_source_dir())
-        t_env = environment({
-            'HSE_TEST_RUNNER_RUNNER': 'bash',
-        })
         t_args = [
             meson.current_source_dir() / '@0@.sh'.format(t),
         ]
-
     elif t_type == 'utest'
         t_exe = executable(
             t,
@@ -48,7 +44,6 @@ foreach t, params : tests
             ],
             dependencies: [
                 hse_internal_dep,
-                hse_dependencies,
                 hse_test_fixtures_dep,
                 hse_test_framework_dep,
                 params.get('dependencies', [])
@@ -57,11 +52,9 @@ foreach t, params : tests
 
         t_depends = []
         t_workdir = meson.current_source_dir()
-        t_env = environment()
         t_args = []
     else
-        continue
-
+        error('Unknown test type')
     endif
 
     test(
@@ -70,7 +63,6 @@ foreach t, params : tests
         args: t_args,
         workdir: t_workdir,
         depends: t_depends,
-        env: t_env,
         suite: ['functional', 'limits'] + params.get('suites', []),
         timeout: params.get('timeout', 300),
     )

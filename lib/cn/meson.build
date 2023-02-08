@@ -36,5 +36,3 @@ cn_sources = files(
     'wbt_builder.c',
     'wbt_reader.c'
 )
-
-cn_includes = include_directories('.')

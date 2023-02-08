@@ -24,7 +24,6 @@
 #include <hse/ikvdb/kvdb_ctxn.h>
 #include <hse/ikvdb/limits.h>
 
-#include <hse/tools/key_generation.h>
 #include <hse/ikvdb/tuple.h>
 
 #include <hse/test/mock/mock_c0cn.h>

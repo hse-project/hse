@@ -12,7 +12,7 @@ version_data = configuration_data({
 version_h = configure_file(
     input: 'version.h.in',
     output: 'version.h',
-    configuration: version_data,
+    configuration: version_data
 )
 
 install_headers(
@@ -21,12 +21,12 @@ install_headers(
     'hse.h',
     'limits.h',
     'types.h',
-    subdir: include_subdir,
+    subdir: include_subdir
 )
 
 if get_option('experimental')
     install_headers(
         'experimental.h',
-        subdir: include_subdir,
+        subdir: include_subdir
     )
 endif

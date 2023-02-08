@@ -4,8 +4,9 @@
 
 project(
     'lz4',
-    ['c'],
-    version: '1.9.3'
+    'c',
+    version: '1.9.3',
+    license: 'BSD-2-clause'
 )
 
 subdir('lib')

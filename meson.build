@@ -15,7 +15,7 @@ project(
         'warning_level=2',
         'force_fallback_for=lz4,cjson',
     ],
-    meson_version: '>=0.61.0'
+    meson_version: '>=0.63.0'
 )
 
 pkg = import('pkgconfig')
@@ -161,6 +161,17 @@ add_project_arguments(
 cc_supported_arguments = cc.get_supported_arguments('-Wconversion')
 
 threads_dep = dependency('threads')
+libcurl_dep = dependency(
+    'libcurl',
+    version: '>=7.58.0',
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+    ],
+    required: get_option('cli') or get_option('tools').enabled() or get_option('tests'),
+    disabler: true
+)
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',

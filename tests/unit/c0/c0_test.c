@@ -18,7 +18,6 @@
 
 #include "cn_mock.h"
 #include "c0sk_mock.h"
-#include <hse/tools/key_generation.h>
 #include <hse/test/support/random_buffer.h>
 
 struct c0sk *ikvdb_get_c0sk_gv_c0sk = 0;

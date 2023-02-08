@@ -11,7 +11,5 @@ c0_sources = files(
     'c0_kvset_iterator.c',
     'c0sk.c',
     'c0sk_internal.c',
-    'c0sk_perfc.c',
+    'c0sk_perfc.c'
 )
-
-c0_includes = include_directories('.')

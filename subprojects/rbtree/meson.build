@@ -4,7 +4,7 @@
 
 project(
     'rbtree',
-    ['c'],
+    'c',
     license: 'BSD-2-Clause'
 )
 
@@ -12,7 +12,7 @@ libbsd_dep = dependency('libbsd')
 
 rbtree = library(
     meson.project_name(),
-    ['rbtree.c'],
+    'rbtree.c',
     dependencies: [
         libbsd_dep,
     ],

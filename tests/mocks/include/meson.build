@@ -2,4 +2,4 @@
 #
 # SPDX-FileCopyrightText: Copyright 2020 Micron Technology, Inc.
 
-hse_mock_includes = include_directories('.')
+mock_includes = include_directories('.')

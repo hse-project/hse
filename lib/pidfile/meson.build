@@ -11,7 +11,6 @@ hse_pidfile = static_library(
     c_args: cc_supported_arguments,
     include_directories: [
         pidfile_includes,
-        component_root_includes,
     ],
     dependencies: [
         cjson_dep,

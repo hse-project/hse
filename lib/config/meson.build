@@ -10,7 +10,6 @@ hse_config = static_library(
     config_sources,
     c_args: cc_supported_arguments,
     include_directories: [
-        component_root_includes,
         config_includes,
         util_includes,
     ],
