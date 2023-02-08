@@ -15,7 +15,6 @@
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
-#include <cjson/cJSON_Utils.h>
 
 #include <hse/config/params.h>
 #include <hse/logging/logging.h>
