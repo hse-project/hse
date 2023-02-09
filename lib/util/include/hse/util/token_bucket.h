@@ -20,9 +20,9 @@ struct tbkt {
     uint64_t tb_burst;
 
     spinlock_t tb_lock HSE_L1D_ALIGNED;
-    uint64_t   tb_delay;
-    uint64_t   tb_refill_time;
-    uint64_t   tb_balance;
+    uint64_t tb_delay;
+    uint64_t tb_refill_time;
+    uint64_t tb_balance;
 };
 
 static inline void

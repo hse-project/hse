@@ -5,13 +5,11 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/logging/logging.h>
-
-#include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/mclass_policy.h>
-
+#include <hse/ikvdb/tuple.h>
+#include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/platform.h>
 
 #include "cn_internal.h"
 #include "cn_perfc_internal.h"
@@ -86,7 +84,7 @@ static_assert(PERFC_RA_CNGET_MULTIPLE == 5 && FOUND_MULTIPLE == 5,
 void
 cn_perfc_bkts_create(struct perfc_name *pcn, int edgec, uint64_t *edgev, uint sample_pct)
 {
-    merr_t            err;
+    merr_t err;
     struct perfc_ivl *ivl;
 
     err = perfc_ivl_create(edgec, edgev, &ivl);
@@ -154,8 +152,9 @@ cn_perfc_init(void)
     for (int i = 1; i < PERFC_IVL_MAX; i++)
         cncmp_vget_bkts[i] = cncmp_vget_bkts[i - 1] * 2;
 
-    cn_perfc_bkts_create(&cn_perfc_compact[PERFC_DI_CNCOMP_VGET], NELEM(cncmp_vget_bkts),
-                         cncmp_vget_bkts, sample_pct);
+    cn_perfc_bkts_create(
+        &cn_perfc_compact[PERFC_DI_CNCOMP_VGET], NELEM(cncmp_vget_bkts), cncmp_vget_bkts,
+        sample_pct);
 }
 
 void

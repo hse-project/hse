@@ -9,7 +9,6 @@
 #include <dirent.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/mpool/mpool_structs.h>
 
 #define MCLASS_MAX         (1 << 2) /* 2-bit for mclass-id */
@@ -40,10 +39,10 @@ enum mclass_id {
  * @path:     storage path
  */
 struct mclass_params {
-    size_t  fmaxsz;
-    size_t  mblocksz;
+    size_t fmaxsz;
+    size_t mblocksz;
     uint8_t filecnt;
-    char    path[PATH_MAX];
+    char path[PATH_MAX];
 };
 
 /**
@@ -56,10 +55,10 @@ struct mclass_params {
  */
 merr_t
 mclass_open(
-    enum hse_mclass           mclass,
+    enum hse_mclass mclass,
     const struct mclass_params *params,
-    int                         flags,
-    struct media_class **       handle);
+    int flags,
+    struct media_class **handle);
 
 /**
  * mclass_close() - close an mclass

@@ -5,14 +5,16 @@
 
 #include <limits.h>
 #include <string.h>
+
 #include <sys/stat.h>
 
 #include <hse/error/merr.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
-#include <hse/test/mtf/framework.h>
 #include <hse/pidfile/pidfile.h>
+
+#include <hse/test/mtf/framework.h>
 
 static const char *capdir = "capacity";
 static char cappath[PATH_MAX + 16];
@@ -23,7 +25,8 @@ static int
 collection_pre(struct mtf_test_info *ti)
 {
     if (ti->ti_coll->tci_argc - ti->ti_coll->tci_optind != 1) {
-        fprintf(stderr, "Usage: %s [test framework options] <configs-dir>\n", ti->ti_coll->tci_argv[0]);
+        fprintf(
+            stderr, "Usage: %s [test framework options] <configs-dir>\n", ti->ti_coll->tci_argv[0]);
         return -1;
     }
 
@@ -50,13 +53,14 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(kvdb_home_test, collection_pre)
 MTF_DEFINE_UTEST(kvdb_home_test, storage_path)
 {
     merr_t err;
-    char   buf[PATH_MAX];
+    char buf[PATH_MAX];
 
     err = kvdb_home_storage_path_get("/var/lib/hse", capdir, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, strncmp(buf, "/var/lib/hse/capacity", sizeof(buf)));
 
-    err = kvdb_home_storage_path_get("/var/lib/hse", "/var/local/lib/hse/capacity", buf, sizeof(buf));
+    err =
+        kvdb_home_storage_path_get("/var/lib/hse", "/var/local/lib/hse/capacity", buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, strncmp(buf, "/var/local/lib/hse/capacity", sizeof(buf)));
 }
@@ -64,7 +68,7 @@ MTF_DEFINE_UTEST(kvdb_home_test, storage_path)
 MTF_DEFINE_UTEST_PREPOST(kvdb_home_test, storage_realpath, test_pre, test_post)
 {
     merr_t err;
-    char   buf[PATH_MAX];
+    char buf[PATH_MAX];
 
     err = kvdb_home_storage_realpath_get(mtf_kvdb_home, capdir, buf, false);
     ASSERT_EQ(0, err);

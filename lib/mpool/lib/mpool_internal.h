@@ -7,7 +7,6 @@
 #define MPOOL_INTERNAL_H
 
 #include <hse/error/merr.h>
-
 #include <hse/mpool/mpool_structs.h>
 
 struct media_class;

@@ -5,20 +5,19 @@
 
 #include <stdint.h>
 
-#include <hse/util/slab.h>
-#include <hse/util/log2.h>
-#include <hse/util/fmt.h>
-#include <hse/util/keycmp.h>
+#include <hse/ikvdb/c0_kvset.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/compression_lz4.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/log2.h>
+#include <hse/util/slab.h>
 
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/c0_kvset.h>
-#include <hse/ikvdb/c0_kvset_iterator.h>
-
-#include "c0_kvset_internal.h"
 #include "c0_cursor.h"
+#include "c0_kvset_internal.h"
 
 /* clang-format off */
 
@@ -58,7 +57,7 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set);
 static struct c0_kvset_impl *
 c0kvs_ccache_alloc(void)
 {
-    struct c0kvs_ccache * cc = &c0kvs_ccache;
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
     struct c0_kvset_impl *set;
 
     spin_lock(&cc->cc_lock);
@@ -113,17 +112,17 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
 static void
 c0kvs_ior_stats(
     struct c0_kvset_impl *c0kvs,
-    uint32_t              code,
-    const void *          old_key,
-    uint32_t              old_key_len,
-    const void *          old_value,
-    uint32_t              old_value_len,
-    const void *          new_key,
-    uint32_t              new_key_len,
-    const void *          new_value,
-    uint32_t              new_value_len,
-    uint                  height,
-    uint                  keyvals)
+    uint32_t code,
+    const void *old_key,
+    uint32_t old_key_len,
+    const void *old_value,
+    uint32_t old_value_len,
+    const void *new_key,
+    uint32_t new_key_len,
+    const void *new_value,
+    uint32_t new_value_len,
+    uint height,
+    uint keyvals)
 {
     size_t memsz = sizeof(struct bonsai_val) + new_value_len;
 
@@ -233,25 +232,25 @@ c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
  */
 void
 c0kvs_ior_cb(
-    void *                cli_rock,
+    void *cli_rock,
     enum bonsai_ior_code *code,
-    struct bonsai_kv *    kv,
-    struct bonsai_val *   new_val,
-    struct bonsai_val **  old_val,
-    uint                  height)
+    struct bonsai_kv *kv,
+    struct bonsai_val *new_val,
+    struct bonsai_val **old_val,
+    uint height)
 {
     struct c0_kvset_impl *c0kvs;
-    struct bonsai_val *   old;
-    struct bonsai_val **  prevp;
-    enum hse_seqno_state  state;
+    struct bonsai_val *old;
+    struct bonsai_val **prevp;
+    enum hse_seqno_state state;
 
-    uintptr_t    seqnoref;
-    uint64_t     seqno = 0;
-    const void * o_val;
+    uintptr_t seqnoref;
+    uint64_t seqno = 0;
+    const void *o_val;
     unsigned int o_vlen;
-    const void * n_val;
+    const void *n_val;
     unsigned int n_vlen;
-    uint16_t     klen;
+    uint16_t klen;
 
     c0kvs = c0_kvset_h2r(cli_rock);
     klen = key_imm_klen(&kv->bkv_key_imm);
@@ -272,17 +271,7 @@ c0kvs_ior_cb(
             seqno = c0kvs_seqno_set(c0kvs, val);
 
         c0kvs_ior_stats(
-            c0kvs,
-            *code,
-            NULL,
-            0,
-            NULL,
-            0,
-            kv->bkv_key,
-            klen,
-            n_val,
-            n_vlen,
-            height,
+            c0kvs, *code, NULL, 0, NULL, 0, kv->bkv_key, klen, n_val, n_vlen, height,
             ++kv->bkv_valcnt);
 
         return;
@@ -375,17 +364,7 @@ c0kvs_ior_cb(
     n_val = new_val->bv_value;
 
     c0kvs_ior_stats(
-        c0kvs,
-        *code,
-        kv->bkv_key,
-        klen,
-        o_val,
-        o_vlen,
-        kv->bkv_key,
-        klen,
-        n_val,
-        n_vlen,
-        height,
+        c0kvs, *code, kv->bkv_key, klen, o_val, o_vlen, kv->bkv_key, klen, n_val, n_vlen, height,
         kv->bkv_valcnt);
 }
 
@@ -400,7 +379,7 @@ struct bonsai_val *
 c0kvs_findval(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref)
 {
     struct bonsai_val *val_ge, *val;
-    uint64_t           diff_ge, diff;
+    uint64_t diff_ge, diff;
 
     diff_ge = ULONG_MAX;
     val_ge = NULL;
@@ -434,15 +413,12 @@ c0kvs_findval(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref)
 }
 
 merr_t
-c0kvs_create(
-    atomic_ulong     *kvdb_seqno,
-    atomic_ulong     *kvms_seqno,
-    struct c0_kvset **handlep)
+c0kvs_create(atomic_ulong *kvdb_seqno, atomic_ulong *kvms_seqno, struct c0_kvset **handlep)
 {
     struct c0_kvset_impl *set;
-    struct cheap *        cheap;
-    size_t                alloc_sz;
-    merr_t                err;
+    struct cheap *cheap;
+    size_t alloc_sz;
+    merr_t err;
 
     *handlep = NULL;
 
@@ -563,7 +539,7 @@ void *
 c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz)
 {
     struct c0_kvset_impl *impl = c0_kvset_h2r(handle);
-    void *                mem;
+    void *mem;
 
     c0kvs_lock(impl);
     mem = cheap_memalign(impl->c0s_cheap, align, sz);
@@ -575,9 +551,9 @@ c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz)
 static merr_t
 c0kvs_putdel(
     struct c0_kvset_impl *self,
-    struct bonsai_skey   *skey,
-    struct bonsai_sval   *sval,
-    uint64_t             *seqno)
+    struct bonsai_skey *skey,
+    struct bonsai_sval *sval,
+    uint64_t *seqno)
 {
     merr_t err;
 
@@ -601,15 +577,15 @@ c0kvs_putdel(
 
 merr_t
 c0kvs_put(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
-    struct kvs_ktuple       *kt,
+    struct c0_kvset *handle,
+    uint16_t skidx,
+    struct kvs_ktuple *kt,
     const struct kvs_vtuple *vt,
-    uintptr_t                seqnoref)
+    uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_skey    skey;
-    struct bonsai_sval    sval;
+    struct bonsai_skey skey;
+    struct bonsai_sval sval;
 
     bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
     bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
@@ -621,8 +597,8 @@ merr_t
 c0kvs_del(struct c0_kvset *handle, uint16_t skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_skey    skey;
-    struct bonsai_sval    sval;
+    struct bonsai_skey skey;
+    struct bonsai_sval sval;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
@@ -632,14 +608,14 @@ c0kvs_del(struct c0_kvset *handle, uint16_t skidx, struct kvs_ktuple *key, uintp
 
 merr_t
 c0kvs_prefix_del(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
-    struct kvs_ktuple       *key,
-    uintptr_t                seqnoref)
+    struct c0_kvset *handle,
+    uint16_t skidx,
+    struct kvs_ktuple *key,
+    uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_skey    skey;
-    struct bonsai_sval    sval;
+    struct bonsai_skey skey;
+    struct bonsai_sval sval;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
@@ -692,22 +668,22 @@ c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
  */
 merr_t
 c0kvs_get_excl(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf,
-    uintptr_t *              oseqnoref)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf,
+    uintptr_t *oseqnoref)
 {
     struct c0_kvset_impl *self;
-    struct bonsai_skey    skey;
-    struct bonsai_val *   val;
-    struct bonsai_kv *    kv;
-    uint                  copylen, outlen, clen, ulen;
-    bool                  found;
-    merr_t                err;
+    struct bonsai_skey skey;
+    struct bonsai_val *val;
+    struct bonsai_kv *kv;
+    uint copylen, outlen, clen, ulen;
+    bool found;
+    merr_t err;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
     *res = NOT_FOUND;
@@ -764,14 +740,14 @@ c0kvs_get_excl(
 
 merr_t
 c0kvs_get_rcu(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf,
-    uintptr_t *              oseqnoref)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf,
+    uintptr_t *oseqnoref)
 {
     assert(rcu_read_ongoing());
 
@@ -780,24 +756,24 @@ c0kvs_get_rcu(
 
 merr_t
 c0kvs_pfx_probe_cmn(
-    struct bonsai_root *     root,
-    uint16_t                 skidx,
+    struct bonsai_root *root,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    uint64_t                 pt_seq,
-    uint64_t                 max_seq)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    uint64_t pt_seq,
+    uint64_t max_seq)
 {
     struct bonsai_skey skey;
-    struct bonsai_kv * kv;
+    struct bonsai_kv *kv;
     struct bonsai_val *val;
-    bool               found;
-    uint64_t           val_seq;
-    merr_t             err = 0;
+    bool found;
+    uint64_t val_seq;
+    merr_t err = 0;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
 
@@ -895,19 +871,19 @@ c0kvs_pfx_probe_cmn(
 
 merr_t
 c0kvs_pfx_probe_excl(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    uint64_t                 pt_seq)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    uint64_t pt_seq)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_root *  root = self->c0s_broot;
+    struct bonsai_root *root = self->c0s_broot;
 
     return c0kvs_pfx_probe_cmn(
         root, skidx, key, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq, 0);
@@ -915,16 +891,16 @@ c0kvs_pfx_probe_excl(
 
 merr_t
 c0kvs_pfx_probe_rcu(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    uint64_t                 pt_seq)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    uint64_t pt_seq)
 {
     assert(rcu_read_ongoing());
 
@@ -939,19 +915,19 @@ c0kvs_pfx_probe_rcu(
  */
 void
 c0kvs_prefix_get_excl(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    uint32_t                 pfx_len,
-    uintptr_t *              oseqnoref)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    uint32_t pfx_len,
+    uintptr_t *oseqnoref)
 {
     struct c0_kvset_impl *self;
-    struct bonsai_val *   val;
-    struct bonsai_skey    skey;
-    struct bonsai_kv *    kv;
-    bool                  found;
+    struct bonsai_val *val;
+    struct bonsai_skey skey;
+    struct bonsai_kv *kv;
+    bool found;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
 
@@ -970,13 +946,13 @@ c0kvs_prefix_get_excl(
 
 void
 c0kvs_prefix_get_rcu(
-    struct c0_kvset *        handle,
-    uint16_t                 skidx,
+    struct c0_kvset *handle,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    uint32_t                 pfx_len,
-    uintptr_t *              oseqnoref)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    uint32_t pfx_len,
+    uintptr_t *oseqnoref)
 {
     assert(rcu_read_ongoing());
 
@@ -1005,10 +981,10 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
-    struct bonsai_kv * kv, *end;
+    struct bonsai_kv *kv, *end;
     struct bonsai_val *v;
 
-    char   disp[256];
+    char disp[256];
     size_t max = sizeof(disp);
 
     printf("%p nentries %d ntomb %d\n", self, self->c0s_num_entries, self->c0s_num_tombstones);
@@ -1030,11 +1006,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
             char *label = HSE_CORE_IS_TOMB(v->bv_value) ? "tomb" : "len";
 
             printf(
-                "%sseqnoref %p seqno %lu %s %u",
-                comma,
-                (void *)v->bv_seqnoref,
-                seqno,
-                label,
+                "%sseqnoref %p seqno %lu %s %u", comma, (void *)v->bv_seqnoref, seqno, label,
                 bonsai_val_vlen(v));
             comma = ", ";
         }
@@ -1047,7 +1019,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 static void
 c0kvs_reinit_impl(size_t ccache_sz, size_t cheap_sz, bool force)
 {
-    struct c0kvs_ccache * cc = &c0kvs_ccache;
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
     struct c0_kvset_impl *head, *next;
 
     if (!cc->cc_init)
@@ -1055,8 +1027,8 @@ c0kvs_reinit_impl(size_t ccache_sz, size_t cheap_sz, bool force)
 
     c0kvs_ccache_sz = clamp_t(size_t, ccache_sz, 0, HSE_C0_CCACHE_SZ_MAX);
 
-    c0kvs_cheap_sz = force ? cheap_sz :
-        clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
+    c0kvs_cheap_sz =
+        force ? cheap_sz : clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
     spin_lock(&cc->cc_lock);
     head = cc->cc_head;

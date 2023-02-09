@@ -10,6 +10,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include <sys/types.h>
 
 #include <hse/error/merr.h>
@@ -74,15 +75,15 @@ wbb_kvlen(const struct wbb *wbb);
 /* MTF_MOCK */
 merr_t
 wbb_add_entry(
-    struct wbb *          wbb,
+    struct wbb *wbb,
     const struct key_obj *kobj,
-    uint                  kmd_entries,
-    uint64_t              vblk_om_vlen,
-    const void *          key_kmd,
-    uint                  key_kmd_len,
-    uint                  max_pgc,
-    uint *                wbt_pgc,
-    bool *                added);
+    uint kmd_entries,
+    uint64_t vblk_om_vlen,
+    const void *key_kmd,
+    uint key_kmd_len,
+    uint max_pgc,
+    uint *wbt_pgc,
+    bool *added);
 
 void
 wbb_hdr_init(struct wbt_hdr_omf *hdr);
@@ -96,13 +97,13 @@ wbb_hdr_set(struct wbt_hdr_omf *hdr, struct wbt_desc *desc);
 /* MTF_MOCK */
 merr_t
 wbb_freeze(
-    struct wbb *        wbb,
+    struct wbb *wbb,
     struct wbt_hdr_omf *hdr,
-    uint                max_pgc,
-    uint *              wbt_pgc,
-    struct iovec *      iov,
-    uint                iov_max,
-    uint *              iov_cnt);
+    uint max_pgc,
+    uint *wbt_pgc,
+    struct iovec *iov,
+    uint iov_max,
+    uint *iov_cnt);
 
 /**
  * wbb_min_max_keys() - get min/max keys from a finalized or non-finalized wbtree

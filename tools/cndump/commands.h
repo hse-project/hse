@@ -15,8 +15,11 @@
 #define MBLOCK_COMMAND_NAME "mblock"
 #define MBLOCK_COMMAND_DESC "dump an mblock (hblock, kblock or vblock)"
 
-void cndb_cmd(int argc, char **argv);
-void kvset_cmd(int argc, char **argv);
-void mblock_cmd(int argc, char **argv);
+void
+cndb_cmd(int argc, char **argv);
+void
+kvset_cmd(int argc, char **argv);
+void
+mblock_cmd(int argc, char **argv);
 
 #endif

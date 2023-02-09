@@ -5,22 +5,20 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/logging/logging.h>
-#include <hse/util/bin_heap.h>
-#include <hse/util/keycmp.h>
-#include <hse/util/seqno.h>
-#include <hse/util/bonsai_tree.h>
-
-#include <hse/test/support/random_buffer.h>
-#include <hse/ikvdb/limits.h>
+#include <c0/c0_ingest_work.h>
 
 #include <hse/ikvdb/c0_kvmultiset.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/lc.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/logging/logging.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/seqno.h>
 
-#include <c0/c0_ingest_work.h>
+#include <hse/test/mtf/framework.h>
+#include <hse/test/support/random_buffer.h>
 
 int
 test_collection_setup(struct mtf_test_info *info)
@@ -58,9 +56,9 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
 {
     struct c0_kvmultiset *kvms;
-    struct c0_kvset *     p;
-    merr_t                err;
-    uint32_t              rc;
+    struct c0_kvset *p;
+    merr_t err;
+    uint32_t rc;
 
     err = c0kvms_create(1, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
@@ -78,9 +76,9 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
 MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic_create, no_fail_pre, no_fail_post)
 {
     struct c0_kvmultiset *kvms = 0;
-    struct c0_kvset *     p = 0;
-    merr_t                err;
-    int                   i;
+    struct c0_kvset *p = 0;
+    merr_t err;
+    int i;
 
     const int WIDTH = 8;
 
@@ -99,7 +97,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic_create, no_fail_pre, no_fail_
 MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, limit_create, no_fail_pre, no_fail_post)
 {
     struct c0_kvmultiset *kvms = 0;
-    merr_t                err;
+    merr_t err;
 
     const int WIDTH = -1;
 
@@ -113,10 +111,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, limit_create, no_fail_pre, no_fail_
 MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, no_fail_post)
 {
     struct c0_kvmultiset *kvms = 0;
-    struct c0_kvset *     p = 0;
-    merr_t                err;
-    uintptr_t             iseqno, oseqno;
-    int                   i;
+    struct c0_kvset *p = 0;
+    merr_t err;
+    uintptr_t iseqno, oseqno;
+    int i;
 
     const int WIDTH = 31;
 
@@ -127,7 +125,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
     for (i = 0; i < WIDTH; ++i) {
-        char              kbuf[1], vbuf[1];
+        char kbuf[1], vbuf[1];
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
 
@@ -146,9 +144,9 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
     }
 
     for (i = 0; i < WIDTH; ++i) {
-        char                kbuf[1], vbuf[1];
-        struct kvs_ktuple   kt;
-        struct kvs_buf      vb;
+        char kbuf[1], vbuf[1];
+        struct kvs_ktuple kt;
+        struct kvs_buf vb;
         enum key_lookup_res res;
 
         p = c0kvms_get_hashed_c0kvset(kvms, i);
@@ -169,9 +167,9 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
     }
 
     for (i = WIDTH - 1; i >= 0; --i) {
-        char                kbuf[1], vbuf[1];
-        struct kvs_ktuple   kt;
-        struct kvs_buf      vb;
+        char kbuf[1], vbuf[1];
+        struct kvs_ktuple kt;
+        struct kvs_buf vb;
         enum key_lookup_res res;
 
         p = c0kvms_get_hashed_c0kvset(kvms, i);
@@ -197,22 +195,22 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
 MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_post)
 {
     struct c0_kvmultiset *kvms = 0;
-    struct c0_kvset *     p = 0;
-    merr_t                err;
+    struct c0_kvset *p = 0;
+    merr_t err;
 
-    uint64_t        keys_out = 0, tombs_out = 0, keyb_out = 0, valb_out = 0;
-    uintptr_t       seqno;
+    uint64_t keys_out = 0, tombs_out = 0, keyb_out = 0, valb_out = 0;
+    uintptr_t seqno;
     struct c0_usage usage;
-    uint64_t        db_put_cnt HSE_MAYBE_UNUSED = 0, db_del_cnt HSE_MAYBE_UNUSED = 0;
-    const int       WIDTH = 3;
-    int             i, j, k;
-    uint            keys[WIDTH * WIDTH * WIDTH];
+    uint64_t db_put_cnt HSE_MAYBE_UNUSED = 0, db_del_cnt HSE_MAYBE_UNUSED = 0;
+    const int WIDTH = 3;
+    int i, j, k;
+    uint keys[WIDTH * WIDTH * WIDTH];
     struct c0_ingest_work *c0skwork;
-    struct bin_heap *      bh;
-    struct bonsai_kv *     bkv;
-    bool                   first_time = true;
-    struct kvs_ktuple      last_kt = { 0, 0, 0 };
-    uint16_t               last_skidx = 0;
+    struct bin_heap *bh;
+    struct bonsai_kv *bkv;
+    bool first_time = true;
+    struct kvs_ktuple last_kt = { 0, 0, 0 };
+    uint16_t last_skidx = 0;
 
     ASSERT_LT(WIDTH, 200);
 
@@ -222,8 +220,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
     for (i = 0, k = 0; i <= WIDTH; ++i) {
-        uint32_t          kbuf[1];
-        char              vbuf[1];
+        uint32_t kbuf[1];
+        char vbuf[1];
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
 
@@ -261,11 +259,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     bin_heap_prepare(bh, c0skwork->c0iw_kvms_iterc, c0skwork->c0iw_kvms_sourcev);
 
     while (bin_heap_pop(bh, (void *)&bkv)) {
-        struct kvs_ktuple  kt;
-        struct kvs_vtuple  vt;
+        struct kvs_ktuple kt;
+        struct kvs_vtuple vt;
         struct bonsai_val *val;
-        uint32_t           key0;
-        uint16_t           skidx;
+        uint32_t key0;
+        uint16_t skidx;
 
         val = bkv->bkv_values;
         while (val) {

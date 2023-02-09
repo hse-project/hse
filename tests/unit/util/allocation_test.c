@@ -5,15 +5,15 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/allocation.h>
-
+#include <hse/logging/logging.h>
 #include <hse/util/arch.h>
 #include <hse/util/base.h>
-#include <hse/util/slab.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
-#include <hse/logging/logging.h>
+#include <hse/util/slab.h>
+
+#include <hse/test/mock/allocation.h>
+#include <hse/test/mtf/framework.h>
 
 int
 allocation_test_pre(struct mtf_test_info *lcl_ti)
@@ -83,11 +83,11 @@ MTF_DEFINE_UTEST(allocation, page_basic)
 MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
 {
     struct kmem_cache *zonev[100];
-    void *             memv[100];
-    int                i;
+    void *memv[100];
+    int i;
 
     struct kmem_cache *zone;
-    void *             mem;
+    void *mem;
 
     zone = kmem_cache_create(NULL, 0, 0, 0, NULL);
     ASSERT_EQ(NULL, zone);
@@ -150,17 +150,17 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
 uint64_t
 uma_test_alloc(
     struct mtf_test_info *lcl_ti,
-    size_t                size,
-    size_t                align,
-    int                   itermax,
-    int                   samplemax,
-    void *                zone)
+    size_t size,
+    size_t align,
+    int itermax,
+    int samplemax,
+    void *zone)
 {
     uint64_t tstart, tstop;
     uint64_t avg = 0;
-    void   **memv;
-    int      memc;
-    int      i, j;
+    void **memv;
+    int memc;
+    int i, j;
 
     memc = itermax / 15;
     ASSERT_NE_RET(0, memc, 0);
@@ -171,7 +171,7 @@ uma_test_alloc(
     for (i = 0; i < samplemax; ++i) {
         tstart = get_time_ns();
         for (j = 0; j < itermax; ++j) {
-            int   idx = j % memc;
+            int idx = j % memc;
             void *mem;
 
             kmem_cache_free(zone, memv[idx]);
@@ -201,9 +201,9 @@ uma_test_alloc(
 
 MTF_DEFINE_UTEST(allocation, kmem_cache_test)
 {
-    int      itermax, samplemax;
-    size_t   size;
-    void *   zone;
+    int itermax, samplemax;
+    size_t size;
+    void *zone;
     uint64_t avg;
 
     log_info("%16s: %8s %8s %8s", "FUNC", "SIZE", "ITERMAX", "NS/ALLOC");

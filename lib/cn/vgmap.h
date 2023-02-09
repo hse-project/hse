@@ -37,7 +37,7 @@
  * and w/o any vblock index mappings.
  */
 struct vgmap {
-    uint32_t  nvgroups;  /* number of vgroups */
+    uint32_t nvgroups;   /* number of vgroups */
     uint16_t *vbidx_out; /* array of output indexes (indexes the vblock list in a kvset) */
     uint16_t *vbidx_adj; /* array of index adjust offsets */
     uint16_t *vbidx_src; /* array of source indexes (vblock index recorded in the kblocks) */

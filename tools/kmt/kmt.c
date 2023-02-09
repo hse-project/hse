@@ -136,51 +136,46 @@
  */
 //#define XKMT
 
+#include <assert.h>
+#include <getopt.h>
+#include <math.h>
+#include <poll.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+#include <xoroshiro.h>
+#include <xxhash.h>
+
+#include <bsd/string.h>
+#include <hdr/hdr_histogram.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/param.h>
+#include <sys/poll.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 #include <hse/error/merr.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
+#include <hse/util/byteorder.h>
 #include <hse/util/compiler.h>
 #include <hse/util/log2.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
-#include <hse/util/byteorder.h>
-
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/kvs_cparams.h>
-
-#include <hse/mpool/mpool.h>
-
-#include <xoroshiro.h>
-
-#include <hdr/hdr_histogram.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <string.h>
-#include <bsd/string.h>
-#include <assert.h>
-#include <getopt.h>
-#include <signal.h>
-#include <sysexits.h>
-#include <pthread.h>
-#include <poll.h>
-#include <math.h>
-#include <semaphore.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-
-#include <xxhash.h>
 
 extern void
 malloc_stats(void);
@@ -200,12 +195,12 @@ malloc_stats(void);
 
 #include <mongoc/mongoc.h>
 
-#define MONGO_COLLECTIONS_MAX   (1u << 8)
-#define MONGO_COLLECTION_MASK   (MONGO_COLLECTIONS_MAX - 1)
+#define MONGO_COLLECTIONS_MAX (1u << 8)
+#define MONGO_COLLECTION_MASK (MONGO_COLLECTIONS_MAX - 1)
 
-#define KM_SWAPPCT_MODULUS      (1024 * 1024)
-#define WCMAJSCALE              (1u << 30)
-#define RETSIGTYPE              void
+#define KM_SWAPPCT_MODULUS (1024 * 1024)
+#define WCMAJSCALE         (1u << 30)
+#define RETSIGTYPE         void
 
 #ifdef XKMT
 #undef RB_ROOT
@@ -213,8 +208,8 @@ malloc_stats(void);
 #undef RB_GENERATE_INTERNAL
 #include <bsd/sys/tree.h>
 
-#define HSE_KVS_VALUE_LEN_MAX   (1024 * 1024)
-#define KM_REC_KEY_MAX          (128)
+#define HSE_KVS_VALUE_LEN_MAX (1024 * 1024)
+#define KM_REC_KEY_MAX        (128)
 
 typedef uint64_t hse_err_t;
 
@@ -227,11 +222,10 @@ hse_err_to_errno(hse_err_t err);
 #include <hse/limits.h>
 #include <hse/types.h>
 
-#define KM_REC_KEY_MAX          HSE_KVS_KEY_LEN_MAX
+#define KM_REC_KEY_MAX HSE_KVS_KEY_LEN_MAX
 #endif
 
 #include <hse/tools/parm_groups.h>
-
 
 // clang-format off
 const char    *cf_dir = "/var/tmp";
@@ -301,8 +295,8 @@ char perfc_buf[32];
 int perfc = -1;
 
 struct suftab {
-    const char *list;   /* list of suffix characters */
-    double      mult[]; /* list of multipliers */
+    const char *list; /* list of suffix characters */
+    double mult[];    /* list of multipliers */
 };
 
 /* kibibytes, mebibytes, ..., including the dd suffixes b and w.
@@ -350,7 +344,7 @@ enum km_op {
     OP_TXN_ABORT,
 };
 
-static const char *const op2txt[] = {
+static const char * const op2txt[] = {
     "null", "start", "lock", "unlock", "alloc", "abort", "commit", "delete", "read",  "write",
     "get",  "put",   "del",  "verify", "run",   "exit",  "begin",  "commit", "abort", "?",
 };
@@ -403,11 +397,11 @@ struct km_rec {
     uint32_t vlen; /* value length */
     uint32_t klen; /* key length */
     union {
-        uint64_t mbid;   /* mblock mode */
-        off_t    offset; /* device mode */
+        uint64_t mbid; /* mblock mode */
+        off_t offset;  /* device mode */
     };
     uint64_t hash;
-    uint8_t  data[];
+    uint8_t data[];
 };
 
 static_assert(sizeof(struct km_rec) == 32, "unexpected struct km_rec size");
@@ -426,7 +420,7 @@ struct chk {
     union {
         uint64_t hash64; /* kvs and mongo modes */
         uint64_t mbid;   /* mblock mode */
-        off_t    offset; /* device mode */
+        off_t offset;    /* device mode */
     };
 
     uint32_t vlen : 24;
@@ -490,8 +484,8 @@ struct km_lor km_lor = {
 
 struct km_latency {
     struct hdr_histogram *km_histogram;
-    atomic_ulong          km_samples;
-    atomic_ulong          km_samples_err;
+    atomic_ulong km_samples;
+    atomic_ulong km_samples_err;
 };
 
 struct km_sync_latency {
@@ -512,54 +506,54 @@ struct km_impl {
 
     struct km_rec_ops km_rec_ops;
 
-    char *        mpname;
-    const char *  kvsname;
-    uint          tdmax;
-    struct chk *  chk;
-    uint64_t      recmax;
-    size_t        vlenmin;
-    size_t        vlenmax;
-    const size_t  vlenmax_max;
-    size_t        vlendiv;
-    void *        kvdb;
-    void *        kvs;
+    char *mpname;
+    const char *kvsname;
+    uint tdmax;
+    struct chk *chk;
+    uint64_t recmax;
+    size_t vlenmin;
+    size_t vlenmax;
+    const size_t vlenmax_max;
+    size_t vlendiv;
+    void *kvdb;
+    void *kvs;
     struct mpool *ds;
 
-    mongoc_uri_t *        active_uri;
+    mongoc_uri_t *active_uri;
     mongoc_client_pool_t *client_pool;
 
     atomic_ulong keydistchunk HSE_ACP_ALIGNED;
 
-    struct km_latency      km_latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
+    struct km_latency km_latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
     struct km_sync_latency km_sync_latency;
 };
 
 /* Each thread gets a unique thread-instance object.
  */
 struct km_inst {
-    struct km_rec_ops       ops;
-    struct km_impl         *impl;
-    bson_t                  query;
-    bson_t                  update;
-    bson_t                  ropts;
-    bson_t                  wopts_wcmin;
-    bson_t                  wopts_wcmaj;
-    mongoc_collection_t    *collectionv[MONGO_COLLECTIONS_MAX];
+    struct km_rec_ops ops;
+    struct km_impl *impl;
+    bson_t query;
+    bson_t update;
+    bson_t ropts;
+    bson_t wopts_wcmin;
+    bson_t wopts_wcmaj;
+    mongoc_collection_t *collectionv[MONGO_COLLECTIONS_MAX];
     mongoc_write_concern_t *wcmin;
     mongoc_write_concern_t *wcmaj;
-    void                   *tdval;
-    unsigned int            flags;
-    struct hse_kvdb_txn    *txn;
-    char                    mode[32];
-    pthread_t               td;
-    hse_err_t               err;
-    char *                  fmt;
-    uint32_t                tid;
+    void *tdval;
+    unsigned int flags;
+    struct hse_kvdb_txn *txn;
+    char mode[32];
+    pthread_t td;
+    hse_err_t err;
+    char *fmt;
+    uint32_t tid;
     void (*func)(struct km_inst *);
     mongoc_client_t *client;
-    bson_error_t     error;
-    struct km_inst * next;
-    struct km_stats  stats;
+    bson_error_t error;
+    struct km_inst *next;
+    struct km_stats stats;
 
     struct km_latency latency[KMT_LAT_REC_CNT] HSE_ACP_ALIGNED;
 };
@@ -567,35 +561,29 @@ struct km_inst {
 #define km_open(_impl)  ((_impl)->km_open((_impl)))
 #define km_close(_impl) ((_impl)->km_close((_impl)))
 
-#define km_rec_alloc(_inst, _rp1, _rp2)                                 \
+#define km_rec_alloc(_inst, _rp1, _rp2) \
     ((_inst)->ops.km_rec_alloc((_inst), (void **)(_rp1), (void **)(_rp2)))
 
-#define km_rec_init(_inst, _rec, _rid, _tv)                     \
+#define km_rec_init(_inst, _rec, _rid, _tv) \
     ((_inst)->ops.km_rec_init((_inst), (_rec), (_rid), (_tv)))
 
-#define km_rec_swap(_inst, _rec1, _rec2) \
-    ((_inst)->ops.km_rec_swap((_inst), (_rec1), (_rec2)))
+#define km_rec_swap(_inst, _rec1, _rec2) ((_inst)->ops.km_rec_swap((_inst), (_rec1), (_rec2)))
 
-#define km_rec_get(_inst, _rec, _rid) \
-    ((_inst)->ops.km_rec_get((_inst), (_rec), (_rid)))
+#define km_rec_get(_inst, _rec, _rid) ((_inst)->ops.km_rec_get((_inst), (_rec), (_rid)))
 
-#define km_rec_put(_inst, _rec) \
-    ((_inst)->ops.km_rec_put((_inst), (_rec)))
+#define km_rec_put(_inst, _rec) ((_inst)->ops.km_rec_put((_inst), (_rec)))
 
-#define km_rec_del(_inst, _rid) \
-    ((_inst)->ops.km_rec_del((_inst), (_rid)))
+#define km_rec_del(_inst, _rid) ((_inst)->ops.km_rec_del((_inst), (_rid)))
 
-#define km_rec_verify(_inst, _rec) \
-    km_rec_verify_cmn((_inst), (_rec))
+#define km_rec_verify(_inst, _rec) km_rec_verify_cmn((_inst), (_rec))
 
-#define km_rec_print(_inst, _rec, _fmt, _err) \
-    km_rec_print_cmn((_inst), (_rec), (_fmt), (_err))
+#define km_rec_print(_inst, _rec, _fmt, _err) km_rec_print_cmn((_inst), (_rec), (_fmt), (_err))
 
 #define td_lock()   ((void)pthread_spin_lock(&td_exited_lock))
 #define td_unlock() ((void)pthread_spin_unlock(&td_exited_lock))
 
 pthread_spinlock_t td_exited_lock;
-struct km_inst *   td_exited_head;
+struct km_inst *td_exited_head;
 
 __attribute__((format(printf, 1, 2))) static void
 eprint(char *fmt, ...);
@@ -606,10 +594,10 @@ struct kvnode {
     RB_ENTRY(kvnode) entry;
 
     uint64_t hash;
-    uint     keylen;
-    uint     datalen;
-    char    *key;
-    char    *data;
+    uint keylen;
+    uint datalen;
+    char *key;
+    char *data;
 } HSE_L1D_ALIGNED;
 
 static inline int
@@ -667,7 +655,7 @@ xrand32(void)
     return xoroshiro128plus(xrand_state);
 }
 
-#define SUPER_SZ    (2ul << 20)
+#define SUPER_SZ (2ul << 20)
 
 void *
 super_alloc(size_t sz)
@@ -681,7 +669,7 @@ super_alloc(size_t sz)
     if (sz > (32ul << 20))
         flags &= ~MAP_HUGETLB;
 
-  again:
+again:
     mem = mmap(NULL, sz, prot, flags, -1, 0);
 
     if (mem == MAP_FAILED) {
@@ -706,7 +694,7 @@ super_free(void *mem, size_t sz)
 
 struct bktlock {
     union {
-        pthread_rwlock_t   rwlock;
+        pthread_rwlock_t rwlock;
         atomic_int spinlock;
     };
 } HSE_ACP_ALIGNED;
@@ -723,11 +711,11 @@ struct bkt {
  * which cosumes a little over half of its super page.
  */
 #ifdef XKMT
-#define BKTLOCK_MAX     ((SUPER_SZ / 2) / sizeof(struct bktlock))
-#define BKT_MAX         ((SUPER_SZ / 2) / sizeof(struct bkt))
+#define BKTLOCK_MAX ((SUPER_SZ / 2) / sizeof(struct bktlock))
+#define BKT_MAX     ((SUPER_SZ / 2) / sizeof(struct bkt))
 #else
-#define BKTLOCK_MAX     ((SUPER_SZ / 2) / sizeof(struct bktlock))
-#define BKT_MAX         (BKTLOCK_MAX)
+#define BKTLOCK_MAX ((SUPER_SZ / 2) / sizeof(struct bktlock))
+#define BKT_MAX     (BKTLOCK_MAX)
 #endif
 
 /* We create our own spin locks so that we can differentiate
@@ -736,15 +724,15 @@ struct bkt {
 static __always_inline bool
 atomic_cas_acq(atomic_int *p, int oldv, int newv)
 {
-    return atomic_compare_exchange_weak_explicit(p, &oldv, newv,
-                                                 memory_order_acquire, memory_order_relaxed);
+    return atomic_compare_exchange_weak_explicit(
+        p, &oldv, newv, memory_order_acquire, memory_order_relaxed);
 }
 
 static __always_inline bool
 atomic_cas_rel(atomic_int *p, int oldv, int newv)
 {
-    return atomic_compare_exchange_strong_explicit(p, &oldv, newv,
-                                                   memory_order_acquire, memory_order_relaxed);
+    return atomic_compare_exchange_strong_explicit(
+        p, &oldv, newv, memory_order_acquire, memory_order_relaxed);
 }
 
 static __always_inline int
@@ -771,26 +759,26 @@ kmt_spin_unlock(void *lockp)
     return atomic_cas_rel(lockp, 1, 0);
 }
 
-
-typedef int lockfunc_t(void *);
+typedef int
+lockfunc_t(void *);
 
 struct {
-    struct bkt     *bkt;
-    lockfunc_t     *bktlock_rlock;
-    lockfunc_t     *bktlock_runlock;
-    lockfunc_t     *bktlock_wlock;
-    lockfunc_t     *bktlock_trywlock;
-    lockfunc_t     *bktlock_wunlock;
+    struct bkt *bkt;
+    lockfunc_t *bktlock_rlock;
+    lockfunc_t *bktlock_runlock;
+    lockfunc_t *bktlock_wlock;
+    lockfunc_t *bktlock_trywlock;
+    lockfunc_t *bktlock_wunlock;
 
     struct bktlock *bktlock;
-    size_t          bktlocksz;
+    size_t bktlocksz;
 } g HSE_ACP_ALIGNED;
 
 void
 bkt_init(void)
 {
-    bool   use_spinlock, use_rwlock;
-    int    i;
+    bool use_spinlock, use_rwlock;
+    int i;
 
     g.bktlocksz = ALIGN(sizeof(*g.bktlock) * BKTLOCK_MAX, PAGE_SIZE);
     g.bktlocksz += ALIGN(sizeof(*g.bkt) * BKT_MAX, PAGE_SIZE);
@@ -984,7 +972,11 @@ hse_strerror(uint64_t err, char *buf, size_t bufsz)
 #define hse_kvs_delete    xkmt_kvs_delete
 
 int
-xkmt_kvdb_open(const char *mp_name, size_t pc, const char *const *pv, struct hse_kvdb **kvdb_handle)
+xkmt_kvdb_open(
+    const char *mp_name,
+    size_t pc,
+    const char * const *pv,
+    struct hse_kvdb **kvdb_handle)
 {
     if (!kvs) {
         kvs = aligned_alloc(PAGE_SIZE, sizeof(*kvs));
@@ -1004,11 +996,11 @@ xkmt_kvdb_open(const char *mp_name, size_t pc, const char *const *pv, struct hse
 
 int
 xkmt_kvdb_kvs_open(
-    struct hse_kvdb *  kvdb_handle,
-    const char *       kvs_name,
+    struct hse_kvdb *kvdb_handle,
+    const char *kvs_name,
     size_t parmc,
-    const char *const *parmv,
-    struct hse_kvs **  kvs_out)
+    const char * const *parmv,
+    struct hse_kvs **kvs_out)
 {
     struct hse_kvs *k = (struct hse_kvs *)kvdb_handle;
 
@@ -1027,17 +1019,17 @@ xkmt_kvdb_close(struct hse_kvdb *hdl)
 int
 xkmt_kvs_get(
     struct hse_kvs *kvs_handle,
-    unsigned int    flags,
-    void *          txn,
-    const void *    key,
-    size_t          key_len,
-    bool *          found,
-    void *          valbuf,
-    size_t          valbufsz,
-    size_t *        val_len)
+    unsigned int flags,
+    void *txn,
+    const void *key,
+    size_t key_len,
+    bool *found,
+    void *valbuf,
+    size_t valbufsz,
+    size_t *val_len)
 {
     struct kvnode *node, tmp;
-    struct bkt *   bkt;
+    struct bkt *bkt;
 
     tmp.keylen = key_len;
     tmp.key = (void *)key;
@@ -1079,19 +1071,19 @@ xkmt_kvs_get(
 int
 xkmt_kvs_put(
     struct hse_kvs *kvs_handle,
-    unsigned int    flags,
-    void *          txn,
-    const void *    key,
-    size_t          key_len,
-    const void *    val,
-    size_t          val_len)
+    unsigned int flags,
+    void *txn,
+    const void *key,
+    size_t key_len,
+    const void *val,
+    size_t val_len)
 {
     static thread_local struct kvnode *node;
 
-    struct bkt *   bkt;
+    struct bkt *bkt;
     struct kvnode *dup;
-    char *         data;
-    size_t         sz;
+    char *data;
+    size_t sz;
 
     data = NULL;
 
@@ -1140,7 +1132,7 @@ xkmt_kvs_put(
 
     dup = RB_INSERT(node_tree, &bkt->root, node);
     if (dup) {
-        uint  datalen = dup->datalen;
+        uint datalen = dup->datalen;
         char *k = dup->key;
 
         /* Node exists, swap the key and data buffers so that we
@@ -1165,13 +1157,13 @@ xkmt_kvs_put(
 int
 xkmt_kvs_delete(
     struct hse_kvs *kvs_handle,
-    unsigned int    flags,
-    void *          txn,
-    const void *    key,
-    size_t          key_len)
+    unsigned int flags,
+    void *txn,
+    const void *key,
+    size_t key_len)
 {
     struct kvnode *node, tmp;
-    struct bkt *   bkt;
+    struct bkt *bkt;
 
     tmp.keylen = key_len;
     tmp.key = (void *)key;
@@ -1205,7 +1197,7 @@ xkmt_kvs_delete(
 void
 eprint(char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     (void)snprintf(msg, sizeof(msg), "%s: ", progname);
@@ -1442,11 +1434,11 @@ chk_init(struct km_impl *impl, uint64_t recmax)
 {
     struct stat sb;
 
-    int   oflags = O_RDWR;
-    int   mflags, prot;
+    int oflags = O_RDWR;
+    int mflags, prot;
     off_t length;
-    int   fd;
-    int   rc;
+    int fd;
+    int rc;
 
     if (impl_mongo) {
         snprintf(chk_path, sizeof(chk_path), "%s/%s-mongodb-%s", cf_dir, progname, impl->kvsname);
@@ -1460,10 +1452,9 @@ chk_init(struct km_impl *impl, uint64_t recmax)
             ++pc;
         }
 
-        snprintf(chk_path, sizeof(chk_path), "%s/%s-%s%s%s",
-                 cf_dir, progname, buf,
-                 impl->kvsname ? "-" : "",
-                 impl->kvsname ?: "");
+        snprintf(
+            chk_path, sizeof(chk_path), "%s/%s-%s%s%s", cf_dir, progname, buf,
+            impl->kvsname ? "-" : "", impl->kvsname ?: "");
     }
 
     if (recmax > 0)
@@ -1484,9 +1475,9 @@ chk_init(struct km_impl *impl, uint64_t recmax)
     }
 
     if (rc) {
-        eprint("%s: unable to %s check file %s: %s\n",
-               __func__, recmax > 0 ? "create" : "open",
-               chk_path, strerror(errno));
+        eprint(
+            "%s: unable to %s check file %s: %s\n", __func__, recmax > 0 ? "create" : "open",
+            chk_path, strerror(errno));
         exit(EX_OSERR);
     }
 
@@ -1551,8 +1542,8 @@ km_rec_alloc_cmn(struct km_inst *inst, void **rp1, void **rp2)
     if (!rec_head) {
         r = super_alloc(bufsz * tdmax * 2);
         if (!r) {
-            eprint("%s: rec_alloc failed: %s\n",
-                   __func__, strerror_r(errno, errbuf, sizeof(errbuf)));
+            eprint(
+                "%s: rec_alloc failed: %s\n", __func__, strerror_r(errno, errbuf, sizeof(errbuf)));
             exit(EX_OSERR);
         }
 
@@ -1619,8 +1610,9 @@ km_rec_keygen_cmn(void *key, uint64_t rid)
 
     len = right - (char *)key;
     if (len >= KM_REC_KEY_MAX) {
-        eprint("%s: key buf overflow: len=%d keysz=%d keyfmt=%s rid=%lu\n",
-               __func__, len, KM_REC_KEY_MAX, keyfmt ?: "", rid);
+        eprint(
+            "%s: key buf overflow: len=%d keysz=%d keyfmt=%s rid=%lu\n", __func__, len,
+            KM_REC_KEY_MAX, keyfmt ?: "", rid);
         abort();
     }
 
@@ -1687,19 +1679,17 @@ void
 km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_err_t err)
 {
     struct km_impl *impl = inst->impl;
-    static int      once;
-    char            ebuf[128];
-    char            vbuf[128];
-    uint64_t        chk_hash;
-    char *          dst;
-    int             i;
+    static int once;
+    char ebuf[128];
+    char vbuf[128];
+    uint64_t chk_hash;
+    char *dst;
+    int i;
 
     if (!once++) {
-        printf("%7s %17s %17s %5s %9s %16s %-32s\n", // eol
-               "RID",
-               "HASH", "CHK_HASH",
-               "KLEN", "VLEN",
-               "MBID", "VALUE");
+        printf(
+            "%7s %17s %17s %5s %9s %16s %-32s\n", // eol
+            "RID", "HASH", "CHK_HASH", "KLEN", "VLEN", "MBID", "VALUE");
     }
 
     chk_hash = 0;
@@ -1719,18 +1709,18 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     dst = vbuf;
     for (i = 0; i < 32 && i < r->vlen; ++i) {
         const char tab[] = { // eol
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+                             '0', '1', '2', '3', '4', '5', '6', '7',
+                             '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+        };
 
         *dst++ = tab[(r->data[i] >> 4) & 0x0f];
         *dst++ = tab[r->data[i] & 0x0f];
     }
     *dst = '\000';
 
-    printf("%7lu %17lx %17lx %5u %9u %16lx %-32s %s\n", // eol
-           r->rid,
-           r->hash, chk_hash,
-           r->klen, r->vlen,
-           r->mbid, vbuf, ebuf);
+    printf(
+        "%7lu %17lx %17lx %5u %9u %16lx %-32s %s\n", // eol
+        r->rid, r->hash, chk_hash, r->klen, r->vlen, r->mbid, vbuf, ebuf);
 }
 
 void
@@ -1779,11 +1769,11 @@ km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
     char *key = (char *)r + secsz;
-    size_t          klen, vlen;
-    hse_err_t       err;
-    uint64_t        rc;
-    bool            found;
-    uint64_t        ns;
+    size_t klen, vlen;
+    hse_err_t err;
+    uint64_t rc;
+    bool found;
+    uint64_t ns;
 
     if (rid >= impl->recmax)
         abort();
@@ -1872,10 +1862,10 @@ hse_err_t
 km_rec_del_kvs(struct km_inst *inst, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    char            key[KM_REC_KEY_MAX];
-    size_t          klen;
-    uint64_t        rc;
-    uint64_t        ns;
+    char key[KM_REC_KEY_MAX];
+    size_t klen;
+    uint64_t rc;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -1900,10 +1890,10 @@ hse_err_t
 km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    struct iovec    iov[2];
-    hse_err_t       err;
-    uint64_t        mbid;
-    uint64_t        ns;
+    struct iovec iov[2];
+    hse_err_t err;
+    uint64_t mbid;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -1929,14 +1919,16 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 
     err = mpool_mblock_read(impl->ds, mbid, iov, 1, 0);
     if (err) {
-        eprint("%s: mpool_mblock_read(0x%lx): rid=%lu mbid=%lx err=%lx\n",
-               __func__, mbid, rid, (ulong)mbid, err);
+        eprint(
+            "%s: mpool_mblock_read(0x%lx): rid=%lu mbid=%lx err=%lx\n", __func__, mbid, rid,
+            (ulong)mbid, err);
         return err;
     }
 
     if (r->rid != rid || r->mbid != mbid) {
-        eprint("%s: corrupt mblock: (r->rid %lu != rid %lu) || (r->mbid %lx != mbid %lx)\n",
-               __func__, r->rid, rid, r->mbid, mbid);
+        eprint(
+            "%s: corrupt mblock: (r->rid %lu != rid %lu) || (r->mbid %lx != mbid %lx)\n", __func__,
+            r->rid, rid, r->mbid, mbid);
         abort();
     }
 
@@ -1960,14 +1952,14 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 hse_err_t
 km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
 {
-    struct km_impl *    impl = inst->impl;
+    struct km_impl *impl = inst->impl;
     struct mblock_props props;
 
     struct iovec iov[2];
-    uint64_t     nmbid;
-    uint64_t     ombid;
-    hse_err_t    err;
-    uint64_t     ns;
+    uint64_t nmbid;
+    uint64_t ombid;
+    hse_err_t err;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2031,9 +2023,9 @@ hse_err_t
 km_rec_del_ds(struct km_inst *inst, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    uint64_t        mbid;
-    hse_err_t       err;
-    uint64_t        ns;
+    uint64_t mbid;
+    hse_err_t err;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -2058,11 +2050,11 @@ hse_err_t
 km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    hse_err_t       err;
-    off_t           offset;
-    ssize_t         cc;
-    int             fd;
-    uint64_t        ns;
+    hse_err_t err;
+    off_t offset;
+    ssize_t cc;
+    int fd;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -2087,8 +2079,9 @@ km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
         return cc == -1 ? errno : EIO;
 
     if (r->rid != rid || r->offset != offset) {
-        eprint("%s: corrupt block: (r->rid %lu != rid %lu) || (r->offset %ld != offset %ld)\n",
-               __func__, r->rid, rid, r->offset, offset);
+        eprint(
+            "%s: corrupt block: (r->rid %lu != rid %lu) || (r->offset %ld != offset %ld)\n",
+            __func__, r->rid, rid, r->offset, offset);
         abort();
     }
 
@@ -2113,9 +2106,9 @@ hse_err_t
 km_rec_put_dev(struct km_inst *inst, struct km_rec *r)
 {
     struct km_impl *impl = inst->impl;
-    ssize_t         cc;
-    int             fd;
-    uint64_t        ns;
+    ssize_t cc;
+    int fd;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2232,13 +2225,13 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
     char *key = (char *)r + secsz;
-    size_t           klen;
-    uint             retries;
-    uint             cid;
-    const bson_t    *doc;
+    size_t klen;
+    uint retries;
+    uint cid;
+    const bson_t *doc;
     mongoc_cursor_t *cursor;
-    hse_err_t        err;
-    uint64_t         ns;
+    hse_err_t err;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
 
@@ -2248,7 +2241,7 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     inst->stats.op = OP_KVS_GET;
     retries = 3;
 
-  again:
+again:
     r->rid = -1;
     r->vlen = -1;
 
@@ -2258,15 +2251,16 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 
     cid = rid2cid(rid);
 
-    cursor = mongoc_collection_find_with_opts(
-        inst->collectionv[cid], &inst->query, &inst->ropts, NULL);
+    cursor =
+        mongoc_collection_find_with_opts(inst->collectionv[cid], &inst->query, &inst->ropts, NULL);
 
     if (mongoc_cursor_next(cursor, &doc))
         bson_to_rec(doc, r);
 
     if (mongoc_cursor_error(cursor, &inst->error)) {
-        eprint("%s: cursor failure: (r->rid %lu != rid %lu): %s\n",
-               __func__, r->rid, rid, inst->error.message);
+        eprint(
+            "%s: cursor failure: (r->rid %lu != rid %lu): %s\n", __func__, r->rid, rid,
+            inst->error.message);
         abort();
     }
 
@@ -2315,10 +2309,10 @@ km_rec_put_mongo(struct km_inst *inst, struct km_rec *r)
 {
     struct km_impl *impl = inst->impl;
     char *key = (char *)r + secsz;
-    bson_t         *opts;
-    uint            cid;
-    bool            rc;
-    uint64_t        ns;
+    bson_t *opts;
+    uint cid;
+    bool rc;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
 
@@ -2358,11 +2352,11 @@ km_rec_put_mongo(struct km_inst *inst, struct km_rec *r)
 hse_err_t
 km_rec_del_mongo(struct km_inst *inst, uint64_t rid)
 {
-    char       key[KM_REC_KEY_MAX];
-    size_t     klen;
-    uint       cid;
-    bool       rc;
-    uint64_t   ns;
+    char key[KM_REC_KEY_MAX];
+    size_t klen;
+    uint cid;
+    bool rc;
+    uint64_t ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
 
@@ -2393,9 +2387,9 @@ hse_err_t
 km_open_kvs(struct km_impl *impl)
 {
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    uint64_t         rc;
-    struct svec *    kv_oparms = kvs_txn ? &kv_oparms_txn : &kv_oparms_notxn;
+    struct hse_kvs *kvs;
+    uint64_t rc;
+    struct svec *kv_oparms = kvs_txn ? &kv_oparms_txn : &kv_oparms_notxn;
 
     if (impl->kvdb || impl->kvs)
         return 0;
@@ -2437,7 +2431,7 @@ hse_err_t
 km_open_ds(struct km_impl *impl)
 {
     struct mpool *ds = NULL;
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err;
 
     if (impl->ds)
@@ -2535,11 +2529,11 @@ km_close_dev(struct km_impl *impl)
 hse_err_t
 km_open_mongo(struct km_impl *impl)
 {
-    bson_error_t     error;
+    bson_error_t error;
     mongoc_client_t *client;
-    bson_t           command;
-    bson_t           reply;
-    bool             ok;
+    bson_t command;
+    bson_t reply;
+    bool ok;
 
     if (impl->client_pool)
         return 0;
@@ -2584,7 +2578,7 @@ km_open_mongo(struct km_impl *impl)
         int retries = 15;
         int i;
 
-      retry:
+    retry:
         total = 0;
 
         for (i = 0; i < collectionc; ++i) {
@@ -2594,11 +2588,10 @@ km_open_mongo(struct km_impl *impl)
 
             /* mongoc_client_get_collection() performs an implicit collection create...
              */
-          again:
+        again:
             collection = mongoc_client_get_collection(client, impl->kvsname, collname);
             if (!collection) {
-                eprint("%s: unable to get collection %s\n",
-                       __func__, collname);
+                eprint("%s: unable to get collection %s\n", __func__, collname);
                 exit(EX_OSERR);
             }
 
@@ -2611,21 +2604,22 @@ km_open_mongo(struct km_impl *impl)
              */
             n = mongoc_collection_estimated_document_count(collection, NULL, NULL, NULL, &error);
             if (n == -1) {
-                eprint("%s: unable to count collection %s: %s\n",
-                       __func__, collname, error.message);
+                eprint(
+                    "%s: unable to count collection %s: %s\n", __func__, collname, error.message);
                 exit(EX_OSERR);
             }
 
             /* Drop the collection in initmode if it's not empty...
              */
             if (initmode && n > 0) {
-                eprint("%s: dropping preexisting collection %s with %ld records...\n",
-                       __func__, collname, n);
+                eprint(
+                    "%s: dropping preexisting collection %s with %ld records...\n", __func__,
+                    collname, n);
 
                 ok = mongoc_collection_drop(collection, &error);
                 if (!ok) {
-                    eprint("%s: drop collection %s failed: %s\n",
-                           __func__, collname, error.message);
+                    eprint(
+                        "%s: drop collection %s failed: %s\n", __func__, collname, error.message);
                 }
 
                 mongoc_collection_destroy(collection);
@@ -2644,8 +2638,9 @@ km_open_mongo(struct km_impl *impl)
 
         if (!initmode && total != impl->recmax) {
             if (retries-- > 0) {
-                eprint("%s: record count mismatch (expected %lu, got %ld), retrying...\n",
-                       __func__, impl->recmax, total);
+                eprint(
+                    "%s: record count mismatch (expected %lu, got %ld), retrying...\n", __func__,
+                    impl->recmax, total);
 
                 if (total > prev) {
                     prev = total;
@@ -2656,8 +2651,9 @@ km_open_mongo(struct km_impl *impl)
                 goto retry;
             }
 
-            eprint("%s: record count mismatch (expected %lu, got %ld), continuing...\n",
-                   __func__, impl->recmax, total);
+            eprint(
+                "%s: record count mismatch (expected %lu, got %ld), continuing...\n", __func__,
+                impl->recmax, total);
         }
     }
 
@@ -2721,10 +2717,10 @@ td_init(struct km_inst *inst)
     struct timeval tv_init;
     struct km_rec *r;
 
-    char     td_name[16];
+    char td_name[16];
     uint64_t start, stop;
     uint64_t rid;
-    hse_err_t   err;
+    hse_err_t err;
 
     snprintf(td_name, sizeof(td_name), "%s_init_%u", progname, inst->tid);
     pthread_setname_np(inst->td, td_name);
@@ -2772,10 +2768,10 @@ td_init(struct km_inst *inst)
 void
 td_check(struct km_inst *inst)
 {
-    char            td_name[16];
+    char td_name[16];
     struct km_impl *impl;
-    struct km_rec * r;
-    hse_err_t          err;
+    struct km_rec *r;
+    hse_err_t err;
 
     uint64_t start, stop;
     uint64_t rid;
@@ -2918,20 +2914,21 @@ td_check_fini(struct km_impl *impl)
 
     if (nbyhash == impl->recmax || nbyrid == impl->recmax) {
         if (nmissing | ndups) {
-            eprint("total=%lu missing=%lu dups=%lu byhash=%lu byrid=%lu\n",
-                   impl->recmax, nmissing, ndups, nbyhash, nbyrid);
+            eprint(
+                "total=%lu missing=%lu dups=%lu byhash=%lu byrid=%lu\n", impl->recmax, nmissing,
+                ndups, nbyhash, nbyrid);
             _exit(EX_SOFTWARE);
         }
     }
 
     if (nbyrid < impl->recmax) {
-        eprint("unable to verify %lu of %lu records by rid (%.3lf%%)\n",
-               impl->recmax - nbyrid, impl->recmax,
-               (impl->recmax - nbyrid) * 100.0 / impl->recmax);
+        eprint(
+            "unable to verify %lu of %lu records by rid (%.3lf%%)\n", impl->recmax - nbyrid,
+            impl->recmax, (impl->recmax - nbyrid) * 100.0 / impl->recmax);
     } else if (nbyhash < impl->recmax) {
-        eprint("unable to verify %lu of %lu records by hash (%.3lf%%)\n",
-               impl->recmax - nbyhash, impl->recmax,
-               (impl->recmax - nbyhash) * 100.0 / impl->recmax);
+        eprint(
+            "unable to verify %lu of %lu records by hash (%.3lf%%)\n", impl->recmax - nbyhash,
+            impl->recmax, (impl->recmax - nbyhash) * 100.0 / impl->recmax);
     }
 }
 
@@ -2940,11 +2937,11 @@ td_destroy(struct km_inst *inst)
 {
     struct km_impl *impl;
 
-    char     td_name[16];
+    char td_name[16];
     uint64_t start, stop;
     uint64_t rid;
-    hse_err_t   err;
-    int      nerrs;
+    hse_err_t err;
+    int nerrs;
 
     snprintf(td_name, sizeof(td_name), "%s_destroy_%u", progname, inst->tid);
     pthread_setname_np(inst->td, td_name);
@@ -2989,14 +2986,14 @@ td_destroy(struct km_inst *inst)
 void
 td_test(struct km_inst *inst)
 {
-    char                   td_name[16];
-    struct km_rec *        recx, *recy;
-    uint64_t               ridx, ridy;
-    struct km_impl *       impl;
-    struct hse_kvdb_txn *  txn;
-    struct km_lor          lor;
-    hse_err_t                 err;
-    int                    rc;
+    char td_name[16];
+    struct km_rec *recx, *recy;
+    uint64_t ridx, ridy;
+    struct km_impl *impl;
+    struct hse_kvdb_txn *txn;
+    struct km_lor lor;
+    hse_err_t err;
+    int rc;
 
     snprintf(td_name, sizeof(td_name), "%s_test_%u", progname, inst->tid);
     pthread_setname_np(inst->td, td_name);
@@ -3138,7 +3135,7 @@ td_test(struct km_inst *inst)
             chk_update(inst->impl, recy, false);
         }
 
-      unlock:
+    unlock:
         if (locked) {
             inst->stats.op = OP_UNLOCK;
             chk_pair_unlock(impl, ridx, ridy);
@@ -3192,29 +3189,29 @@ status(
     struct km_inst *instv,
     struct timeval *tv_start,
     struct timeval *tv_prev,
-    time_t          mark)
+    time_t mark)
 {
-    struct timeval  tv_now, tv_diff, tv_usrsys;
+    struct timeval tv_now, tv_diff, tv_usrsys;
     struct km_inst *instv_end, *inst;
-    struct rusage   rusage;
+    struct rusage rusage;
 
-    int    width_icup, width_ibfg, width_iad;
-    int    width_td, width_secs;
-    ulong  get_total, iget_total;
-    ulong  getbytes_total, igetbytes_total;
-    ulong  put_total, iput_total;
-    ulong  putbytes_total, iputbytes_total;
-    ulong  del_total, idel_total;
-    ulong  swap_total, iswap_total;
-    ulong  begin_total, ibegin_total;
-    ulong  commit_total, icommit_total;
-    ulong  abort_total, iabort_total;
-    ulong  total_ms, usrsys;
-    long   avg_sync_latency_ms = 0;
-    int    nthreads;
-    bool   show, txn;
-    char   errmsg[128];
-    long   iters;
+    int width_icup, width_ibfg, width_iad;
+    int width_td, width_secs;
+    ulong get_total, iget_total;
+    ulong getbytes_total, igetbytes_total;
+    ulong put_total, iput_total;
+    ulong putbytes_total, iputbytes_total;
+    ulong del_total, idel_total;
+    ulong swap_total, iswap_total;
+    ulong begin_total, ibegin_total;
+    ulong commit_total, icommit_total;
+    ulong abort_total, iabort_total;
+    ulong total_ms, usrsys;
+    long avg_sync_latency_ms = 0;
+    int nthreads;
+    bool show, txn;
+    char errmsg[128];
+    long iters;
 
     gettimeofday(&tv_now, NULL);
 
@@ -3267,8 +3264,7 @@ status(
 
     iters = atomic_read(&impl->km_sync_latency.km_sync_iterations);
     if (iters != 0) {
-        avg_sync_latency_ms =
-            atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
+        avg_sync_latency_ms = atomic_read(&impl->km_sync_latency.km_total_sync_latency_us) / iters;
         avg_sync_latency_ms /= 1000;
     }
 
@@ -3523,8 +3519,8 @@ spawn_main(void *arg)
 {
     static atomic_int workers;
     struct km_inst *inst = arg;
-    char            collname[16];
-    int             i;
+    char collname[16];
+    int i;
 
     if (impl_mongo) {
         inst->client = mongoc_client_pool_pop(inst->impl->client_pool);
@@ -3613,9 +3609,9 @@ spawn_main(void *arg)
 void
 print_latency(struct km_impl *impl, const char *mode)
 {
-    int                   i;
-    char                  hdr[1024];
-    bool                  print_hdr = true;
+    int i;
+    char hdr[1024];
+    bool print_hdr = true;
     struct hdr_histogram *histogram;
 
     // clang-format off
@@ -3650,12 +3646,11 @@ print_latency(struct km_impl *impl, const char *mode)
         lt999 = hdr_value_at_percentile(histogram, 99.9);
         lt9999 = hdr_value_at_percentile(histogram, 99.99);
 
-        printf("%-9s %8s %8s %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld\n",
-               "slatency", mode, op2txt[OP_KVS_GET + i],
-               atomic_read(&impl->km_latency[i].km_samples),
-               atomic_read(&impl->km_latency[i].km_samples_err),
-               min, max, avg,
-               lt90, lt95, lt99, lt999, lt9999);
+        printf(
+            "%-9s %8s %8s %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld\n",
+            "slatency", mode, op2txt[OP_KVS_GET + i], atomic_read(&impl->km_latency[i].km_samples),
+            atomic_read(&impl->km_latency[i].km_samples_err), min, max, avg, lt90, lt95, lt99,
+            lt999, lt9999);
     }
 }
 
@@ -3663,10 +3658,8 @@ print_latency(struct km_impl *impl, const char *mode)
 void *
 periodic_sync(void *arg)
 {
-    struct timespec timeout = {
-        .tv_sec = sync_timeout_ms / 1000,
-        .tv_nsec = (sync_timeout_ms % 1000) * 1000000
-    };
+    struct timespec timeout = { .tv_sec = sync_timeout_ms / 1000,
+                                .tv_nsec = (sync_timeout_ms % 1000) * 1000000 };
     struct km_impl *impl = arg;
     sigset_t sigmask;
     hse_err_t err;
@@ -3708,27 +3701,27 @@ void
 spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t mark)
 {
     struct itimerval itv_guard;
-    struct timeval   tv_start, tv_prev;
-    struct km_inst * instv;
-    struct timespec  timeout;
-    sig_atomic_t     osigusr2;
-    struct pollfd    fds;
+    struct timeval tv_start, tv_prev;
+    struct km_inst *instv;
+    struct timespec timeout;
+    sig_atomic_t osigusr2;
+    struct pollfd fds;
     char errbuf[128];
     hse_err_t err;
 
 #ifndef XKMT
-    pthread_t        sync_thread;
+    pthread_t sync_thread;
 #endif
 
     sigset_t sigmask_block;
     sigset_t sigmask_none;
     sigset_t sigmask_old;
-    char     td_name[16];
-    int      nthreads;
-    int      nerrs;
-    int      rc;
-    int      i;
-    char     mode[32];
+    char td_name[16];
+    int nthreads;
+    int nerrs;
+    int rc;
+    int i;
+    char mode[32];
 
     snprintf(td_name, sizeof(td_name), "%s_spawn", progname);
     pthread_setname_np(pthread_self(), td_name);
@@ -3803,8 +3796,9 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     if (testmode && sync_timeout_ms > 0) {
         rc = pthread_create(&sync_thread, NULL, periodic_sync, impl);
         if (rc) {
-            eprint("%s: pthread_create failed for sync thread: %s\n",
-                   __func__, strerror_r(rc, errbuf, sizeof(errbuf)));
+            eprint(
+                "%s: pthread_create failed for sync thread: %s\n", __func__,
+                strerror_r(rc, errbuf, sizeof(errbuf)));
             ++nerrs;
         }
     }
@@ -3838,7 +3832,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     while (nthreads > 0) {
         if (sigusr2 > osigusr2) {
             struct km_inst *inst;
-            void *          val;
+            void *val;
 
             td_lock();
             inst = td_exited_head;
@@ -3870,7 +3864,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
             continue;
 
         if (fds.revents) {
-            char    ttybuf[128];
+            char ttybuf[128];
             ssize_t cc;
 
             cc = read(fds.fd, ttybuf, sizeof(ttybuf));
@@ -4016,7 +4010,7 @@ struct km_impl km_impl_mongo = {
 __attribute__((format(printf, 1, 2))) void
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -4029,17 +4023,17 @@ syntax(const char *fmt, ...)
 ulong
 cvt_strtoul(
 #if __GNUC__ > 4
-    const char *restrict str,
-    char **restrict      endp,
+    const char * restrict str,
+    char ** restrict endp,
 #else
     const char *str,
-    char **     endp,
+    char **endp,
 #endif
     const struct suftab *suftab)
 {
     long double val;
     const char *pc;
-    char *      end;
+    char *end;
 
     errno = 0;
     val = strtold(str, &end);
@@ -4077,7 +4071,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
 {
     char *nvlist, *nvlist_base;
     char *name, *value;
-    int   n, rc;
+    int n, rc;
 
     if (!list)
         return EINVAL;
@@ -4163,8 +4157,8 @@ prop_decode(const char *list, const char *sep, const char *valid)
             wcmajprob = strtod(value, &end);
         } else if (0 == strcmp(name, "mclass")) {
             mclass = strtoul(value, &end, 0);
-            mclass = mclass == 1 ? HSE_MCLASS_STAGING :
-                ((mclass == 2) ? HSE_MCLASS_PMEM : HSE_MCLASS_CAPACITY);
+            mclass = mclass == 1 ? HSE_MCLASS_STAGING
+                                 : ((mclass == 2) ? HSE_MCLASS_PMEM : HSE_MCLASS_CAPACITY);
         } else {
             eprint("%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
             continue;
@@ -4187,7 +4181,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
 void
 oom_score_adj_set(int adj)
 {
-    char  path[PATH_MAX];
+    char path[PATH_MAX];
     FILE *fp;
 
     if (adj < -1000 || adj > 1000)
@@ -4203,8 +4197,8 @@ oom_score_adj_set(int adj)
 }
 
 #include <hse/config/params.h>
-#include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 
 static int
 psortv_cmp(const void *lhs, const void *rhs)
@@ -4285,14 +4279,15 @@ usage_parms(size_t *npsp, const struct param_spec *psv, const char *hdr)
             }
 
             if (hdr) {
-                printf("%s\n  %-*s  %*s%s  %s\n",
-                       hdr, wname, "NAME", wvalue, "VALUE", " ", "DESCRIPTION");
+                printf(
+                    "%s\n  %-*s  %*s%s  %s\n", hdr, wname, "NAME", wvalue, "VALUE", " ",
+                    "DESCRIPTION");
                 hdr = NULL;
             }
 
-            printf("  %-*s  %*s%s  %s\n", wname, ps->ps_name, wvalue, buf,
-                   (ps->ps_flags & PARAM_WRITABLE) ? "*" : " ",
-                   ps->ps_description);
+            printf(
+                "  %-*s  %*s%s  %s\n", wname, ps->ps_name, wvalue, buf,
+                (ps->ps_flags & PARAM_WRITABLE) ? "*" : " ", ps->ps_description);
         }
     }
 
@@ -4363,8 +4358,9 @@ usage(struct km_impl *impl)
     printf("  fieldcount  %10u  like ycsb fieldcount, mongo mode only\n", fieldcount);
     printf("  fieldlength %10zu  like ycsb fieldlength, mongo mode only\n", fieldlength);
     printf("  keydist     %10zu  0: recmax/jobs, >0: in keydist chunks\n", keydist);
-    printf("  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
-           (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);
+    printf(
+        "  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
+        (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);
     printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg, 2: pmem\n", mclass);
     printf("  perfc       %10d  set perfc_level for all perf counters\n", perfc);
     printf("  secsz       %10zu  set device/mpool mode r/w size\n", secsz);
@@ -4418,13 +4414,13 @@ main(int argc, char **argv)
     hse_err_t err;
 #endif
 
-    bool   init, check, test, destroy, help;
-    char * mpname, *kvsname;
+    bool init, check, test, destroy, help;
+    char *mpname, *kvsname;
     size_t vlenmin, vlenmax;
-    uint   swsecs;
+    uint swsecs;
     time_t mark;
-    int    rc, c;
-    float  swappctf;
+    int rc, c;
+    float swappctf;
 
 #ifndef XKMT
     const char *config = NULL;
@@ -4694,8 +4690,9 @@ main(int argc, char **argv)
                 break;
 
             case EINVAL:
-                eprint("missing group name (e.g. %s) before parameter %s\n",
-                       PG_KVDB_OPEN, argv[optind]);
+                eprint(
+                    "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN,
+                    argv[optind]);
                 exit(EX_USAGE);
                 break;
 
@@ -4717,15 +4714,15 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, perfc_buf,
-                                "transactions.enabled=true", NULL);
+            rc = svec_append_pg(
+                &kv_oparms_txn, pg, PG_KVS_OPEN, perfc_buf, "transactions.enabled=true", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, perfc_buf,
-                                "transactions.enabled=false", NULL);
+            rc = svec_append_pg(
+                &kv_oparms_notxn, pg, PG_KVS_OPEN, perfc_buf, "transactions.enabled=false", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
@@ -4948,7 +4945,7 @@ main(int argc, char **argv)
     if (keyfmt) {
         char key1[KM_REC_KEY_MAX * 2] = {};
         char key2[KM_REC_KEY_MAX * 2] = {};
-        int  len1, len2;
+        int len1, len2;
 
         if (keybinary) {
             syntax("option -f excludes -b and -B");
@@ -5002,7 +4999,6 @@ main(int argc, char **argv)
         }
 
         initmode = false;
-
     }
 
     if (test) {
@@ -5025,7 +5021,7 @@ main(int argc, char **argv)
     if (destroy && !sigint)
         spawn(impl, td_destroy, 0, mark);
 
-  sigint:
+sigint:
     if (sigint) {
         if (destroy)
             chk_destroy(impl);

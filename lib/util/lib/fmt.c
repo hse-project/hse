@@ -40,8 +40,8 @@ append_str(void *buf, size_t buf_size, size_t *offset, const char *str)
 }
 
 static bool url_unreserved[255] = {
-        ['a' ... 'z'] = 1, ['A' ... 'Z'] = 1, ['0' ... '9'] = 1, ['-'] = 1,
-        ['_'] = 1,         ['.'] = 1,         ['~'] = 1,
+    ['a' ... 'z'] = 1, ['A' ... 'Z'] = 1, ['0' ... '9'] = 1, ['-'] = 1,
+    ['_'] = 1,         ['.'] = 1,         ['~'] = 1,
 };
 
 size_t
@@ -78,12 +78,12 @@ fmt_pe(char *dst, size_t dlen, const void *src, size_t slen)
 
 size_t
 fmt_hexp(
-    void *      dst,
-    size_t      dlen,
+    void *dst,
+    size_t dlen,
     const void *src,
-    size_t      slen,
+    size_t slen,
     const char *prefix,
-    size_t      grp,
+    size_t grp,
     const char *grp_sep,
     const char *suffix)
 

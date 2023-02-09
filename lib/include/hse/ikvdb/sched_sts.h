@@ -9,17 +9,19 @@
 #include <cjson/cJSON.h>
 
 #include <hse/error/merr.h>
+#include <hse/util/list.h>
 #include <hse/util/platform.h>
 #include <hse/util/workqueue.h>
-#include <hse/util/list.h>
 
 /* MTF_MOCK_DECL(sched_sts) */
 
 struct sts;
 struct sts_job;
 
-typedef merr_t sts_foreach_job_fn(struct sts_job *, void *arg);
-typedef void sts_job_fn(struct sts_job *job);
+typedef merr_t
+sts_foreach_job_fn(struct sts_job *, void *arg);
+typedef void
+sts_job_fn(struct sts_job *job);
 
 /**
  * struct sts_job - short term scheduler job handle
@@ -30,13 +32,13 @@ typedef void sts_job_fn(struct sts_job *job);
  * @sj_wmesgp:    Ptr to wait message ptr
  */
 struct sts_job {
-    struct list_head       sj_link;
-    sts_job_fn            *sj_job_fn;
-    uint                   sj_id;
-    uint                   sj_progress;
-    struct sts            *sj_sts;
+    struct list_head sj_link;
+    sts_job_fn *sj_job_fn;
+    uint sj_id;
+    uint sj_progress;
+    struct sts *sj_sts;
     const char * volatile *sj_wmesgp;
-    struct work_struct     sj_work;
+    struct work_struct sj_work;
 };
 
 /**

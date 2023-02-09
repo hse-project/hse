@@ -3,8 +3,9 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
 #include <hse/ikvdb/kvdb_modes.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_modes_test)
 

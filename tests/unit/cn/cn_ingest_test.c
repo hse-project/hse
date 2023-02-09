@@ -3,26 +3,24 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/conditions.h>
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
-#include <hse/logging/logging.h>
-#include <hse/util/atomic.h>
-
-#include <hse/mpool/mpool.h>
-
 #include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
+#include <hse/util/atomic.h>
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/conditions.h>
+#include <hse/test/mtf/framework.h>
 
 #include "cn/blk_list.h"
 #include "cn/cn_internal.h"
+#include "cn/cn_mblocks.h"
 #include "cn/cn_tree.h"
 #include "cn/cn_tree_create.h"
 #include "cn/cn_tree_internal.h"
-#include "cn/cn_mblocks.h"
 #include "cn/kvset.h"
 
 static struct mpool *mock_ds = (void *)-1;
@@ -184,10 +182,10 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(cn_ingest_test, setup, teardown);
 MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
 {
     struct kvset_mblocks m[4];
-    uint                 n_kvsets = NELEM(m);
+    uint n_kvsets = NELEM(m);
 
     uint32_t k, v;
-    merr_t   err;
+    merr_t err;
 
     /*
      * Test cn_mblocks_commit w/ cndb_txn_txc set to succeed
@@ -203,7 +201,9 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     err = cn_mblocks_commit(mock_ds, n_kvsets, m, CN_MUT_KCOMPACT);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(mapi_calls(mapi_idx_mpool_mblock_commit), n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
+    ASSERT_EQ(
+        mapi_calls(mapi_idx_mpool_mblock_commit),
+        n_kvsets * (1 + k)); /* kcompact ==> does not commit vblks, 1 for hblock */
     free_mblks(m, n_kvsets);
 
     /* Test cn_mblocks_destroy with kcompact == false.
@@ -228,16 +228,16 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
 MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
 {
     struct kvset_mblocks m[1];
-    uint                 n_kvsets = NELEM(m);
+    uint n_kvsets = NELEM(m);
 
-    uint32_t           k, v;
-    merr_t             err;
-    struct cn          cn = {};
+    uint32_t k, v;
+    merr_t err;
+    struct cn cn = {};
     struct kvs_rparams rp;
 
-    struct cn *           cnv[1] = { &cn };
+    struct cn *cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
-    struct kvs_cparams    cp;
+    struct kvs_cparams cp;
     uint64_t kvsetidv[1] = { 1 };
 
     rp = kvs_rparams_defaults();
@@ -262,15 +262,15 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
 MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
 {
     struct kvset_mblocks m[1];
-    uint                 n_kvsets = NELEM(m);
+    uint n_kvsets = NELEM(m);
 
-    uint32_t           k, v;
-    merr_t             err;
-    struct cn          cn = {};
+    uint32_t k, v;
+    merr_t err;
+    struct cn cn = {};
     struct kvs_rparams rp;
     struct kvs_cparams cp;
 
-    struct cn *           cnv[1] = { &cn };
+    struct cn *cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
     uint64_t kvsetidv[1] = { 1 };
 

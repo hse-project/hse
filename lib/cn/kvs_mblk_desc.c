@@ -7,18 +7,15 @@
 
 #include <sys/mman.h>
 
-#include <hse/mpool/mpool_structs.h>
-#include <hse/mpool/mpool.h>
-
 #include <hse/error/merr.h>
-
+#include <hse/ikvdb/limits.h>
+#include <hse/mpool/mpool.h>
+#include <hse/mpool/mpool_structs.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
 #include <hse/util/event_counter.h>
-#include <hse/util/page.h>
 #include <hse/util/minmax.h>
-
-#include <hse/ikvdb/limits.h>
+#include <hse/util/page.h>
 
 #include "kvs_mblk_desc.h"
 

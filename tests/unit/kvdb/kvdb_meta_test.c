@@ -3,14 +3,14 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/error/merr.h>
-#include <hse/test/mtf/framework.h>
+#include <bsd/string.h>
 
+#include <hse/error/merr.h>
 #include <hse/ikvdb/kvdb_meta.h>
 #include <hse/ikvdb/omf_version.h>
 #include <hse/mpool/mpool.h>
 
-#include <bsd/string.h>
+#include <hse/test/mtf/framework.h>
 
 /* cJSON seems incapable of parsing a number value greater than UINT64_MAX for
  * some reason even though DBL_MAX is much larger than UINT64_MAX. All overflow
@@ -55,8 +55,7 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, serde, destroy_post)
     meta.km_wal.oid2 = 4;
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
-        strlcpy(meta.km_storage[i].path, hse_mclass_name_get(i),
-                sizeof(meta.km_storage[i].path));
+        strlcpy(meta.km_storage[i].path, hse_mclass_name_get(i), sizeof(meta.km_storage[i].path));
 
     err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
@@ -85,8 +84,9 @@ MTF_DEFINE_UTEST_POST(kvdb_meta_test, null_storage_paths, destroy_post)
 
     memset(zero, 0, sizeof(zero));
 
-    strlcpy(meta.km_storage[HSE_MCLASS_CAPACITY].path, "capacity",
-            sizeof(meta.km_storage[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        meta.km_storage[HSE_MCLASS_CAPACITY].path, "capacity",
+        sizeof(meta.km_storage[HSE_MCLASS_CAPACITY].path));
 
     err = kvdb_meta_create(mtf_kvdb_home);
     ASSERT_EQ(0, err);
@@ -559,7 +559,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_absolute, test_pre)
 {
     struct kvdb_meta meta;
     struct mpool_cparams params;
-    const char *paths[HSE_MCLASS_COUNT] = {"/home/my_capacity", "/home/my_staging", "/home/my_pmem"};
+    const char *paths[HSE_MCLASS_COUNT] = { "/home/my_capacity", "/home/my_staging",
+                                            "/home/my_pmem" };
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
@@ -575,7 +576,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_relative, test_pre)
     char *homedup;
     struct mpool_cparams params;
     struct kvdb_meta meta;
-    const char *paths[HSE_MCLASS_COUNT] = {"./my_capacity", "1/2/my_staging", "1/2/my_pmem"};
+    const char *paths[HSE_MCLASS_COUNT] = { "./my_capacity", "1/2/my_staging", "1/2/my_pmem" };
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++)
         strlcpy(params.mclass[i].path, paths[i], sizeof(params.mclass[i].path));
@@ -605,7 +606,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_absolute, test_pre, de
 {
     merr_t err;
     struct mpool_cparams params;
-    const char *paths[HSE_MCLASS_COUNT] = { "/home/my_capacity", "/home/my_staging", "/home/my_pmem" };
+    const char *paths[HSE_MCLASS_COUNT] = { "/home/my_capacity", "/home/my_staging",
+                                            "/home/my_pmem" };
     struct kvdb_meta meta = {
         .km_version = KVDB_META_VERSION,
         .km_omf_version = GLOBAL_OMF_VERSION,
@@ -688,8 +690,9 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_meta_test, meta_storage_add_relative, test_pre, de
 
     params.mclass[HSE_MCLASS_CAPACITY].path[0] = '\0';
     for (int i = HSE_MCLASS_STAGING; i < HSE_MCLASS_COUNT; i++)
-        snprintf(params.mclass[i].path, sizeof(params.mclass[i].path) - strlen(paths[i]) - 1,
-                 "%s", paths[i]);
+        snprintf(
+            params.mclass[i].path, sizeof(params.mclass[i].path) - strlen(paths[i]) - 1, "%s",
+            paths[i]);
 
     err = kvdb_meta_storage_add(&meta, mtf_kvdb_home, &params);
     ASSERT_EQ(0, err);
@@ -731,7 +734,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_relative, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_absolute, test_pre)
 {
-    merr_t               err;
+    merr_t err;
     struct mpool_rparams params;
     struct kvdb_meta     meta = {
         .km_storage = {
@@ -772,7 +775,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_null, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_relative, test_pre)
 {
-    merr_t               err;
+    merr_t err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
         .km_storage = {
@@ -795,7 +798,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_relative, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_absolute, test_pre)
 {
-    merr_t               err;
+    merr_t err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
         .km_storage = {
@@ -814,7 +817,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_absolute, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_dparams_null, test_pre)
 {
-    merr_t               err;
+    merr_t err;
     struct mpool_dparams params;
     struct kvdb_meta     meta = {
         .km_storage = {

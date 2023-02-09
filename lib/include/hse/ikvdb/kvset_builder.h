@@ -7,14 +7,12 @@
 #define HSE_IKVS_KVSET_BUILDER_H
 
 #include <hse/error/merr.h>
-#include <hse/util/atomic.h>
-
-#include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/blk_list.h>
-#include <hse/ikvdb/omf_kmd.h>
 #include <hse/ikvdb/mclass_policy.h>
-
+#include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/tuple.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/atomic.h>
 
 struct cn;
 struct kvset_builder;
@@ -36,9 +34,9 @@ struct key_stats {
 merr_t
 kvset_builder_create(
     struct kvset_builder **builder_out,
-    struct cn *            cn,
-    struct perfc_set *     pc,
-    uint64_t               vgroup);
+    struct cn *cn,
+    struct perfc_set *pc,
+    uint64_t vgroup);
 
 /* MTF_MOCK */
 merr_t
@@ -79,22 +77,22 @@ kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *ko);
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_val(
-    struct kvset_builder *  self,
-    const struct key_obj   *kobj,
-    const void *            vdata,
-    uint                    vlen,
-    uint64_t                seq,
-    uint                    complen);
+    struct kvset_builder *self,
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen,
+    uint64_t seq,
+    uint complen);
 
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_vref(
-    struct kvset_builder   *self,
-    uint64_t                seq,
-    uint                    vbidx,
-    uint                    vboff,
-    uint                    vlen,
-    uint                    complen);
+    struct kvset_builder *self,
+    uint64_t seq,
+    uint vbidx,
+    uint vboff,
+    uint vlen,
+    uint complen);
 
 /* MTF_MOCK */
 merr_t
@@ -104,10 +102,10 @@ kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtyp
 void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
-    size_t                num_vblocks,
-    uint64_t             *vblock_ids,
-    uint64_t              vtotal,
-    struct vgmap         *vgmap);
+    size_t num_vblocks,
+    uint64_t *vblock_ids,
+    uint64_t vtotal,
+    struct vgmap *vgmap);
 
 /* MTF_MOCK */
 void

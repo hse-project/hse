@@ -11,8 +11,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
 
 struct kvs_mblk_desc;
 struct wbt_desc;
@@ -31,9 +31,8 @@ struct hblk_metrics {
  * @param advice advice flag
  */
 void
-hbr_madvise_wbt_int_nodes(
-    struct kvs_mblk_desc *hblk_desc,
-    struct wbt_desc *wbt_desc, int advice) HSE_NONNULL(1, 2);
+hbr_madvise_wbt_int_nodes(struct kvs_mblk_desc *hblk_desc, struct wbt_desc *wbt_desc, int advice)
+    HSE_NONNULL(1, 2);
 
 /**
  * Advise about caching of wbtree leaf nodes
@@ -43,10 +42,8 @@ hbr_madvise_wbt_int_nodes(
  * @param advice advice flag
  */
 void
-hbr_madvise_wbt_leaf_nodes(
-    struct kvs_mblk_desc *hblk_desc,
-    struct wbt_desc *wbt_desc,
-    int advice) HSE_NONNULL(1, 2);
+hbr_madvise_wbt_leaf_nodes(struct kvs_mblk_desc *hblk_desc, struct wbt_desc *wbt_desc, int advice)
+    HSE_NONNULL(1, 2);
 
 /**
  * Advise about caching of key meta-data region
@@ -56,10 +53,8 @@ hbr_madvise_wbt_leaf_nodes(
  * @param advice advice flag
  */
 void
-hbr_madvise_kmd(
-    struct kvs_mblk_desc *hblk_desc,
-    struct wbt_desc *wbt_desc,
-    int advice) HSE_NONNULL(1, 2);
+hbr_madvise_kmd(struct kvs_mblk_desc *hblk_desc, struct wbt_desc *wbt_desc, int advice)
+    HSE_NONNULL(1, 2);
 
 /**
  * Read various metrics about an hblock.
@@ -77,9 +72,8 @@ hbr_read_metrics(struct kvs_mblk_desc *hblk_desc, struct hblk_metrics *metrics) 
  * @param[in,out] wbt_desc WBT descriptor
  */
 merr_t
-hbr_read_ptree_region_desc(
-    struct kvs_mblk_desc *mblk_desc,
-    struct wbt_desc *wbt_desc) HSE_NONNULL(1, 2);
+hbr_read_ptree_region_desc(struct kvs_mblk_desc *mblk_desc, struct wbt_desc *wbt_desc)
+    HSE_NONNULL(1, 2);
 
 /**
  * Read the seqno range from the header.
@@ -89,10 +83,8 @@ hbr_read_ptree_region_desc(
  * @param[out] seqno_max Maximum sequence number
  */
 merr_t
-hbr_read_seqno_range(
-    struct kvs_mblk_desc *mblk_desc,
-    uint64_t *seqno_min,
-    uint64_t *seqno_max) HSE_NONNULL(1, 2, 3);
+hbr_read_seqno_range(struct kvs_mblk_desc *mblk_desc, uint64_t *seqno_min, uint64_t *seqno_max)
+    HSE_NONNULL(1, 2, 3);
 
 /**
  * Return the vgroup count from the header.
@@ -124,9 +116,9 @@ hbr_read_vgroup_map(const struct kvs_mblk_desc *hbd, struct vgmap *vgmap, bool *
 void
 hbr_read_ptree(
     const struct kvs_mblk_desc *hbd,
-    const struct wbt_desc      *ptd,
-    uint8_t                   **ptree,
-    uint32_t                   *ptree_pgc);
+    const struct wbt_desc *ptd,
+    uint8_t **ptree,
+    uint32_t *ptree_pgc);
 
 #if HSE_MOCKING
 #include "hblock_reader_ut.h"

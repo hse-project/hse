@@ -8,10 +8,10 @@
 
 #include <hse/logging/logging.h>
 #include <hse/util/assert.h>
-#include <hse/util/platform.h>
-#include <hse/util/time.h>
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/time.h>
 
 static void
 ev_get_timestamp(atomic_ulong *timestamp)
@@ -27,9 +27,9 @@ static size_t
 snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
 {
     struct timeval tv;
-    size_t         ret;
-    uint64_t       t = atomic_read(timestamp);
-    struct tm      tm;
+    size_t ret;
+    uint64_t t = atomic_read(timestamp);
+    struct tm tm;
 
     tv.tv_sec = t / USEC_PER_SEC;
     tv.tv_usec = t % USEC_PER_SEC;
@@ -37,16 +37,8 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
     gmtime_r(&tv.tv_sec, &tm);
 
     ret = snprintf(
-        buf,
-        buf_sz,
-        "%04ld-%02d-%02dT%02d:%02d:%02d.%03ld",
-        (long)(tm.tm_year + 1900),
-        tm.tm_mon + 1,
-        tm.tm_mday,
-        tm.tm_hour,
-        tm.tm_min,
-        tm.tm_sec,
-        tv.tv_usec);
+        buf, buf_sz, "%04ld-%02d-%02dT%02d:%02d:%02d.%03ld", (long)(tm.tm_year + 1900),
+        tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
 
     return ret;
 }
@@ -55,7 +47,7 @@ snprintf_timestamp(char *buf, size_t buf_sz, atomic_ulong *timestamp)
  * emit_handler output fits into a JSON document.
  */
 static merr_t
-ev_emit_handler(struct dt_element *const dte, cJSON *const root)
+ev_emit_handler(struct dt_element * const dte, cJSON * const root)
 {
     cJSON *elem;
     char buf[128];
@@ -112,8 +104,9 @@ event_counter(struct event_counter *ec)
     if (HSE_UNLIKELY(1 == atomic_inc_return(&ec->ev_odometer))) {
         struct dt_element *dte = &ec->ev_dte;
 
-        snprintf(dte->dte_path, sizeof(dte->dte_path), "%s/%s/%s/%d",
-                 EV_DT_PATH, basename(dte->dte_file), dte->dte_func, dte->dte_line);
+        snprintf(
+            dte->dte_path, sizeof(dte->dte_path), "%s/%s/%s/%d", EV_DT_PATH,
+            basename(dte->dte_file), dte->dte_func, dte->dte_line);
 
         dt_add(dte);
     }

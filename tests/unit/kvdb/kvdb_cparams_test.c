@@ -5,12 +5,12 @@
 
 #include <stdarg.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_cparams.h>
 #include <hse/config/params.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/base.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_cparams_test)
 
@@ -25,9 +25,9 @@ test_pre(struct mtf_test_info *ti)
 }
 
 const struct param_spec *
-ps_get(const char *const name)
+ps_get(const char * const name)
 {
-    size_t                   sz = 0;
+    size_t sz = 0;
     const struct param_spec *pspecs = kvdb_cparams_pspecs_get(&sz);
 
     assert(name);
@@ -44,19 +44,19 @@ ps_get(const char *const name)
  * Check the validity of various key=value combinations
  */
 merr_t HSE_SENTINEL
-check(const char *const arg, ...)
+check(const char * const arg, ...)
 {
-    merr_t      err;
-    bool        success;
+    merr_t err;
+    bool success;
     const char *a = arg;
-    va_list     ap;
+    va_list ap;
 
     assert(arg);
 
     va_start(ap, arg);
 
     do {
-        const char * paramv[] = { a };
+        const char *paramv[] = { a };
         const size_t paramc = NELEM(paramv);
 
         success = !!va_arg(ap, int);
@@ -77,15 +77,16 @@ check(const char *const arg, ...)
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_max_size, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
+    merr_t err;
+    char buf[128];
     const struct param_spec *ps = ps_get("storage.capacity.file.max_size");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].fmaxsz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -107,8 +108,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_max_size, test_pre
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_mblock_size, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
+    merr_t err;
+    char buf[128];
     const struct param_spec *ps = ps_get("storage.capacity.mblock.size");
 
     ASSERT_NE(NULL, ps);
@@ -164,7 +165,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_path, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_NULLABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_CAPACITY].path), ps->ps_offset);
     ASSERT_EQ(PATH_MAX, ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -176,15 +178,16 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_path, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
+    merr_t err;
+    char buf[128];
     const struct param_spec *ps = ps_get("storage.staging.file.max_size");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].fmaxsz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -194,8 +197,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
     ASSERT_EQ(MPOOL_MCLASS_FILESZ_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(MPOOL_MCLASS_FILESZ_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
-    err =
-        ps->ps_stringify(ps, &params.storage.mclass[HSE_MCLASS_STAGING].fmaxsz, buf, sizeof(buf), NULL);
+    err = ps->ps_stringify(
+        ps, &params.storage.mclass[HSE_MCLASS_STAGING].fmaxsz, buf, sizeof(buf), NULL);
     ASSERT_EQ(0, err);
     ASSERT_STREQ("2048", buf);
 
@@ -206,8 +209,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_mblock_size, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
+    merr_t err;
+    char buf[128];
     const struct param_spec *ps = ps_get("storage.staging.mblock.size");
 
     ASSERT_NE(NULL, ps);
@@ -243,7 +246,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_count, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].filecnt), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -262,7 +266,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_path, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_NULLABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_STAGING].path), ps->ps_offset);
     ASSERT_EQ(PATH_MAX, ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -274,7 +279,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_path, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_max_size, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
     const struct param_spec *ps = ps_get("storage.pmem.file.max_size");
 
     ASSERT_NE(NULL, ps);
@@ -298,14 +303,15 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_max_size, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_mblock_size, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
     const struct param_spec *ps = ps_get("storage.pmem.mblock.size");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].mblocksz), ps->ps_offset);
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -328,7 +334,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_count, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt), ps->ps_offset);
+    ASSERT_EQ(
+        offsetof(struct kvdb_cparams, storage.mclass[HSE_MCLASS_PMEM].filecnt), ps->ps_offset);
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
@@ -360,7 +367,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_path, test_pre)
 MTF_DEFINE_UTEST(kvdb_cparams_test, get)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct kvdb_cparams p = kvdb_cparams_defaults();

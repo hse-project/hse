@@ -22,12 +22,12 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
 #include <xxhash.h>
 
-#include <hse/cli/program.h>
 #include <hse/flags.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/event_timer.h>
 #include <hse/util/fmt.h>
@@ -35,15 +35,15 @@
 #include <hse/tools/common.h>
 #include <hse/tools/parm_groups.h>
 
-int          verbosity;
-bool         headers = true;
-bool         uniq = false;
+int verbosity;
+bool headers = true;
+bool uniq = false;
 sig_atomic_t sigint;
 
 struct parm_groups *pg;
-struct svec         hse_gparm = { 0 };
-struct svec         db_oparm = { 0 };
-struct svec         kv_oparm = { 0 };
+struct svec hse_gparm = { 0 };
+struct svec db_oparm = { 0 };
+struct svec kv_oparm = { 0 };
 
 /**
  * struct shr - Data shared between pthreads...
@@ -54,14 +54,14 @@ struct svec         kv_oparm = { 0 };
 struct shr {
     volatile uint64_t count;
     volatile uint32_t mark;
-    uint64_t          uniq;
-    pthread_t         tid;
+    uint64_t uniq;
+    pthread_t tid;
 };
 
 void HSE_PRINTF(1, 2)
 syntax(const char *fmt, ...)
 {
-    char    msg[256];
+    char msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -109,21 +109,14 @@ void *
 status(void *arg)
 {
     struct shr *shr = arg;
-    uint64_t    tstart, tprev, now;
-    uint64_t    cnt, cntprev, delta;
-    char        hdr[128], fmt[128];
-    uint        line;
+    uint64_t tstart, tprev, now;
+    uint64_t cnt, cntprev, delta;
+    char hdr[128], fmt[128];
+    uint line;
 
     snprintf(
-        hdr,
-        sizeof(hdr),
-        "\n%9s %12s %10s %10s %10s %10s\n",
-        "ELAPSED",
-        "tKEYS",
-        "tKEYS/s",
-        "iKEYS",
-        "iUSECS",
-        uniq ? "tUNIQ" : "");
+        hdr, sizeof(hdr), "\n%9s %12s %10s %10s %10s %10s\n", "ELAPSED", "tKEYS", "tKEYS/s",
+        "iKEYS", "iUSECS", uniq ? "tUNIQ" : "");
 
     snprintf(fmt, sizeof(fmt), "%%s%%9ld %%12ld %%10lu %%10lu %%10lu%s\n", uniq ? " %10lu" : "");
 
@@ -149,14 +142,8 @@ status(void *arg)
         }
 
         printf(
-            fmt,
-            (line++ % 24) == 0 && headers ? hdr : "",
-            (now - tstart) / 1000000,
-            cnt,
-            (cnt * 1000000000) / (now - tstart),
-            cnt - cntprev,
-            (now - tprev) / 1000,
-            shr->uniq);
+            fmt, (line++ % 24) == 0 && headers ? hdr : "", (now - tstart) / 1000000, cnt,
+            (cnt * 1000000000) / (now - tstart), cnt - cntprev, (now - tprev) / 1000, shr->uniq);
         fflush(stdout);
 
         cntprev = cnt;
@@ -169,23 +156,23 @@ status(void *arg)
 int
 main(int argc, char **argv)
 {
-    const char *           config = NULL;
-    char                   kbuf[1024], pbuf[128], sbuf[128];
+    const char *config = NULL;
+    char kbuf[1024], pbuf[128], sbuf[128];
     struct parm_groups *pg = NULL;
-    const char *           mpname, *kvname;
-    char *                 prefix, *seek;
+    const char *mpname, *kvname;
+    char *prefix, *seek;
     struct hse_kvs_cursor *cursor;
-    struct hse_kvdb *      kvdb_h;
-    struct hse_kvs *       kvs_h;
-    uint64_t               keyhash, valhash;
-    int                    showlen;
-    int                    seeklen, pfxlen;
-    bool                   eof, countem, cksum, deletem, stats;
-    bool                   reverse = false;
-    unsigned               opt_help = 0, flags = 0;
-    uint64_t               iter, max_iter;
-    int                    c, rc, err;
-    struct shr             shr = { 0 };
+    struct hse_kvdb *kvdb_h;
+    struct hse_kvs *kvs_h;
+    uint64_t keyhash, valhash;
+    int showlen;
+    int seeklen, pfxlen;
+    bool eof, countem, cksum, deletem, stats;
+    bool reverse = false;
+    unsigned opt_help = 0, flags = 0;
+    uint64_t iter, max_iter;
+    int c, rc, err;
+    struct shr shr = { 0 };
 
     EVENT_TIMER(to);
     EVENT_TIMER(tc);
@@ -222,73 +209,73 @@ main(int argc, char **argv)
         errno = 0;
 
         switch (c) {
-            case 'C':
-                countem = true;
-                cksum = false;
-                break;
-            case 'c':
-                countem = true;
-                break;
-            case 'D':
-                deletem = true;
-                break;
-            case 'H':
-                headers = false;
-                break;
-            case 'h':
-                opt_help++;
-                break;
-            case 'i':
-                max_iter = strtoul(optarg, &end, 0);
-                break;
-            case 'k':
-                Opts.kmax = strtoul(optarg, &end, 0);
-                break;
-            case 'l':
-                showlen = 1;
-                break;
-            case 'm':
-                shr.mark = strtoul(optarg, &end, 0);
-                break;
-            case 'p':
-                prefix = optarg;
-                break;
-            case 'r':
-                reverse = true;
-                break;
-            case 's':
-                seek = optarg;
-                break;
-            case 't':
-                stats = true;
-                break;
-            case 'u':
-                uniq = true;
-                break;
-            case 'V':
-                Opts.vmax = strtoul(optarg, &end, 0);
-                break;
-            case 'v':
-                ++verbosity;
-                break;
-            case 'x':
-                Opts.hexonly = 1;
-                break;
-            case 'Z':
-                config = optarg;
-                break;
+        case 'C':
+            countem = true;
+            cksum = false;
+            break;
+        case 'c':
+            countem = true;
+            break;
+        case 'D':
+            deletem = true;
+            break;
+        case 'H':
+            headers = false;
+            break;
+        case 'h':
+            opt_help++;
+            break;
+        case 'i':
+            max_iter = strtoul(optarg, &end, 0);
+            break;
+        case 'k':
+            Opts.kmax = strtoul(optarg, &end, 0);
+            break;
+        case 'l':
+            showlen = 1;
+            break;
+        case 'm':
+            shr.mark = strtoul(optarg, &end, 0);
+            break;
+        case 'p':
+            prefix = optarg;
+            break;
+        case 'r':
+            reverse = true;
+            break;
+        case 's':
+            seek = optarg;
+            break;
+        case 't':
+            stats = true;
+            break;
+        case 'u':
+            uniq = true;
+            break;
+        case 'V':
+            Opts.vmax = strtoul(optarg, &end, 0);
+            break;
+        case 'v':
+            ++verbosity;
+            break;
+        case 'x':
+            Opts.hexonly = 1;
+            break;
+        case 'Z':
+            config = optarg;
+            break;
 
-            case '?':
-                syntax("invalid option -%c", optopt);
-                exit(EX_USAGE);
+        case '?':
+            syntax("invalid option -%c", optopt);
+            exit(EX_USAGE);
 
-            case ':':
-                syntax("option -%c requires a parameter", optopt);
-                exit(EX_USAGE);
+        case ':':
+            syntax("option -%c requires a parameter", optopt);
+            exit(EX_USAGE);
 
-            default:
-                syntax("invalid option: -%c", c);
-                exit(EX_USAGE);
+        default:
+            syntax("invalid option: -%c", c);
+            exit(EX_USAGE);
         }
 
         if (end && *end) {
@@ -311,17 +298,16 @@ main(int argc, char **argv)
     /* get hse parms from command line */
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
@@ -396,7 +382,7 @@ main(int argc, char **argv)
 
     for (iter = 0; iter < max_iter; iter++) {
         const void *key, *val;
-        size_t      klen, vlen;
+        size_t klen, vlen;
 
         if (stats)
             EVENT_START(tr);
@@ -424,9 +410,9 @@ main(int argc, char **argv)
         }
 
         if (uniq) {
-            static char   keyprev[HSE_KVS_KEY_LEN_MAX];
+            static char keyprev[HSE_KVS_KEY_LEN_MAX];
             static size_t klenprev;
-            size_t        len = klen;
+            size_t len = klen;
 
             if (klen > Opts.kmax)
                 len = Opts.kmax;

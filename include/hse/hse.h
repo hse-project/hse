@@ -40,16 +40,16 @@
  * @include ex2_simple_ops.c
  */
 
-#include <hse/flags.h>
-#include <hse/limits.h>
-#include <hse/types.h>
-#include <hse/version.h>
-
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <limits.h>
+
+#include <hse/flags.h>
+#include <hse/limits.h>
+#include <hse/types.h>
+#include <hse/version.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -128,7 +128,7 @@ hse_err_to_ctx(hse_err_t err);
  * @returns Error status.
  */
 hse_err_t
-hse_init(const char *config, size_t paramc, const char *const *paramv);
+hse_init(const char *config, size_t paramc, const char * const *paramv);
 
 /** @brief Shutdown the HSE subsystem.
  *
@@ -221,7 +221,7 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv);
+hse_kvdb_create(const char *kvdb_home, size_t paramc, const char * const *paramv);
 
 /** @brief Drop a KVDB.
  *
@@ -311,7 +311,10 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
  * @returns Error status.
  */
 hse_err_t
-hse_kvdb_mclass_info_get(struct hse_kvdb *kvdb, enum hse_mclass mclass, struct hse_mclass_info *info);
+hse_kvdb_mclass_info_get(
+    struct hse_kvdb *kvdb,
+    enum hse_mclass mclass,
+    struct hse_mclass_info *info);
 
 /** @brief Check if a media class is configured for a KVDB.
  *
@@ -363,10 +366,10 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_open(
-    const char *       kvdb_home,
-    size_t             paramc,
-    const char *const *paramv,
-    struct hse_kvdb ** kvdb);
+    const char *kvdb_home,
+    size_t paramc,
+    const char * const *paramv,
+    struct hse_kvdb **kvdb);
 
 /** @brief Get a KVDB parameter.
  *
@@ -390,10 +393,10 @@ hse_kvdb_open(
 hse_err_t
 hse_kvdb_param_get(
     struct hse_kvdb *kvdb,
-    const char *     param,
-    char *           buf,
-    size_t           buf_sz,
-    size_t *         needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 /** @brief Add new media class storage to an existing offline KVDB.
  *
@@ -410,7 +413,7 @@ hse_kvdb_param_get(
  * @returns Error status.
  */
 hse_err_t
-hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *paramv);
+hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char * const *paramv);
 
 /** @brief Sync data in all of the referenced KVDB's KVSs to stable media.
  *
@@ -439,7 +442,8 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @returns Name of media class.
  */
-const char *hse_mclass_name_get(enum hse_mclass mclass);
+const char *
+hse_mclass_name_get(enum hse_mclass mclass);
 
 /**@} KVDB */
 
@@ -480,10 +484,10 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_kvs_create(
-    struct hse_kvdb *  kvdb,
-    const char *       kvs_name,
-    size_t             paramc,
-    const char *const *paramv);
+    struct hse_kvdb *kvdb,
+    const char *kvs_name,
+    size_t paramc,
+    const char * const *paramv);
 
 /** @brief Drop a KVS from the referenced KVDB.
  *
@@ -518,11 +522,11 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  */
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *  kvdb,
-    const char *       kvs_name,
-    const size_t       paramc,
-    const char *const *paramv,
-    struct hse_kvs **  kvs_out);
+    struct hse_kvdb *kvdb,
+    const char *kvs_name,
+    const size_t paramc,
+    const char * const *paramv,
+    struct hse_kvs **kvs_out);
 
 /** @brief Delete the key and its associated value from the KVS.
  *
@@ -549,11 +553,11 @@ hse_kvdb_kvs_open(
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_delete(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    const void *         key,
-    size_t               key_len);
+    const void *key,
+    size_t key_len);
 
 /** @brief Retrieve the value for a given key from the referenced KVS.
  *
@@ -589,15 +593,15 @@ hse_kvs_delete(
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_get(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    const void *         key,
-    size_t               key_len,
-    bool *               found,
-    void *               valbuf,
-    size_t               valbuf_sz,
-    size_t *             val_len);
+    const void *key,
+    size_t key_len,
+    bool *found,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len);
 
 /** @brief Get the name of a KVS.
  *
@@ -635,10 +639,10 @@ hse_kvs_name_get(struct hse_kvs *kvs);
 hse_err_t
 hse_kvs_param_get(
     struct hse_kvs *kvs,
-    const char *    param,
-    char *          buf,
-    size_t          buf_sz,
-    size_t *        needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 /** @brief Delete all key-value pairs matching the key prefix from a KVS storing
  * segmented keys.
@@ -674,11 +678,11 @@ hse_kvs_param_get(
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_prefix_delete(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    const void *         pfx,
-    size_t               pfx_len);
+    const void *pfx,
+    size_t pfx_len);
 
 /** @brief Put a key-value pair into a KVS.
  *
@@ -729,13 +733,13 @@ hse_kvs_prefix_delete(
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_put(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    const void *         key,
-    size_t               key_len,
-    const void *         val,
-    size_t               val_len);
+    const void *key,
+    size_t key_len,
+    const void *val,
+    size_t val_len);
 
 /**@} KVS */
 
@@ -966,11 +970,11 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_create(
-    struct hse_kvs *        kvs,
-    unsigned int            flags,
-    struct hse_kvdb_txn *   txn,
-    const void *            filter,
-    size_t                  filter_len,
+    struct hse_kvs *kvs,
+    unsigned int flags,
+    struct hse_kvdb_txn *txn,
+    const void *filter,
+    size_t filter_len,
     struct hse_kvs_cursor **cursor);
 
 /** @brief Destroy a cursor.
@@ -1022,12 +1026,12 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               key_len,
-    const void **          val,
-    size_t *               val_len,
-    bool *                 eof);
+    unsigned int flags,
+    const void **key,
+    size_t *key_len,
+    const void **val,
+    size_t *val_len,
+    bool *eof);
 
 /** @brief Iteratively access the elements pointed to by a cursor.
  *
@@ -1063,14 +1067,14 @@ hse_kvs_cursor_read(
 hse_err_t
 hse_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    void *                 keybuf,
-    size_t                 keybuf_sz,
-    size_t *               key_len,
-    void *                 valbuf,
-    size_t                 valbuf_sz,
-    size_t *               val_len,
-    bool *                 eof);
+    unsigned int flags,
+    void *keybuf,
+    size_t keybuf_sz,
+    size_t *key_len,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len,
+    bool *eof);
 
 /** @brief Move a cursor to point at the key-value pair at or closest to @p
  * key.
@@ -1100,11 +1104,11 @@ hse_kvs_cursor_read_copy(
 hse_err_t
 hse_kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void *           key,
-    size_t                 key_len,
-    const void **          found,
-    size_t *               found_len);
+    unsigned int flags,
+    const void *key,
+    size_t key_len,
+    const void **found,
+    size_t *found_len);
 
 /** @brief Move a cursor to the closest match to key, gated by the given
  * filter.
@@ -1140,13 +1144,13 @@ hse_kvs_cursor_seek(
 hse_err_t
 hse_kvs_cursor_seek_range(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void *           filt_min,
-    size_t                 filt_min_len,
-    const void *           filt_max,
-    size_t                 filt_max_len,
-    const void **          found,
-    size_t *               found_len);
+    unsigned int flags,
+    const void *filt_min,
+    size_t filt_min_len,
+    const void *filt_max,
+    size_t filt_max_len,
+    const void **found,
+    size_t *found_len);
 
 /** @brief Update the view of a cursor.
  *

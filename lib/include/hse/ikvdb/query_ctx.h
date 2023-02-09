@@ -17,9 +17,9 @@
  * @seen:     number of unique keys seen
  */
 struct query_ctx {
-    int            pos;
-    int            seen;
-    struct map    *tomb_map;
+    int pos;
+    int seen;
+    struct map *tomb_map;
 };
 
 merr_t

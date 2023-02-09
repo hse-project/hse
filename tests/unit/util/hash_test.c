@@ -5,11 +5,11 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/util/hash.h>
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
+#include <hse/util/hash.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
@@ -19,7 +19,7 @@ MTF_DEFINE_UTEST(hash_test, DoesAnything)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a minute";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf2, strlen(buf2));
@@ -30,7 +30,7 @@ MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
 {
     const char *buf1 = "Wilbur! Wilbur!";
     const char *buf2 = "Now, that just ain't right.";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));
@@ -44,7 +44,7 @@ MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
 MTF_DEFINE_UTEST(hash_test, RepeatableEmpty)
 {
     const char *buf1 = "";
-    uint64_t    val1, val2;
+    uint64_t val1, val2;
 
     val1 = hse_hash64(buf1, strlen(buf1));
     val2 = hse_hash64(buf1, strlen(buf1));
@@ -53,10 +53,10 @@ MTF_DEFINE_UTEST(hash_test, RepeatableEmpty)
 
 MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
 {
-    int  d1[8] = { 0 }, d2[8] = { 0 }, d3[8] = { 0 };
+    int d1[8] = { 0 }, d2[8] = { 0 }, d3[8] = { 0 };
     char buf[3] = { 0, 0, 1 };
     uint64_t h;
-    int  i, j, n;
+    int i, j, n;
 
     n = 0;
     for (i = 0; i < 256; ++i) {
@@ -84,9 +84,9 @@ MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
 MTF_DEFINE_UTEST(hash_test, hash_seed)
 {
     const char str[] = "read me";
-    size_t     sz = sizeof(str);
-    uint64_t   val1, val2;
-    int64_t    i;
+    size_t sz = sizeof(str);
+    uint64_t val1, val2;
+    int64_t i;
 
     val1 = hse_hash64(str, sz);
     val2 = hse_hash64_seed(str, sz, 0);
@@ -120,15 +120,15 @@ MTF_DEFINE_UTEST(hash_test, split_key_test)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a darn minute. Is this sentence long enough?";
-    uint64_t         single;
-    int         i;
+    uint64_t single;
+    int i;
 
     /* buf 1 */
     single = hse_hash64(buf1, strlen(buf1));
     for (i = 0; i < strlen(buf1); i++) {
         const char *p = buf1;
         const char *s = buf1 + i;
-        uint64_t    object = 0;
+        uint64_t object = 0;
 
         object = hse_hash64v(p, i, s, strlen(buf1) - i);
         ASSERT_EQ(single, object);
@@ -139,7 +139,7 @@ MTF_DEFINE_UTEST(hash_test, split_key_test)
     for (i = 0; i < strlen(buf2); i++) {
         const char *p = buf2;
         const char *s = buf2 + i;
-        uint64_t    object = 0;
+        uint64_t object = 0;
 
         object = hse_hash64v(p, i, s, strlen(buf2) - i);
         ASSERT_EQ(single, object);

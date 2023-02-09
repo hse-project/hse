@@ -15,8 +15,8 @@ typedef void
 cn_work_fn(struct cn_work *);
 
 struct cn_work {
-    struct cn *        cnw_cnref;
-    cn_work_fn *       cnw_handler;
+    struct cn *cnw_cnref;
+    cn_work_fn *cnw_handler;
     struct work_struct cnw_work;
 };
 

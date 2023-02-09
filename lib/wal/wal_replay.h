@@ -6,11 +6,11 @@
 #ifndef WAL_REPLAY_H
 #define WAL_REPLAY_H
 
+#include <rbtree_types.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/types.h>
 
-#include <rbtree_types.h>
+#include <sys/types.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/arch.h>
@@ -22,7 +22,7 @@ struct wal;
 struct wal_replay_info;
 
 struct wal_replay_gen_info {
-    spinlock_t     txm_lock HSE_ACP_ALIGNED;
+    spinlock_t txm_lock HSE_ACP_ALIGNED;
     struct rb_root txm_root;
     struct rb_root txcid_root;
 
@@ -48,12 +48,12 @@ struct wal_rechdr {
 };
 
 struct wal_rec {
-    struct rb_node    node;
+    struct rb_node node;
     struct wal_rechdr hdr;
-    uint64_t          cnid;
-    uint64_t          txid;
-    uint64_t          seqno;
-    uint32_t          op;
+    uint64_t cnid;
+    uint64_t txid;
+    uint64_t seqno;
+    uint32_t op;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
 };
@@ -61,12 +61,12 @@ struct wal_rec {
 struct wal_txmeta_rec {
     struct rb_node node;
     struct rb_node cid_node;
-    uint64_t       rid;
-    uint64_t       txid;
-    uint64_t       cseqno;
-    uint64_t       cid;
-    uint64_t       gen;
-    off_t          fileoff;
+    uint64_t rid;
+    uint64_t txid;
+    uint64_t cseqno;
+    uint64_t cid;
+    uint64_t gen;
+    off_t fileoff;
 };
 
 merr_t

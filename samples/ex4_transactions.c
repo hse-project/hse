@@ -44,21 +44,23 @@ main(int argc, char **argv)
     char *kvdb_home;
     char *kvs_name1, *kvs_name2;
 
-    const char * hi_paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
-                             "rest.enabled=false", };
+    const char *hi_paramv[] = {
+        "logging.destination=stdout",
+        "logging.level=3",
+        "rest.enabled=false",
+    };
     const size_t hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
 
-    const char * kvs_paramv[] = { "transactions.enabled=true" };
+    const char *kvs_paramv[] = { "transactions.enabled=true" };
     const size_t kvs_paramc = sizeof(kvs_paramv) / sizeof(kvs_paramv[0]);
 
-    struct hse_kvdb *    kvdb;
-    struct hse_kvs *     kvs1 = NULL, *kvs2 = NULL;
+    struct hse_kvdb *kvdb;
+    struct hse_kvs *kvs1 = NULL, *kvs2 = NULL;
     struct hse_kvdb_txn *txn;
 
-    char      vbuf[64];
-    size_t    vlen;
-    bool      found;
+    char vbuf[64];
+    size_t vlen;
+    bool found;
     hse_err_t rc, rc2;
 
     if (argc != 4)

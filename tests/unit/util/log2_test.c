@@ -5,14 +5,15 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
 #include <hse/util/log2.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(log2);
 
 struct testparms {
     uint32_t e_log2;
-    bool     e_pow2;
+    bool e_pow2;
     uint64_t e_rup2;
     uint64_t e_rdown2;
 };
@@ -78,7 +79,7 @@ test_runtime(uint64_t val, struct testparms *parm, struct mtf_test_info *lcl_ti)
 MTF_DEFINE_UTEST(log2, log2_test)
 {
     struct testparms p;
-    int              i;
+    int i;
 
     test_macros(lcl_ti);
 

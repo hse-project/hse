@@ -8,11 +8,11 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/event_counter.h>
 #include <hse/util/atomic.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
 
-#define KVMS_GEN_INVALID             (~0UL)
+#define KVMS_GEN_INVALID (~0UL)
 
 struct kvdb_ctxn;
 struct c0snr_set;

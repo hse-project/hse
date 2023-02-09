@@ -10,19 +10,17 @@
 
 #include <bsd/string.h>
 
-#include <hse/util/assert.h>
-#include <hse/util/compiler.h>
-#include <hse/logging/logging.h>
-#include <hse/util/perfc.h>
-#include <hse/util/storage.h>
-#include <hse/util/storage.h>
-
-#include <hse/ikvdb/mclass_policy.h>
-#include <hse/ikvdb/ikvdb.h>
 #include <hse/config/params.h>
+#include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/vcomp_params.h>
+#include <hse/logging/logging.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
+#include <hse/util/perfc.h>
+#include <hse/util/storage.h>
 
 /*
  * Steps to add a new kvs run-time parameter(rparam):
@@ -32,9 +30,9 @@
 
 static bool HSE_NONNULL(1, 2, 3)
 compression_default_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    const struct param_spec * const ps,
+    const cJSON * const node,
+    void * const data)
 {
     const char *value;
 
@@ -60,11 +58,11 @@ compression_default_converter(
 
 static merr_t
 compression_default_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     int n;
     enum vcomp_default dflt;
@@ -98,7 +96,7 @@ compression_default_stringify(
 }
 
 static cJSON *
-compression_default_jsonify(const struct param_spec *const ps, const void *const value)
+compression_default_jsonify(const struct param_spec * const ps, const void * const value)
 {
     enum vcomp_default dflt;
 
@@ -108,10 +106,10 @@ compression_default_jsonify(const struct param_spec *const ps, const void *const
     dflt = *(enum vcomp_default *)value;
 
     switch (dflt) {
-        case VCOMP_DEFAULT_OFF:
-            return cJSON_CreateString(VCOMP_PARAM_OFF);
-        case VCOMP_DEFAULT_ON:
-            return cJSON_CreateString(VCOMP_PARAM_ON);
+    case VCOMP_DEFAULT_OFF:
+        return cJSON_CreateString(VCOMP_PARAM_OFF);
+    case VCOMP_DEFAULT_ON:
+        return cJSON_CreateString(VCOMP_PARAM_ON);
     }
 
     abort();
@@ -725,7 +723,7 @@ kvs_rparams_pspecs_get(size_t *pspecs_sz)
 struct kvs_rparams
 kvs_rparams_defaults()
 {
-    struct kvs_rparams  params;
+    struct kvs_rparams params;
 
     params_from_defaults(&params, NELEM(pspecs), pspecs);
 
@@ -734,20 +732,20 @@ kvs_rparams_defaults()
 
 merr_t
 kvs_rparams_get(
-    const struct kvs_rparams *const params,
-    const char *const               param,
-    char *const                     buf,
-    const size_t                    buf_sz,
-    size_t *const                   needed_sz)
+    const struct kvs_rparams * const params,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 kvs_rparams_set(
-    struct kvs_rparams *const params,
-    const char *const         param,
-    const char *const         value)
+    struct kvs_rparams * const params,
+    const char * const param,
+    const char * const value)
 {
     if (!params || !param || !value)
         return merr(EINVAL);
@@ -757,9 +755,9 @@ kvs_rparams_set(
 
 merr_t
 kvs_rparams_from_config(
-    struct kvs_rparams *const params,
-    cJSON *const config,
-    const char *const kvs_name)
+    struct kvs_rparams * const params,
+    cJSON * const config,
+    const char * const kvs_name)
 {
     size_t num_configs = 0;
     cJSON *kvs, *named_kvs, *default_kvs;
@@ -787,15 +785,15 @@ kvs_rparams_from_config(
         num_configs++;
     }
 
-    return params_from_config(params, NELEM(pspecs), pspecs, 0, NULL, num_configs, default_kvs,
-        named_kvs);
+    return params_from_config(
+        params, NELEM(pspecs), pspecs, 0, NULL, num_configs, default_kvs, named_kvs);
 }
 
 merr_t
 kvs_rparams_from_paramv(
-    struct kvs_rparams *const params,
-    const size_t              paramc,
-    const char *const *const  paramv)
+    struct kvs_rparams * const params,
+    const size_t paramc,
+    const char * const * const paramv)
 {
     assert(params);
 
@@ -803,7 +801,7 @@ kvs_rparams_from_paramv(
 }
 
 cJSON *
-kvs_rparams_to_json(const struct kvs_rparams *const params)
+kvs_rparams_to_json(const struct kvs_rparams * const params)
 {
     if (!params)
         return NULL;

@@ -9,11 +9,12 @@
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+
 #include <sys/types.h>
 
-#include <hse/util/minmax.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
+#include <hse/util/minmax.h>
 
 /* Max number of a key's bytes that we can store in a key_immediate
  * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to
@@ -68,7 +69,11 @@ key_imm_klen(const struct key_immediate *imm)
  * @immediate: Pointer to struct key_immediate to fill out
  */
 void
-key_immediate_init(const void *key, size_t key_len, uint16_t index, struct key_immediate *immediate);
+key_immediate_init(
+    const void *key,
+    size_t key_len,
+    uint16_t index,
+    struct key_immediate *immediate);
 
 static HSE_ALWAYS_INLINE int32_t
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
@@ -93,8 +98,7 @@ key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *
      * Since keys are limited to 1536 bytes this value can't be returned
      * from this function in any other case.
      */
-    if (key_imm_klen(imm0) > KI_DLEN_MAX &&
-        key_imm_klen(imm1) > KI_DLEN_MAX)
+    if (key_imm_klen(imm0) > KI_DLEN_MAX && key_imm_klen(imm1) > KI_DLEN_MAX)
         return INT32_MIN;
 
     /* Otherwise, the result comes down to the key lengths. */
@@ -127,9 +131,9 @@ key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
 static HSE_ALWAYS_INLINE int32_t
 key_full_cmp(
     const struct key_immediate *imm0,
-    const void *                key0,
+    const void *key0,
     const struct key_immediate *imm1,
-    const void *                key1)
+    const void *key1)
 {
     int32_t rc;
 
@@ -137,9 +141,7 @@ key_full_cmp(
 
     if (rc == INT32_MIN) {
         rc = key_inner_cmp(
-            key0 + KI_DLEN_MAX,
-            key_imm_klen(imm0) - KI_DLEN_MAX,
-            key1 + KI_DLEN_MAX,
+            key0 + KI_DLEN_MAX, key_imm_klen(imm0) - KI_DLEN_MAX, key1 + KI_DLEN_MAX,
             key_imm_klen(imm1) - KI_DLEN_MAX);
     }
 
@@ -157,9 +159,9 @@ key_full_cmp(
 int32_t
 key_full_cmp_noinline(
     const struct key_immediate *imm0,
-    const void *                key0,
+    const void *key0,
     const struct key_immediate *imm1,
-    const void *                key1);
+    const void *key1);
 
 /**
  * struct key_disc - key discriminator for fast key comparison
@@ -205,8 +207,8 @@ key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs);
 struct key_obj {
     const void *ko_pfx;
     const void *ko_sfx;
-    uint        ko_pfx_len;
-    uint        ko_sfx_len;
+    uint ko_pfx_len;
+    uint ko_sfx_len;
 };
 
 /**
@@ -271,11 +273,11 @@ key_obj_len(const struct key_obj *kobj)
 static HSE_ALWAYS_INLINE int
 key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
 {
-    uint           klen1 = key_obj_len(ko1);
-    uint           klen2 = key_obj_len(ko2);
-    uint           minlen = min_t(uint, klen1, klen2);
-    int            len, rc, pos;
-    int            limitv[3];
+    uint klen1 = key_obj_len(ko1);
+    uint klen2 = key_obj_len(ko2);
+    uint minlen = min_t(uint, klen1, klen2);
+    int len, rc, pos;
+    int limitv[3];
     const uint8_t *k1, *k2;
 
     limitv[0] = min_t(uint, ko1->ko_pfx_len, ko2->ko_pfx_len);
@@ -380,7 +382,7 @@ key_obj_cmp_spl(const struct key_obj *ko1, const struct key_obj *ko2)
         uint len1 = ko1->ko_sfx_len;
         uint len2 = ko2->ko_sfx_len;
         uint len = min_t(uint, len1, len2);
-        int  rc;
+        int rc;
 
         rc = memcmp(ko1->ko_sfx, ko2->ko_sfx, len);
         return rc == 0 ? len1 - len2 : rc;

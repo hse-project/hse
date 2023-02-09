@@ -35,16 +35,18 @@ main(int argc, char **argv)
     char *kvdb_home, *kvs_name;
 
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
+    struct hse_kvs *kvs;
 
-    const char * paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
-                             "rest.enabled=false", };
+    const char *paramv[] = {
+        "logging.destination=stdout",
+        "logging.level=3",
+        "rest.enabled=false",
+    };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
-    size_t    vlen;
-    char      vbuf[32];
-    bool      found;
+    size_t vlen;
+    char vbuf[32];
+    bool found;
     hse_err_t rc, rc2;
 
     if (argc != 3)

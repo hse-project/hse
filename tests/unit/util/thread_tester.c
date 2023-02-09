@@ -15,9 +15,9 @@ launch_worker(void *rock);
 
 struct worker_info {
     struct thread_test *thtester;
-    void *              test_data;
-    pthread_t           threadid;
-    int                 wnum; /* worker number */
+    void *test_data;
+    pthread_t threadid;
+    int wnum; /* worker number */
 };
 
 void
@@ -64,9 +64,9 @@ thread_test_run(struct thread_test *thtester, void *test_data, int num_threads)
 {
     struct timespec tstart;
     struct timespec tend;
-    double          elapsed_time;
-    int             rc;
-    int             i;
+    double elapsed_time;
+    int rc;
+    int i;
 
     VERIFY_GT(num_threads, 0);
 
@@ -109,7 +109,7 @@ thread_test_run(struct thread_test *thtester, void *test_data, int num_threads)
     /* Join threads */
     for (i = 0; i < num_threads; i++) {
         struct worker_info *w = &thtester->thtst_workers[i];
-        void *              result;
+        void *result;
 
         rc = pthread_join(w->threadid, &result);
         VERIFY_EQ(rc, 0);
@@ -141,11 +141,11 @@ launch_worker(void *rock)
     return NULL;
 }
 
-struct thread_test_ops thtest_ops = {.thread_test_ctor = thread_test_ctor,
-                                     .thread_test_dtor = thread_test_dtor,
-                                     .thread_test_main = thread_test_main,
-                                     .thread_test_barrier = thread_test_barrier,
-                                     .thread_test_run = thread_test_run,
+struct thread_test_ops thtest_ops = { .thread_test_ctor = thread_test_ctor,
+                                      .thread_test_dtor = thread_test_dtor,
+                                      .thread_test_main = thread_test_main,
+                                      .thread_test_barrier = thread_test_barrier,
+                                      .thread_test_run = thread_test_run,
 
 #if 0
     /*
@@ -157,6 +157,6 @@ struct thread_test_ops thtest_ops = {.thread_test_ctor = thread_test_ctor,
     .thread_test_report
 #endif
 
-                                     .thread_test_wait_barrier = thread_test_wait_barrier,
-                                     .thread_test_starting_gate = thread_test_starting_gate,
-                                     .thread_test_finish_line = thread_test_finish_line };
+                                      .thread_test_wait_barrier = thread_test_wait_barrier,
+                                      .thread_test_starting_gate = thread_test_starting_gate,
+                                      .thread_test_finish_line = thread_test_finish_line };

@@ -5,23 +5,23 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
+#include <hse/util/arch.h>
 #include <hse/util/base.h>
 #include <hse/util/key_util.h>
 #include <hse/util/minmax.h>
-#include <hse/util/arch.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
 
 MTF_DEFINE_UTEST(key_util_test, basic)
 {
-    const char *         k0 = "cat";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "dog";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "cat";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "dog";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 1, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
@@ -41,12 +41,12 @@ MTF_DEFINE_UTEST(key_util_test, basic)
 
 MTF_DEFINE_UTEST(key_util_test, basic_key_immediate_cmp)
 {
-    const char *         k0 = "cat";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "dog";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "cat";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "dog";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 1, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
@@ -66,11 +66,11 @@ MTF_DEFINE_UTEST(key_util_test, basic_key_immediate_cmp)
 
 MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
 {
-    const char *         key = "cat";
-    size_t               key_len = strlen(key);
+    const char *key = "cat";
+    size_t key_len = strlen(key);
     struct key_immediate key_imm;
-    uint32_t             res;
-    int                  i;
+    uint32_t res;
+    int i;
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         key_immediate_init(key, key_len, i, &key_imm);
@@ -79,11 +79,28 @@ MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
     }
 }
 
-uint16_t index0_array[] = {
-    0, 1, 2, 3, 7, 8, 9, 12, 15, 16, 17, 31, 32, 33, 63, 64, 65,
-    HSE_KVS_COUNT_MAX / 2 - 1, HSE_KVS_COUNT_MAX / 2, HSE_KVS_COUNT_MAX / 2 + 1,
-    HSE_KVS_COUNT_MAX - 2, HSE_KVS_COUNT_MAX - 1
-};
+uint16_t index0_array[] = { 0,
+                            1,
+                            2,
+                            3,
+                            7,
+                            8,
+                            9,
+                            12,
+                            15,
+                            16,
+                            17,
+                            31,
+                            32,
+                            33,
+                            63,
+                            64,
+                            65,
+                            HSE_KVS_COUNT_MAX / 2 - 1,
+                            HSE_KVS_COUNT_MAX / 2,
+                            HSE_KVS_COUNT_MAX / 2 + 1,
+                            HSE_KVS_COUNT_MAX - 2,
+                            HSE_KVS_COUNT_MAX - 1 };
 
 MTF_DEFINE_IVALUES(idx0, NELEM(index0_array), index0_array)
 MTF_DEFINE_IRANGE(idx1, 0, HSE_KVS_COUNT_MAX)
@@ -99,22 +116,20 @@ MTF_DEFINE_UTEST_CP2(
     uint16_t,
     idx1)
 {
-    const char *         k0 = "cat";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "cat";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "cat";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "cat";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     if (idx0 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx0, HSE_KVS_COUNT_MAX);
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx0, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
     }
 
     if (idx1 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx1, HSE_KVS_COUNT_MAX);
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx1, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
     }
 
@@ -145,7 +160,7 @@ MTF_DEFINE_UTEST_CP2(
     uint8_t key[KI_DLEN_MAX + 7];
     size_t klen;
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     if (!inited) {
         srandom(time(NULL));
@@ -153,14 +168,12 @@ MTF_DEFINE_UTEST_CP2(
     }
 
     if (idx0 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx0, HSE_KVS_COUNT_MAX);
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx0, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
     }
 
     if (idx2 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx2, HSE_KVS_COUNT_MAX);
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx2, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
     }
 
@@ -210,22 +223,20 @@ MTF_DEFINE_UTEST_CP2(
     uint16_t,
     idx2)
 {
-    const char *         k0 = "Mr. Freeze";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "Mr. Freeze";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "Mr. Freeze";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "Mr. Freeze";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     if (idx1 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx1, HSE_KVS_COUNT_MAX);
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx1, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
     }
 
     if (idx2 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx2, HSE_KVS_COUNT_MAX);
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx2, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
     }
 
@@ -244,12 +255,12 @@ MTF_END_CP2
 
 MTF_DEFINE_UTEST(key_util_test, zero_length_keys)
 {
-    const char *         k0 = "";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
@@ -269,12 +280,12 @@ MTF_DEFINE_UTEST(key_util_test, zero_length_keys)
 
 MTF_DEFINE_UTEST(key_util_test, dissimilar_keys)
 {
-    const char *         k0 = "batman";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "poison";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "batman";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "poison";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
@@ -294,12 +305,12 @@ MTF_DEFINE_UTEST(key_util_test, dissimilar_keys)
 
 MTF_DEFINE_UTEST(key_util_test, key_immediate_match_length)
 {
-    const char *         k0 = "123testing, testing, testing";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "123testing, testing, testing, testing";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "123testing, testing, testing";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "123testing, testing, testing, testing";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 0, &im1);
@@ -309,12 +320,12 @@ MTF_DEFINE_UTEST(key_util_test, key_immediate_match_length)
 
 MTF_DEFINE_UTEST(key_util_test, key_immediate_match_lt)
 {
-    const char *         k0 = "123456789012345 cat";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "123456789012345 dog";
-    size_t               k1_len = strlen(k1);
+    const char *k0 = "123456789012345 cat";
+    size_t k0_len = strlen(k0);
+    const char *k1 = "123456789012345 dog";
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  res;
+    int res;
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 0, &im1);
@@ -334,7 +345,7 @@ int
 my_memcmp(const void *key0, size_t key0_len, const void *key1, size_t key1_len)
 {
     size_t cmplen = min(key0_len, key1_len);
-    int    res;
+    int res;
 
     res = memcmp(key0, key1, cmplen);
     if (res != 0)
@@ -358,12 +369,12 @@ MTF_DEFINE_UTEST_CP2(
     uint32_t,
     karr_idx1)
 {
-    const char *         k0 = key_arr0[karr_idx0];
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = key_arr1[karr_idx1];
-    size_t               k1_len = strlen(k1);
+    const char *k0 = key_arr0[karr_idx0];
+    size_t k0_len = strlen(k0);
+    const char *k1 = key_arr1[karr_idx1];
+    size_t k1_len = strlen(k1);
     struct key_immediate im0, im1;
-    int                  memcmp_res, keyimmcmp_res;
+    int memcmp_res, keyimmcmp_res;
 
     key_immediate_init(k0, k0_len, 17, &im0);
     key_immediate_init(k1, k1_len, 17, &im1);
@@ -383,8 +394,8 @@ MTF_END_CP2
 MTF_DEFINE_UTEST(key_util_test, key_disc_cmp_basic)
 {
     struct key_disc disc0, disc1;
-    const char *    k0, *k1;
-    int             rc, i;
+    const char *k0, *k1;
+    int rc, i;
 
     /* First test that equivalent strings of various lengths
      * compare equal.
@@ -484,7 +495,7 @@ MTF_DEFINE_UTEST(key_util_test, key_disc_cmp_basic)
 MTF_DEFINE_UTEST(key_util_test, memlcp_test)
 {
     uint8_t s1[1024], s2[1024];
-    size_t  i, j, lcp, max;
+    size_t i, j, lcp, max;
 
     srand(time(NULL));
 
@@ -528,7 +539,7 @@ make_key_obj(struct key_obj *ko, const void *pfx, uint plen, const void *sfx, ui
 MTF_DEFINE_UTEST(key_util_test, key_obj_cmp_test)
 {
     struct key_obj ko1, ko2;
-    int            rc;
+    int rc;
 
     make_key_obj(&ko1, "ab", 2, "1", 1); /* ko1 = ab1 */
     make_key_obj(&ko2, "a", 1, "b2", 2); /* ko2 = ab2 */
@@ -550,7 +561,7 @@ MTF_DEFINE_UTEST(key_util_test, key_obj_cmp_test)
 MTF_DEFINE_UTEST(key_util_test, key_obj_cmp_prefix_test)
 {
     struct key_obj ko1, ko2;
-    int            rc;
+    int rc;
 
     make_key_obj(&ko1, "a", 1, "b", 1);  /* ko1 = ab */
     make_key_obj(&ko2, "a", 1, "b2", 2); /* ko2 = ab2 */
@@ -563,9 +574,9 @@ MTF_DEFINE_UTEST(key_util_test, key_obj_cmp_prefix_test)
 MTF_DEFINE_UTEST(key_util_test, key_obj_copy_test)
 {
     struct key_obj ko;
-    char           kbuf[4];
-    uint           klen;
-    int            rc;
+    char kbuf[4];
+    uint klen;
+    int rc;
 
     make_key_obj(&ko, "ab", 2, "1", 1); /* ab1 */
 
@@ -578,7 +589,7 @@ MTF_DEFINE_UTEST(key_util_test, key_obj_copy_test)
 MTF_DEFINE_UTEST(key_util_test, null_pointers)
 {
     struct key_obj ko1, ko2;
-    int            rc;
+    int rc;
 
     make_key_obj(&ko1, "abc123", 6, NULL, 0);
     make_key_obj(&ko2, "abc1234", 7, NULL, 0);

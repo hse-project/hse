@@ -4,10 +4,12 @@
  */
 
 #include <stdint.h>
+#include <sysexits.h>
+
+#include <util/lib/bonsai_tree_pvt.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-
 #include <hse/util/atomic.h>
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/compiler.h>
@@ -18,11 +20,7 @@
 #include <hse/util/time.h>
 #include <hse/util/xrand.h>
 
-#include <util/lib/bonsai_tree_pvt.h>
-
 #include <hse/test/mtf/framework.h>
-
-#include <sysexits.h>
 
 #define BONSAI_TREE_CLIENT_VERIFY
 
@@ -30,12 +28,12 @@
 #define BONSAI_RCU_REGISTER()
 #define BONSAI_RCU_UNREGISTER()
 #else
-#define BONSAI_RCU_REGISTER()       rcu_register_thread()
-#define BONSAI_RCU_UNREGISTER()     rcu_unregister_thread()
+#define BONSAI_RCU_REGISTER()   rcu_register_thread()
+#define BONSAI_RCU_UNREGISTER() rcu_unregister_thread()
 #endif
 
 #ifdef LIBURCU_QSBR
-#define BONSAI_RCU_QUIESCE()        rcu_quiescent_state()
+#define BONSAI_RCU_QUIESCE() rcu_quiescent_state()
 #else
 #define BONSAI_RCU_QUIESCE()
 #endif
@@ -55,19 +53,19 @@ static enum bonsai_alloc_mode allocm = HSE_ALLOC_CURSOR;
 #define HSE_CORE_TOMB_REG ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX ((void *)~0UL)
 
-struct bonsai_root *   broot;
-static int             induce_alloc_failure;
-unsigned int           key_begin = 0;
-unsigned int           key_end = 7 * 1024 * 1024;
-static int             stop_producer_threads;
-static int             stop_consumer_threads;
-static unsigned int    key_current = 1;
-static int             num_consumers = 4;
-static int             num_producers = 4;
-static int             runtime_insecs = 10;
-static int             random_number;
-static size_t          key_size = 10;
-static size_t          val_size = 100;
+struct bonsai_root *broot;
+static int induce_alloc_failure;
+unsigned int key_begin = 0;
+unsigned int key_end = 7 * 1024 * 1024;
+static int stop_producer_threads;
+static int stop_consumer_threads;
+static unsigned int key_current = 1;
+static int num_consumers = 4;
+static int num_producers = 4;
+static int runtime_insecs = 10;
+static int random_number;
+static size_t key_size = 10;
+static size_t val_size = 100;
 static pthread_mutex_t mtx;
 
 static thread_local struct xrand xr;
@@ -95,14 +93,14 @@ bonsai_xrand(void)
 
 static void
 bonsai_client_insert_callback(
-    void *                cli_rock,
+    void *cli_rock,
     enum bonsai_ior_code *code,
-    struct bonsai_kv *    kv,
-    struct bonsai_val *   new_val,
-    struct bonsai_val **  old_val,
-    uint                  height)
+    struct bonsai_kv *kv,
+    struct bonsai_val *new_val,
+    struct bonsai_val **old_val,
+    uint height)
 {
-    struct bonsai_val * old;
+    struct bonsai_val *old;
     struct bonsai_val **prevp;
 
     uintptr_t seqnoref;
@@ -110,9 +108,9 @@ bonsai_client_insert_callback(
     assert(rcu_read_ongoing());
 
     if (IS_IOR_INS(*code)) {
-            assert(new_val == NULL);
-            kv->bkv_valcnt++;
-            return;
+        assert(new_val == NULL);
+        kv->bkv_valcnt++;
+        return;
     }
 
     assert(IS_IOR_REPORADD(*code));
@@ -220,7 +218,7 @@ static struct bonsai_val *
 findValue(struct bonsai_kv *kv, uint64_t view_seqno, uintptr_t seqnoref)
 {
     struct bonsai_val *val_ge, *val;
-    uint64_t           diff_ge, diff;
+    uint64_t diff_ge, diff;
 
     diff_ge = ULONG_MAX;
     val_ge = NULL;
@@ -280,7 +278,9 @@ test_collection_setup(struct mtf_test_info *info)
 
     optind = 1;
 
-    while (-1 != (c = getopt(tci->tci_argc - tci->tci_optind, tci->tci_argv + tci->tci_optind, ":cm"))) {
+    while (-1 !=
+           (c = getopt(tci->tci_argc - tci->tci_optind, tci->tci_argv + tci->tci_optind, ":cm")))
+    {
         switch (c) {
         case 'c':
             allocm = HSE_ALLOC_CURSOR;
@@ -345,7 +345,7 @@ bonsai_client_producer(void *arg)
 {
     unsigned long *val = NULL;
     unsigned int *key;
-    merr_t         err = 0;
+    merr_t err = 0;
     int i;
 
     struct bonsai_skey skey = { 0 };
@@ -423,17 +423,17 @@ exit:
 
 struct lcp_test_arg {
     pthread_barrier_t *fbarrier;
-    uint               tid;
+    uint tid;
 };
 
 static void *
 bonsai_client_lcp_test(void *arg)
 {
-    int                i;
-    uint               tid;
-    merr_t             err = 0;
-    char               key[KI_DLEN_MAX + 36];
-    unsigned long      val;
+    int i;
+    uint tid;
+    merr_t err = 0;
+    char key[KI_DLEN_MAX + 36];
+    unsigned long val;
     pthread_barrier_t *fbarrier;
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
@@ -491,11 +491,11 @@ bonsai_client_lcp_test(void *arg)
     lcp = (bounds > 0) ? (bounds - 1) : 0;
 
     for (i = 0; i < 26; i++) {
-        struct bonsai_skey          skey = { 0 };
-        struct bonsai_kv *          kv = NULL;
-        struct bonsai_val *         v;
-        unsigned long               val;
-        bool                        found HSE_MAYBE_UNUSED;
+        struct bonsai_skey skey = { 0 };
+        struct bonsai_kv *kv = NULL;
+        struct bonsai_val *v;
+        unsigned long val;
+        bool found HSE_MAYBE_UNUSED;
         const struct key_immediate *ki HSE_MAYBE_UNUSED;
 
         key[KI_DLEN_MAX + 26] = 'a' + i;
@@ -522,8 +522,8 @@ bonsai_client_lcp_test(void *arg)
 
     for (i = 1; i < KI_DLEN_MAX + 27; i++) {
         struct bonsai_skey skey = { 0 };
-        struct bonsai_kv * kv = NULL;
-        bool               found HSE_MAYBE_UNUSED;
+        struct bonsai_kv *kv = NULL;
+        bool found HSE_MAYBE_UNUSED;
 
         bn_skey_init(key, i, 0, tid, &skey);
 
@@ -535,8 +535,8 @@ bonsai_client_lcp_test(void *arg)
 
     for (i = KI_DLEN_MAX + 28; i < sizeof(key); i++) {
         struct bonsai_skey skey = { 0 };
-        struct bonsai_kv * kv = NULL;
-        bool               found HSE_MAYBE_UNUSED;
+        struct bonsai_kv *kv = NULL;
+        bool found HSE_MAYBE_UNUSED;
 
         bn_skey_init(key, i, 0, tid, &skey);
 
@@ -556,12 +556,12 @@ static void *
 bonsai_client_consumer(void *arg)
 {
     struct bonsai_skey skey = { 0 };
-    struct bonsai_kv * kv = NULL;
+    struct bonsai_kv *kv = NULL;
 
-    unsigned int    key_last;
-    unsigned int   *key;
-    bool            found = true;
-    int             i;
+    unsigned int key_last;
+    unsigned int *key;
+    bool found = true;
+    int i;
 
     key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key)
@@ -611,16 +611,16 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
 {
     pthread_t *consumer_tids;
     pthread_t *producer_tids;
-    void *     ret;
-    int        rc, i;
+    void *ret;
+    int rc, i;
 
 #ifdef BONSAI_TREE_CLIENT_VERIFY
     struct bonsai_skey skey;
     struct bonsai_kv *kvnext, *kv;
 
     unsigned int *key;
-    merr_t         err;
-    bool           found;
+    merr_t err;
+    bool found;
 
     key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key) {
@@ -739,8 +739,7 @@ bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
             ++k;
         }
 
-        log_debug("%d %d %d, key_current %d, rand %d",
-                  i, j, k, key_current, random_number);
+        log_debug("%d %d %d, key_current %d, rand %d", i, j, k, key_current, random_number);
         assert(j == k);
     }
 
@@ -776,11 +775,11 @@ exit:
 static int
 bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 {
-    merr_t        err;
-    int           i;
+    merr_t err;
+    int i;
     unsigned long tmpkey = 9999999;
-    size_t        tmpkey_len = sizeof(tmpkey);
-    bool          found;
+    size_t tmpkey_len = sizeof(tmpkey);
+    bool found;
 
     static unsigned long a[] = { 300, 1,   2,   3,   4,   3,   2,  1,  5,  6,  7,   8,
                                  303, 302, 1,   2,   3,   4,   5,  99, 1,  2,  3,   4,
@@ -788,9 +787,9 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
                                  4,   5,   99,  299, 301, 1,   2,  3,  4,  5,  99,  7,
                                  8,   9,   13,  14,  15,  99,  20, 30, 40, 50, 101, 150,
                                  500, 100, 600, 5,   99,  200, 1,  2,  3,  4,  5,   99 };
-    struct bonsai_skey   skey = { 0 };
-    struct bonsai_sval   sval = { 0 };
-    struct bonsai_kv *   kv = NULL;
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+    struct bonsai_kv *kv = NULL;
 
     cheap = NULL;
 
@@ -827,7 +826,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 
     for (i = i - 1; i >= 0; i--) {
         struct bonsai_val *v;
-        uint64_t           val;
+        uint64_t val;
 
         /* Initialize Key */
         bn_skey_init(&a[i], sizeof(a[i]), 0, 0, &skey);
@@ -933,7 +932,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post
      */
     for (i = maxvals - maxkeys; i < maxvals; ++i) {
         struct bonsai_kv *kv = NULL;
-        struct bonsai_val* v;
+        struct bonsai_val *v;
         uint64_t key = i % maxkeys;
         uint64_t val = i;
         bool b;
@@ -1031,10 +1030,9 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, insdel, no_fail_pre, no_fail_post)
         bn_traverse(tree);
         rcu_read_unlock();
 
-        log_info("%7u: height %2u %2u, ins %6u, del %6u, %lu ns/insdel\n",
-                 maxkeys, tree->br_height,
-                 tree->br_root ? tree->br_root->bn_height : 0,
-                 ninserted, ndeleted, tstart / itermax);
+        log_info(
+            "%7u: height %2u %2u, ins %6u, del %6u, %lu ns/insdel\n", maxkeys, tree->br_height,
+            tree->br_root ? tree->br_root->bn_height : 0, ninserted, ndeleted, tstart / itermax);
 
         /* Remove all the keys that we think are in the tree...
          */
@@ -1086,25 +1084,23 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_p
     ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 
 #ifdef BONSAI_TREE_DEBUG
-    log_info("Run time %d seconds consumers %d producers %d last key %ld",
-             runtime_insecs,
-             num_consumers,
-             num_producers,
-             key_current);
+    log_info(
+        "Run time %d seconds consumers %d producers %d last key %ld", runtime_insecs, num_consumers,
+        num_producers, key_current);
 #endif
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
 {
-    int        rc;
-    int        i;
-    const int  num_skidx = 64;
+    int rc;
+    int i;
+    const int num_skidx = 64;
     pthread_t *producer_tids;
 
-    void *              ret;
-    pthread_barrier_t   final_barrier;
+    void *ret;
+    pthread_barrier_t final_barrier;
     struct lcp_test_arg args[num_skidx];
-    merr_t              err;
+    merr_t err;
 
     cheap = cheap_create(16, 64 * MB);
     ASSERT_NE(cheap, NULL);
@@ -1247,16 +1243,16 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fa
 void
 bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
-    uint8_t             list[] = { 0, 1, 2, 127, 128, 129, 253, 254, 255 };
-    const int           maxlen = 37;
+    uint8_t list[] = { 0, 1, 2, 127, 128, 129, 253, 254, 255 };
+    const int maxlen = 37;
     struct bonsai_root *tree;
-    uintptr_t           seqno;
-    int                 i, j;
-    struct bonsai_skey  skey = { 0 };
-    struct bonsai_sval  sval = { 0 };
-    struct bonsai_kv *  kv = NULL;
-    struct bonsai_val * v;
-    merr_t              err;
+    uintptr_t seqno;
+    int i, j;
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+    struct bonsai_kv *kv = NULL;
+    struct bonsai_val *v;
+    merr_t err;
 
     init_tree(&tree, allocm);
 
@@ -1317,16 +1313,16 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 void
 bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
-    const int           LEN = 1024 * 1024;
+    const int LEN = 1024 * 1024;
     struct bonsai_root *tree;
-    uintptr_t           op_seqno;
-    uintptr_t           seqnoref;
-    int                 i;
-    struct bonsai_skey  skey = { 0 };
-    struct bonsai_sval  sval = { 0 };
-    struct bonsai_kv *  kv = NULL;
-    merr_t              err;
-    bool                found;
+    uintptr_t op_seqno;
+    uintptr_t seqnoref;
+    int i;
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+    struct bonsai_kv *kv = NULL;
+    merr_t err;
+    bool found;
 
     init_tree(&tree, allocm);
 
@@ -1364,8 +1360,8 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < LEN / 2; ++i) {
         struct bonsai_val *v;
-        uint64_t           key;
-        uint64_t           val;
+        uint64_t key;
+        uint64_t val;
 
         key = i % 2 ? i : -i;
         v = NULL;
@@ -1412,19 +1408,19 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 void
 bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
-    const int           MAX_VALUES = 17;
-    const int           LEN = 4003 * MAX_VALUES;
-    uint64_t            op_seqno;
-    uintptr_t           seqnoref;
-    uint64_t            value;
-    uint64_t            key;
-    int                 i;
-    merr_t              err;
-    bool                found;
+    const int MAX_VALUES = 17;
+    const int LEN = 4003 * MAX_VALUES;
+    uint64_t op_seqno;
+    uintptr_t seqnoref;
+    uint64_t value;
+    uint64_t key;
+    int i;
+    merr_t err;
+    bool found;
     struct bonsai_root *tree;
-    struct bonsai_skey  skey = { 0 };
-    struct bonsai_sval  sval = { 0 };
-    struct bonsai_kv *  kv = NULL;
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+    struct bonsai_kv *kv = NULL;
 
     init_tree(&tree, allocm);
 
@@ -1448,7 +1444,7 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
     for (i = 0; i < MAX_VALUES; ++i) {
         struct bonsai_val *v;
-        uint64_t           val;
+        uint64_t val;
 
         op_seqno = i;
 
@@ -1481,17 +1477,17 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 {
     enum { LEN = 5 };
     struct bonsai_root *tree;
-    uint64_t            keys[LEN];
-    struct bonsai_skey  skeys[LEN];
-    struct bonsai_skey  skey = { 0 };
-    struct bonsai_sval  sval = { 0 };
-    int                 i;
-    int                 numeric = 0;
-    uint64_t            op_seqno = 343;
-    uintptr_t           seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
-    merr_t              err;
-    bool                finalize = false;
-    bool                found;
+    uint64_t keys[LEN];
+    struct bonsai_skey skeys[LEN];
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+    int i;
+    int numeric = 0;
+    uint64_t op_seqno = 343;
+    uintptr_t seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
+    merr_t err;
+    bool finalize = false;
+    bool found;
 
     init_tree(&tree, allocm);
 
@@ -1518,12 +1514,12 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 
 again:
     for (i = 0; i < LEN; ++i) {
-        uint64_t            key, key0;
-        uint32_t            sz = sizeof(key);
-        struct bonsai_kv *  kv;
-        struct bonsai_val * pval;
+        uint64_t key, key0;
+        uint32_t sz = sizeof(key);
+        struct bonsai_kv *kv;
+        struct bonsai_val *pval;
         struct bonsai_skey *next;
-        uint16_t            sid;
+        uint16_t sid;
 
         kv = NULL;
         key0 = *(uint64_t *)skeys[i].bsk_key;
@@ -1649,20 +1645,20 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, original, no_fail_pre, no_fail_post)
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, complicated, no_fail_pre, no_fail_post)
 {
     enum { LEN = 349 };
-    uint64_t            keys[LEN], ord_vals[LEN], key, value;
-    uint64_t            op_seqno;
-    uintptr_t           seqnoref;
+    uint64_t keys[LEN], ord_vals[LEN], key, value;
+    uint64_t op_seqno;
+    uintptr_t seqnoref;
     struct bonsai_root *tree;
-    struct bonsai_val * pval;
-    uint32_t            sz = sizeof(key);
-    int                 i, j, rand_num;
-    int                 MAX_VALUES_PER_KEY;
-    merr_t              err;
-    bool                found;
+    struct bonsai_val *pval;
+    uint32_t sz = sizeof(key);
+    int i, j, rand_num;
+    int MAX_VALUES_PER_KEY;
+    merr_t err;
+    bool found;
 
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
-    struct bonsai_kv * kv;
+    struct bonsai_kv *kv;
 
     bonsai_xrand_init(0);
 
@@ -1860,7 +1856,7 @@ set_kv(struct bonsai_kv *k, void *key, size_t len, bool is_ptomb)
 #define max_cmp(key1, key1_is_pt, key2, key2_is_pt, res) \
     do {                                                 \
         struct bonsai_kv *kv1, *kv2;                     \
-        int               rc;                            \
+        int rc;                                          \
                                                          \
         kv1 = calloc(1, sizeof(*kv1) + ALLOC_LEN_MAX);   \
         kv2 = calloc(1, sizeof(*kv2) + ALLOC_LEN_MAX);   \

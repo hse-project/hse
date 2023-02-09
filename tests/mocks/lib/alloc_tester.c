@@ -3,9 +3,9 @@
  * SPDX-FileCopyrightText: Copyright 2018 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/conditions.h>
-#include <hse/test/mock/api.h>
 #include <hse/test/mock/alloc_tester.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/conditions.h>
 
 /*
  * Example use of mapi_alloc_tester() to test function a create/destroy
@@ -58,8 +58,8 @@
  */
 int
 mapi_alloc_tester(
-    struct mtf_test_info *      lcl_ti,
-    mapi_alloc_tester_run_fn *  run,
+    struct mtf_test_info *lcl_ti,
+    mapi_alloc_tester_run_fn *run,
     mapi_alloc_tester_clean_fn *clean)
 {
     unsigned i, n_allocs;

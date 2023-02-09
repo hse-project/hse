@@ -13,9 +13,9 @@
 struct worker_info;
 
 struct thread_test {
-    struct worker_info *    thtst_workers;
-    pthread_barrier_t       thtst_worker_barrier;
-    pthread_barrier_t       thtst_global_barrier;
+    struct worker_info *thtst_workers;
+    pthread_barrier_t thtst_worker_barrier;
+    pthread_barrier_t thtst_global_barrier;
     struct thread_test_ops *thtst_ops;
 };
 

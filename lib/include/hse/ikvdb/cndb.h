@@ -24,9 +24,9 @@ struct cndb_txn;
 #define CNDB_DEFAULT_SIZE (128 * 1024 * 1024)
 
 #define CNDB_INVAL_INGESTID UINT64_MAX
-#define CNDB_DFLT_INGESTID (UINT64_MAX - 1)
+#define CNDB_DFLT_INGESTID  (UINT64_MAX - 1)
 
-#define CNDB_INVAL_HORIZON  CNDB_INVAL_INGESTID
+#define CNDB_INVAL_HORIZON CNDB_INVAL_INGESTID
 
 #define CNDB_INVAL_KVSETID 0
 
@@ -43,11 +43,11 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2);
 /* MTF_MOCK */
 merr_t
 cndb_open(
-    struct mpool        *mp,
-    uint64_t             oid1,
-    uint64_t             oid2,
+    struct mpool *mp,
+    uint64_t oid1,
+    uint64_t oid2,
     struct kvdb_rparams *rp,
-    struct cndb        **cndb_out);
+    struct cndb **cndb_out);
 
 /* MTF_MOCK */
 merr_t
@@ -72,10 +72,10 @@ cndb_nodeid_mint(struct cndb *cndb);
 /* MTF_MOCK */
 merr_t
 cndb_record_kvs_add(
-    struct cndb              *cndb,
+    struct cndb *cndb,
     const struct kvs_cparams *cp,
-    uint64_t                 *cnid_out,
-    const char               *name);
+    uint64_t *cnid_out,
+    const char *name);
 
 /* MTF_MOCK */
 merr_t
@@ -84,47 +84,47 @@ cndb_record_kvs_del(struct cndb *cndb, uint64_t cnid);
 /* MTF_MOCK */
 merr_t
 cndb_record_txstart(
-    struct cndb      *cndb,
-    uint64_t          seqno,
-    uint64_t          ingestid,
-    uint64_t          txhorizon,
-    uint32_t          add_cnt,
-    uint32_t          del_cnt,
+    struct cndb *cndb,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint32_t add_cnt,
+    uint32_t del_cnt,
     struct cndb_txn **tx_out);
 
 /* MTF_MOCK */
 merr_t
 cndb_record_kvset_add(
-    struct cndb       *cndb,
-    struct cndb_txn   *tx,
-    uint64_t           cnid,
-    uint64_t           nodeid,
+    struct cndb *cndb,
+    struct cndb_txn *tx,
+    uint64_t cnid,
+    uint64_t nodeid,
     struct kvset_meta *km,
-    uint64_t           kvsetid,
-    uint64_t           hblkid,
-    unsigned int       kblkc,
-    uint64_t          *kblkv,
-    unsigned int       vblkc,
-    uint64_t          *vblkv,
-    void             **cookie);
+    uint64_t kvsetid,
+    uint64_t hblkid,
+    unsigned int kblkc,
+    uint64_t *kblkv,
+    unsigned int vblkc,
+    uint64_t *vblkv,
+    void **cookie);
 
 /* MTF_MOCK */
 merr_t
 cndb_record_kvset_del(
-    struct cndb     *cndb,
+    struct cndb *cndb,
     struct cndb_txn *tx,
-    uint64_t         cnid,
-    uint64_t         kvsetid,
-    void           **cookie);
+    uint64_t cnid,
+    uint64_t kvsetid,
+    void **cookie);
 
 /* MTF_MOCK */
 merr_t
 cndb_record_kvsetv_move(
-    struct cndb    *cndb,
-    uint64_t        cnid,
-    uint64_t        src_nodeid,
-    uint64_t        tgt_nodeid,
-    uint32_t        kvset_idc,
+    struct cndb *cndb,
+    uint64_t cnid,
+    uint64_t src_nodeid,
+    uint64_t tgt_nodeid,
+    uint32_t kvset_idc,
     const uint64_t *kvset_idv);
 
 /* MTF_MOCK */
@@ -148,10 +148,7 @@ cndb_kvs_callback(uint64_t, struct kvs_cparams *, const char *, void *);
 
 /* MTF_MOCK */
 merr_t
-cndb_kvs_info(
-    struct cndb         *cndb,
-    void                *cb_ctx,
-    cndb_kvs_callback   *cb);
+cndb_kvs_info(struct cndb *cndb, void *cb_ctx, cndb_kvs_callback *cb);
 
 typedef merr_t
 cn_init_callback(void *, struct kvset_meta *, uint64_t);

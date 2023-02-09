@@ -9,13 +9,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <hse/error/merr.h>
 #include <hse/mpool/mpool_structs.h>
 
-#include <hse/error/merr.h>
-
-struct mpool;            /* opaque mpool handle */
-struct mpool_mdc;        /* opaque MDC (metadata container) handle */
-struct mpool_file;       /* opaque mpool file handle */
+struct mpool;      /* opaque mpool handle */
+struct mpool_mdc;  /* opaque MDC (metadata container) handle */
+struct mpool_file; /* opaque mpool file handle */
 struct iovec;
 
 /* MTF_MOCK_DECL(mpool) */
@@ -33,7 +32,6 @@ struct iovec;
 /* MTF_MOCK */
 merr_t
 mpool_create(const char *home, const struct mpool_cparams *cparams);
-
 
 /**
  * mpool_cparams_defaults() - Init default mpool cparams
@@ -78,10 +76,10 @@ mpool_mclass_destroy(enum hse_mclass mclass, const struct mpool_dparams *dparams
 /* MTF_MOCK */
 merr_t
 mpool_open(
-    const char                 *home,
+    const char *home,
     const struct mpool_rparams *rparams,
-    uint32_t                    flags,
-    struct mpool              **handle);
+    uint32_t flags,
+    struct mpool **handle);
 
 /**
  * mpool_close() - Close an mpool
@@ -114,10 +112,7 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams);
  */
 /* MTF_MOCK */
 merr_t
-mpool_mclass_props_get(
-    struct mpool *             mp,
-    enum hse_mclass          mclass,
-    struct mpool_mclass_props *props);
+mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mclass_props *props);
 
 /**
  * mpool_mclass_info_get() - get info of the specified media class
@@ -143,9 +138,9 @@ mpool_mclass_info_get(struct mpool *mp, enum hse_mclass mclass, struct hse_mclas
  */
 merr_t
 mpool_mclass_ftw(
-    struct mpool         *mp,
-    enum hse_mclass     mclass,
-    const char           *prefix,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    const char *prefix,
     struct mpool_file_cb *cb);
 
 /** @brief Check if a media class is configured.
@@ -197,12 +192,12 @@ mpool_info_get(struct mpool *mp, struct mpool_info *stats);
 /* MTF_MOCK */
 merr_t
 mpool_mdc_alloc(
-    struct mpool *    mp,
-    uint32_t          magic,
-    size_t            capacity,
+    struct mpool *mp,
+    uint32_t magic,
+    size_t capacity,
     enum hse_mclass mclass,
-    uint64_t *        logid1,
-    uint64_t *        logid2);
+    uint64_t *logid1,
+    uint64_t *logid2);
 
 /**
  * mpool_mdc_commit() - Commit an MDC
@@ -248,10 +243,10 @@ mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 /* MTF_MOCK */
 merr_t
 mpool_mdc_open(
-    struct mpool      *mp,
-    uint64_t           logid1,
-    uint64_t           logid2,
-    bool               rdonly,
+    struct mpool *mp,
+    uint64_t logid1,
+    uint64_t logid2,
+    bool rdonly,
     struct mpool_mdc **handle);
 
 /**
@@ -354,10 +349,10 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uint
 /* MTF_MOCK */
 merr_t
 mpool_mblock_alloc(
-    struct mpool *       mp,
-    enum hse_mclass      mclass,
-    uint32_t             flags,
-    uint64_t *           mbid,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    uint32_t flags,
+    uint64_t *mbid,
     struct mblock_props *props);
 
 /**
@@ -520,12 +515,12 @@ mpool_mblock_munmap(struct mpool *mp, uint64_t mbid);
  */
 merr_t
 mpool_file_open(
-    struct mpool       *mp,
-    enum hse_mclass   mclass,
-    const char         *name,
-    int                 flags,
-    size_t              capacity,
-    bool                sparse,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    const char *name,
+    int flags,
+    size_t capacity,
+    bool sparse,
     struct mpool_file **handle);
 
 /**
@@ -570,10 +565,10 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
 merr_t
 mpool_file_write(
     struct mpool_file *file,
-    off_t              offset,
-    const char        *buf,
-    size_t             buflen,
-    size_t            *wrlen);
+    off_t offset,
+    const char *buf,
+    size_t buflen,
+    size_t *wrlen);
 
 /**
  * mpool_file_sync() - Sync mpool file
@@ -609,7 +604,6 @@ mpool_file_size(struct mpool_file *file);
  */
 merr_t
 mpool_mcpath_is_fsdax(const char *path, bool *isdax);
-
 
 #if HSE_MOCKING
 #include "mpool_ut.h"

@@ -3,12 +3,11 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
-#include <hse/util/list.h>
 #include <hse/error/merr.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/list.h>
 
 #include "cn/kvset.h"
-
 #include "txn.h"
 
 enum {
@@ -17,39 +16,38 @@ enum {
 };
 
 struct kvset_rec {
-    struct list_head   link;
-    int                type;
-    bool               acked;
+    struct list_head link;
+    int type;
+    bool acked;
     struct cndb_kvset *kvset;
 };
 
 struct cndb_txn {
     struct list_head kvset_list;
-    uint64_t         txid;
-    uint64_t         seqno;
-    uint64_t         ingestid;
-    uint64_t         txhorizon;
+    uint64_t txid;
+    uint64_t seqno;
+    uint64_t ingestid;
+    uint64_t txhorizon;
 
     /* Expected */
-    unsigned int     add_cnt;
-    unsigned int     del_cnt;
+    unsigned int add_cnt;
+    unsigned int del_cnt;
 
     /* Seen */
-    unsigned int     add_cnt_seen;
-    unsigned int     del_cnt_seen;
-    unsigned int     add_ack_cnt_seen;
-    unsigned int     del_ack_cnt_seen;
-
+    unsigned int add_cnt_seen;
+    unsigned int del_cnt_seen;
+    unsigned int add_ack_cnt_seen;
+    unsigned int del_ack_cnt_seen;
 };
 
 merr_t
 cndb_txn_create(
-    uint64_t         txid,
-    uint64_t         seqno,
-    uint64_t         ingestid,
-    uint64_t         txhorizon,
-    uint16_t         add_cnt,
-    uint16_t         del_cnt,
+    uint64_t txid,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint16_t add_cnt,
+    uint16_t del_cnt,
     struct cndb_txn **tx_out)
 {
     struct cndb_txn *tx;
@@ -91,17 +89,17 @@ cndb_txn_destroy(struct cndb_txn *tx)
 
 merr_t
 cndb_txn_kvset_add(
-    struct cndb_txn    *tx,
-    uint64_t           cnid,
-    uint64_t           kvsetid,
-    uint64_t           nodeid,
+    struct cndb_txn *tx,
+    uint64_t cnid,
+    uint64_t kvsetid,
+    uint64_t nodeid,
     struct kvset_meta *km,
-    uint64_t           hblkid,
-    size_t             kblkc,
-    uint64_t          *kblkv,
-    size_t             vblkc,
-    uint64_t          *vblkv,
-    void             **cookie)
+    uint64_t hblkid,
+    size_t kblkc,
+    uint64_t *kblkv,
+    size_t vblkc,
+    uint64_t *vblkv,
+    void **cookie)
 {
     struct kvset_rec *rec;
     struct cndb_kvset *kvset;
@@ -155,11 +153,7 @@ cndb_txn_kvset_add(
 }
 
 merr_t
-cndb_txn_kvset_del(
-    struct cndb_txn    *tx,
-    uint64_t           cnid,
-    uint64_t           kvsetid,
-    void             **cookie)
+cndb_txn_kvset_del(struct cndb_txn *tx, uint64_t cnid, uint64_t kvsetid, void **cookie)
 {
     struct kvset_rec *rec;
     struct cndb_kvset *kvset;
@@ -200,7 +194,7 @@ cndb_txn_apply(struct cndb_txn *tx, cndb_txn_cb *cb, void *cb_rock)
     list_for_each_entry(rec, &tx->kvset_list, link) {
         merr_t err1 = cb(tx, rec->kvset, rec->type == KVSET_ADD, rec->acked, cb_rock);
         if (ev(err1))
-            err = err ? : err1;
+            err = err ?: err1;
     }
 
     return err;
@@ -218,7 +212,7 @@ cndb_txn_ack(struct cndb_txn *tx, void *cookie, struct cndb_kvset **kvset_out)
 
     if (rec->type == KVSET_ADD) {
         assert(tx->add_cnt_seen);
-        assert (!tx->del_ack_cnt_seen);
+        assert(!tx->del_ack_cnt_seen);
 
         tx->add_ack_cnt_seen++;
     } else {

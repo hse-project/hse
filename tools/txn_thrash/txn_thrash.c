@@ -12,13 +12,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sysexits.h>
+
+#include <sys/resource.h>
+#include <sys/time.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 #include <hse/util/arch.h>
 
 #include "kvs_helper.h"
@@ -36,13 +38,12 @@ struct thread_info {
 };
 
 void
-txn_puts(
-    void *arg)
+txn_puts(void *arg)
 {
     struct kh_thread_arg *targ = arg;
     struct thread_info *ti = targ->arg;
-    struct hse_kvdb_txn    *txn;
-    char key[64] = {0};
+    struct hse_kvdb_txn *txn;
+    char key[64] = { 0 };
     char val[1024];
     uint64_t *k; /* key */
     uint64_t kid;
@@ -60,8 +61,7 @@ txn_puts(
     for (i = 0, kid = ti->kidx; i < opts.count; i++) {
         *k = htobe64(++kid);
 
-        rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
-                 val, sizeof(val));
+        rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key), val, sizeof(val));
         if (rc)
             fatal(rc, "Put failure");
     }
@@ -77,15 +77,14 @@ txn_puts(
     printf("Verifying keys\n");
 
     for (i = 0, kid = ti->kidx; i < opts.count; i++) {
-        bool   found;
+        bool found;
         size_t vlen;
-        char   vbuf[1024];
+        char vbuf[1024];
 
         *k = htobe64(++kid);
 
         memset(vbuf, 0, sizeof(vbuf));
-        rc = hse_kvs_get(targ->kvs, 0, NULL, key, sizeof(key), &found,
-                 vbuf, sizeof(vbuf), &vlen);
+        rc = hse_kvs_get(targ->kvs, 0, NULL, key, sizeof(key), &found, vbuf, sizeof(vbuf), &vlen);
         if (rc)
             fatal(rc, "Get failure");
 
@@ -108,16 +107,14 @@ usage(void)
 }
 
 int
-main(
-    int       argc,
-    char    **argv)
+main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char         *mpool, *kvs, *config = NULL;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool, *kvs, *config = NULL;
     struct thread_info *ti;
     int rc, c;
 
@@ -157,7 +154,7 @@ main(
     }
 
     mpool = argv[optind++];
-    kvs   = argv[optind++];
+    kvs = argv[optind++];
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
@@ -166,8 +163,7 @@ main(
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

@@ -6,9 +6,9 @@
 #ifndef HSE_PLATFORM_VLB_H
 #define HSE_PLATFORM_VLB_H
 
-#include <hse/error/merr.h>
-
 #include <hse/limits.h>
+
+#include <hse/error/merr.h>
 
 /* The very-large-buffer cache maintains a small pool of large, page
  * aligned buffers for use cases such as direct reads and compression.
@@ -19,20 +19,19 @@
  * callers of vlb_alloc(), but more work needs to be done to improve
  * the situation.
  */
-#define HSE_VLB_CACHESZ_MIN     (128ul << 20) /* per NUMA node */
-#define HSE_VLB_CACHESZ_DFLT    (4ul << 30)   /* per NUMA node */
-#define HSE_VLB_CACHESZ_MAX     HSE_VLB_CACHESZ_DFLT
+#define HSE_VLB_CACHESZ_MIN  (128ul << 20) /* per NUMA node */
+#define HSE_VLB_CACHESZ_DFLT (4ul << 30)   /* per NUMA node */
+#define HSE_VLB_CACHESZ_MAX  HSE_VLB_CACHESZ_DFLT
 
-#define VLB_ALLOCSZ_MAX     (4ul << 20)
-#define VLB_KEEPSZ_MAX      (2ul << 20)
+#define VLB_ALLOCSZ_MAX (4ul << 20)
+#define VLB_KEEPSZ_MAX  (2ul << 20)
 
 /* If you trip this assert than you are probably experimenting with value
  * lengths larger than 1MiB, in which case it's ok to remove this assert.
  * However, be warned that value buffers will be allocated and freed on
  * demand rather than come from the vlb cache.
  */
-_Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VALUE_LEN_MAX * 2),
-               "VLB_ALLOCSZ_MAX too small");
+_Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VALUE_LEN_MAX * 2), "VLB_ALLOCSZ_MAX too small");
 
 /**
  * vlb_alloc() - allocate a read buffer
@@ -43,7 +42,8 @@ _Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VALUE_LEN_MAX * 2),
  * Requests larger than VLB_ALLOCSZ_MAX must specify the
  * same size parameter to vlb_free() as given to vlb_alloc().
  */
-void *vlb_alloc(size_t sz);
+void *
+vlb_alloc(size_t sz);
 
 /**
  * vlb_free() - free a read buffer
@@ -55,9 +55,12 @@ void *vlb_alloc(size_t sz);
  * a best effort estimate of how much of the buffer was actually
  * modified.
  */
-void vlb_free(void *mem, size_t used);
+void
+vlb_free(void *mem, size_t used);
 
-merr_t vlb_init(void) HSE_COLD;
-void vlb_fini(void) HSE_COLD;
+merr_t
+vlb_init(void) HSE_COLD;
+void
+vlb_fini(void) HSE_COLD;
 
 #endif

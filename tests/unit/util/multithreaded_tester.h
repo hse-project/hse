@@ -22,7 +22,7 @@
 
 #define mtest_alloc(SIZE)                                                           \
     ({                                                                              \
-        void * mem = NULL;                                                          \
+        void *mem = NULL;                                                           \
         size_t bytes = (size_t)(SIZE);                                              \
         int rc = posix_memalign(&mem, MTEST_ALIGN, bytes);                          \
         if (!mem || rc) {                                                           \
@@ -43,10 +43,10 @@ mtest_report_fn(void *test_context, double elapsed_time);
 
 struct mtest *
 mtest_create(
-    int              num_workers,
+    int num_workers,
     mtest_worker_fn *worker_func,
     mtest_report_fn *report_func,
-    void *           test_context);
+    void *test_context);
 
 void
 mtest_destroy(struct mtest *mt);

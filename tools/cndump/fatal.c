@@ -3,12 +3,13 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <sysexits.h>
-#include <stdarg.h>
+
+#include <hse/hse.h>
 
 #include <hse/cli/program.h>
-#include <hse/hse.h>
 
 #include "fatal.h"
 #include "globals.h"

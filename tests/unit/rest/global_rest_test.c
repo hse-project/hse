@@ -10,26 +10,26 @@
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 
-#include <hse/test/mtf/framework.h>
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/status.h>
-
 #include <hse/util/base.h>
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>
+
+#include <hse/test/mtf/framework.h>
 
 char socket_path[PATH_MAX];
 char rest_socket_path_param[PATH_MAX + PATH_MAX / 2];
 char *gparams[2];
 
 void
-mtf_get_global_params(size_t *const paramc, char ***const paramv)
+mtf_get_global_params(size_t * const paramc, char *** const paramv)
 {
     snprintf(socket_path, sizeof(socket_path), "/tmp/hse-global_rest_test-%d.sock", getpid());
-    snprintf(rest_socket_path_param, sizeof(rest_socket_path_param), "rest.socket_path=%s",
-        socket_path);
+    snprintf(
+        rest_socket_path_param, sizeof(rest_socket_path_param), "rest.socket_path=%s", socket_path);
 
     gparams[0] = "rest.enabled=true";
     gparams[1] = rest_socket_path_param;
@@ -39,13 +39,13 @@ mtf_get_global_params(size_t *const paramc, char ***const paramv)
 }
 
 static int
-collection_pre(struct mtf_test_info *const lcl_ti)
+collection_pre(struct mtf_test_info * const lcl_ti)
 {
     return merr_errno(rest_client_init(socket_path));
 }
 
 static int
-collection_post(struct mtf_test_info *const lcl_ti)
+collection_post(struct mtf_test_info * const lcl_ti)
 {
     rest_client_fini();
 
@@ -67,11 +67,11 @@ status_to_error(const long status)
 static merr_t
 check_status_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     const long *needed = arg;
 
@@ -83,11 +83,11 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(global_rest_test, collection_pre, collection_
 static merr_t
 check_events_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -125,17 +125,19 @@ MTF_DEFINE_UTEST(global_rest_test, events)
     long status = REST_STATUS_BAD_REQUEST;
     int lineno;
 
-    ev(1); lineno = __LINE__;
+    ev(1);
+    lineno = __LINE__;
 
     memset(long_path, 'a', sizeof(long_path));
     long_path[DT_PATH_MAX] = '\0';
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/events/%s", long_path);
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/events/%s", long_path);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_NOT_FOUND;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/events/does-not-exist");
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/events/does-not-exist");
     ASSERT_EQ(0, merr_errno(err));
 
     err = rest_client_fetch("GET", NULL, NULL, 0, check_events_cb, NULL, "/events");
@@ -145,19 +147,20 @@ MTF_DEFINE_UTEST(global_rest_test, events)
     err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/events?pretty=xyz");
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_events_cb, NULL,
-        "/events/%s/%s/%d", basename(__FILE__), __FUNCTION__, lineno);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_events_cb, NULL, "/events/%s/%s/%d", basename(__FILE__),
+        __FUNCTION__, lineno);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_kmc_vmstat_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -197,19 +200,19 @@ MTF_DEFINE_UTEST(global_rest_test, kmc_vmstat)
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kmc/vmstat?pretty=xyz");
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/kmc/vmstat?pretty=xyz");
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_params_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body;
@@ -262,11 +265,11 @@ MTF_DEFINE_UTEST(global_rest_test, params)
 static merr_t
 check_logging_level_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     if (status != REST_STATUS_OK)
         return merr(EINVAL);
@@ -286,38 +289,38 @@ MTF_DEFINE_UTEST(global_rest_test, params_specific)
     struct curl_slist *headers = NULL;
     long status = REST_STATUS_METHOD_NOT_ALLOWED;
 
-    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-        REST_APPLICATION_JSON));
+    headers = curl_slist_append(
+        headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON));
     ASSERT_NE(NULL, headers);
 
-    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
-        "/params/rest.enabled");
+    err = rest_client_fetch(
+        "DELETE", NULL, NULL, 0, check_status_cb, &status, "/params/rest.enabled");
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_logging_level_cb, "true",
-        "/params/logging.enabled");
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_logging_level_cb, "true", "/params/logging.enabled");
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_NOT_FOUND;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/params/does-not-exist");
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/params/does-not-exist");
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("PUT", headers, NULL, 0, check_status_cb, &status,
-        "/params/logging.level");
+    err = rest_client_fetch(
+        "PUT", headers, NULL, 0, check_status_cb, &status, "/params/logging.level");
     ASSERT_EQ(0, merr_errno(err));
 
     err = rest_client_fetch("PUT", NULL, "1", 1, check_status_cb, &status, "/params/logging.level");
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/params/logging.level?pretty=xyz");
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/params/logging.level?pretty=xyz");
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_LOCKED;
-    err = rest_client_fetch("PUT", headers, "1", 1, check_status_cb, &status,
-        "/params/logging.level");
+    err = rest_client_fetch(
+        "PUT", headers, "1", 1, check_status_cb, &status, "/params/logging.level");
     ASSERT_EQ(0, merr_errno(err));
 
     curl_slist_free_all(headers);
@@ -326,11 +329,11 @@ MTF_DEFINE_UTEST(global_rest_test, params_specific)
 static merr_t
 check_perfc_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -377,26 +380,26 @@ MTF_DEFINE_UTEST(global_rest_test, perfc)
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_NOT_FOUND;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/perfc/does-not-exist");
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/perfc/does-not-exist");
     ASSERT_EQ(0, merr_errno(err));
 
     err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL, "/perfc");
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL,
-        "/perfc/global/KVDBMETRICS/set");
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_perfc_cb, NULL, "/perfc/global/KVDBMETRICS/set");
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_workqueues_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -435,8 +438,8 @@ MTF_DEFINE_UTEST(global_rest_test, workqueues)
     err = rest_client_fetch("GET", NULL, NULL, 0, check_workqueues_cb, NULL, "/workqueues");
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/workqueues?pretty=xyz");
+    err =
+        rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/workqueues?pretty=xyz");
     ASSERT_EQ(0, merr_errno(err));
 }
 

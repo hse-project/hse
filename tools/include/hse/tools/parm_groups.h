@@ -20,22 +20,22 @@ struct parm_groups;
 /* Max group name length */
 #define PG_NAME_MAX 64
 
-#define LIST_SEP_CHAR  '|'
-#define LIST_SEP_STR   "|"
+#define LIST_SEP_CHAR '|'
+#define LIST_SEP_STR  "|"
 
 /* These are suggested group names.  Clients are free to use other
  * names or define additional groups as they see fit.
  */
-#define PG_HSE_GLOBAL  "hse-gparams"  LIST_SEP_STR "hse-gparms"  LIST_SEP_STR "gp"
+#define PG_HSE_GLOBAL  "hse-gparams" LIST_SEP_STR "hse-gparms" LIST_SEP_STR "gp"
 #define PG_KVDB_CREATE "kvdb-cparams" LIST_SEP_STR "kvdb-cparms" LIST_SEP_STR "dcp"
 #define PG_KVDB_OPEN   "kvdb-oparams" LIST_SEP_STR "kvdb-oparms" LIST_SEP_STR "dop"
-#define PG_KVS_CREATE  "kvs-cparams"  LIST_SEP_STR "kvs-cparms"  LIST_SEP_STR "kcp"
-#define PG_KVS_OPEN    "kvs-oparams"  LIST_SEP_STR "kvs-oparms"  LIST_SEP_STR "kop"
+#define PG_KVS_CREATE  "kvs-cparams" LIST_SEP_STR "kvs-cparms" LIST_SEP_STR "kcp"
+#define PG_KVS_OPEN    "kvs-oparams" LIST_SEP_STR "kvs-oparms" LIST_SEP_STR "kop"
 
 struct svec {
     const char **strv;
-    size_t       strc;
-    size_t       strc_max;
+    size_t strc;
+    size_t strc_max;
 };
 
 void

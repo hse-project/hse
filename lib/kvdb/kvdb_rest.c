@@ -10,10 +10,20 @@
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
 
-#include <hse/error/merr.h>
 #include <hse/experimental.h>
 #include <hse/flags.h>
 #include <hse/hse.h>
+
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cn_tree_view.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/ikvdb/kvset_view.h>
 #include <hse/logging/logging.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/method.h>
@@ -26,19 +36,8 @@
 #include <hse/util/fmt.h>
 #include <hse/util/printbuf.h>
 
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvs.h>
-#include <hse/ikvdb/kvset_view.h>
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cn_tree_view.h>
-#include <hse/ikvdb/kvset_view.h>
-#include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/hse_gparams.h>
-
-#include "kvdb_rest.h"
 #include "kvdb_kvs.h"
+#include "kvdb_rest.h"
 
 #define ENDPOINT_FMT_KVDB_COMPACT  "/kvdbs/%s/compact"
 #define ENDPOINT_FMT_KVDB_HOME     "/kvdbs/%s/home"
@@ -54,9 +53,9 @@
 
 static enum rest_status
 rest_kvdb_get_kvs_names(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -75,40 +74,41 @@ rest_kvdb_get_kvs_names(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     err = ikvdb_kvs_names_get(ikvdb, &namec, &namev);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     root = cJSON_CreateArray();
     if (ev(!root)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
     for (size_t i = 0; i < namec; i++) {
         cJSON *kvs = cJSON_CreateString(namev[i]);
         if (ev(!kvs)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             goto out;
         }
 
         if (ev(!cJSON_AddItemToArray(root, kvs))) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             goto out;
         }
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -127,9 +127,9 @@ out:
 
 static enum rest_status
 rest_kvdb_get_home(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool pretty;
@@ -145,8 +145,9 @@ rest_kvdb_get_home(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     fprintf(resp->rr_stream, "\"%s\"", home);
 
@@ -157,9 +158,9 @@ rest_kvdb_get_home(
 
 static enum rest_status
 rest_kvdb_get_mclass(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -176,26 +177,27 @@ rest_kvdb_get_mclass(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     for (int i = 0; i < HSE_MCLASS_COUNT; i++) {
         if (mpool_mclass_is_configured(ikvdb_mpool_get(kvdb), i)) {
             cJSON *mclass = cJSON_CreateString(hse_mclass_name_get(i));
             if (ev(!mclass)) {
-                status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE,
-                    "Out of memory", merr(ENOMEM));
+                status = rest_response_perror(
+                    resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
                 goto out;
             }
 
             if (ev(!cJSON_AddItemToArray(root, mclass))) {
-                status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE,
-                    "Out of memory", merr(ENOMEM));
+                status = rest_response_perror(
+                    resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
                 goto out;
             }
         }
@@ -203,8 +205,8 @@ rest_kvdb_get_mclass(
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -221,9 +223,9 @@ out:
 
 static enum rest_status
 rest_kvdb_params_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool pretty;
@@ -237,10 +239,11 @@ rest_kvdb_params_get(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
-        /* Check for single parameter or all parameters */
+    /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
         merr_t err;
         char sbuf[128];
@@ -258,11 +261,11 @@ rest_kvdb_params_get(
             case EINVAL:
                 return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
             case ENOENT:
-                return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                    "Parameter does not exist", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
             default:
-                return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                    "Unhandled error", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
             }
         }
 
@@ -273,8 +276,8 @@ rest_kvdb_params_get(
             dbuf_sz = needed_sz + 1;
             dbuf = malloc(dbuf_sz * sizeof(*dbuf));
             if (ev(!dbuf))
-                return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                    merr(ENOMEM));
+                return rest_response_perror(
+                    resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
             err = ikvdb_param_get(kvdb, param, dbuf, dbuf_sz, NULL);
             assert(err == 0);
@@ -294,30 +297,30 @@ rest_kvdb_params_get(
 
         cp_json = kvdb_cparams_to_json(&cparams);
         if (ev(!cp_json))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         rp_json = kvdb_rparams_to_json(ikvdb_rparams(kvdb));
         if (ev(!rp_json)) {
             cJSON_Delete(cp_json);
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         }
 
         merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
         if (ev(!merged)) {
             cJSON_Delete(cp_json);
             cJSON_Delete(rp_json);
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         }
 
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(merged);
         cJSON_Delete(merged);
         cJSON_Delete(rp_json);
         if (ev(!data))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         fputs(data, resp->rr_stream);
         cJSON_free(data);
@@ -330,9 +333,9 @@ rest_kvdb_params_get(
 
 static enum rest_status
 rest_kvdb_params_put(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool has_param;
@@ -349,13 +352,15 @@ rest_kvdb_params_put(
 
     /* Check for case when no parameter is specified, /params */
     if (ev(!has_param))
-        return rest_response_perror(resp, REST_STATUS_METHOD_NOT_ALLOWED,
-            "Method for endpoint does not exist", merr(ENOENT));
+        return rest_response_perror(
+            resp, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
+            merr(ENOENT));
 
     content_type = rest_headers_get(req->rr_headers, REST_HEADER_CONTENT_TYPE);
     if (ev(!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "Invalid '"REST_HEADER_CONTENT_TYPE"' header", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "Invalid '" REST_HEADER_CONTENT_TYPE "' header",
+            merr(EINVAL));
 
     /* move past the final '/' */
     param = req->rr_actual + strlen(req->rr_matched) + 1;
@@ -368,13 +373,13 @@ rest_kvdb_params_put(
         case EINVAL:
             return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND, "Parameter does not exist",
-                err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
         case EROFS:
             return rest_response_perror(resp, REST_STATUS_LOCKED, "Parameter is not writable", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
@@ -383,9 +388,9 @@ rest_kvdb_params_put(
 
 static enum rest_status
 rest_kvdb_get_perfc(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -409,11 +414,13 @@ rest_kvdb_get_perfc(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
-    snprintf(dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s%s%s",
-        alias, filtered ? "/" : "", filtered ? filter : "");
+    snprintf(
+        dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s%s%s", alias, filtered ? "/" : "",
+        filtered ? filter : "");
 
     err = dt_emit(dt_path, &root);
     if (ev(err)) {
@@ -424,18 +431,18 @@ rest_kvdb_get_perfc(
              * that is too long.
              */
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                "Data tree element does not exist", err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Data tree element does not exist", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -453,9 +460,9 @@ out:
 
 static enum rest_status
 rest_kvs_params_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool pretty;
@@ -469,10 +476,11 @@ rest_kvs_params_get(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
-        /* Check for single parameter or all parameters */
+    /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
         merr_t err;
         char sbuf[128];
@@ -490,11 +498,11 @@ rest_kvs_params_get(
             case EINVAL:
                 return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
             case ENOENT:
-                return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                    "Parameter does not exist", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
             default:
-                return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                    "Unhandled error", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
             }
         }
 
@@ -505,8 +513,8 @@ rest_kvs_params_get(
             dbuf_sz = needed_sz + 1;
             dbuf = malloc(dbuf_sz * sizeof(*dbuf));
             if (ev(!dbuf))
-                return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                    merr(ENOMEM));
+                return rest_response_perror(
+                    resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
             err = ikvdb_kvs_param_get((struct hse_kvs *)kvs, param, dbuf, dbuf_sz, NULL);
             assert(err == 0);
@@ -522,30 +530,30 @@ rest_kvs_params_get(
 
         cp_json = kvs_cparams_to_json(kvs->kk_cparams);
         if (ev(!cp_json))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         rp_json = kvs_rparams_to_json(&kvs->kk_ikvs->ikv_rp);
         if (ev(!rp_json)) {
             cJSON_Delete(cp_json);
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         }
 
         merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
         if (ev(!merged)) {
             cJSON_Delete(cp_json);
             cJSON_Delete(rp_json);
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         }
 
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(merged);
         cJSON_Delete(merged);
         cJSON_Delete(rp_json);
         if (ev(!data))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         fputs(data, resp->rr_stream);
         cJSON_free(data);
@@ -558,9 +566,9 @@ rest_kvs_params_get(
 
 static enum rest_status
 rest_kvs_params_put(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool has_param;
@@ -577,13 +585,15 @@ rest_kvs_params_put(
 
     /* Check for case when no parameter is specified, /params */
     if (ev(!has_param))
-        return rest_response_perror(resp, REST_STATUS_METHOD_NOT_ALLOWED,
-            "Method for endpoint does not exist", merr(ENOENT));
+        return rest_response_perror(
+            resp, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
+            merr(ENOENT));
 
     content_type = rest_headers_get(req->rr_headers, REST_HEADER_CONTENT_TYPE);
     if (ev(!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "Invalid '"REST_HEADER_CONTENT_TYPE"' header", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "Invalid '" REST_HEADER_CONTENT_TYPE "' header",
+            merr(EINVAL));
 
     /* move past the final '/' */
     param = req->rr_actual + strlen(req->rr_matched) + 1;
@@ -596,13 +606,13 @@ rest_kvs_params_put(
         case EINVAL:
             return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND, "Parameter does not exist",
-                err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
         case EROFS:
             return rest_response_perror(resp, REST_STATUS_LOCKED, "Parameter is not writable", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
@@ -611,9 +621,9 @@ rest_kvs_params_put(
 
 static enum rest_status
 rest_kvs_get_perfc(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -639,12 +649,13 @@ rest_kvs_get_perfc(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
-    snprintf(dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s/kvs/%s%s%s",
-        alias, kvs->kk_ikvs->ikv_kvs_name,
-        filtered ? "/" : "", filtered ? filter : "");
+    snprintf(
+        dt_path, sizeof(dt_path), PERFC_DT_PATH "/kvdbs/%s/kvs/%s%s%s", alias,
+        kvs->kk_ikvs->ikv_kvs_name, filtered ? "/" : "", filtered ? filter : "");
 
     err = dt_emit(dt_path, &root);
     if (ev(err)) {
@@ -655,18 +666,18 @@ rest_kvs_get_perfc(
              * that is too long.
              */
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                "Data tree element does not exist", err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Data tree element does not exist", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -684,9 +695,9 @@ out:
 
 static enum rest_status
 rest_kvdb_mclass_info_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -711,40 +722,41 @@ rest_kvdb_mclass_info_get(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     err = ikvdb_mclass_info_get((struct ikvdb *)ctx, mclass, &mc_info);
     if (ev(err)) {
         switch (merr_errno(err)) {
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                "Media class is not configured", err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Media class is not configured", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
     root = cJSON_CreateObject();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     bad |= !cJSON_AddNumberToObject(root, "allocated_bytes", mc_info.mi_allocated_bytes);
     bad |= !cJSON_AddNumberToObject(root, "used_bytes", mc_info.mi_used_bytes);
     bad |= !cJSON_AddStringToObject(root, "path", mc_info.mi_path);
 
     if (ev(bad)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -762,9 +774,9 @@ out:
 
 static enum rest_status
 rest_kvdb_compact_request(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     struct ikvdb *kvdb;
     bool full = false;
@@ -790,9 +802,9 @@ rest_kvdb_compact_request(
 
 static enum rest_status
 rest_kvdb_compact_cancel(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     struct ikvdb *kvdb;
     const int flags = HSE_KVDB_COMPACT_CANCEL;
@@ -810,9 +822,9 @@ rest_kvdb_compact_cancel(
 
 static enum rest_status
 rest_kvdb_compact_status_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     bool bad;
     char *data;
@@ -831,15 +843,16 @@ rest_kvdb_compact_status_get(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     ikvdb_compact_status_get(kvdb, &compact_status);
 
     root = cJSON_CreateObject();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     bad = !cJSON_AddNumberToObject(root, "samp_lwm_pct", compact_status.kvcs_samp_lwm);
     bad |= !cJSON_AddNumberToObject(root, "samp_hwm_pct", compact_status.kvcs_samp_hwm);
@@ -849,15 +862,15 @@ rest_kvdb_compact_status_get(
     bad |= !cJSON_AddBoolToObject(root, "canceled", compact_status.kvcs_canceled);
 
     if (ev(bad)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -874,7 +887,7 @@ out:
 }
 
 merr_t
-kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
+kvdb_rest_add_endpoints(struct ikvdb * const kvdb)
 {
     static rest_handler *handlers[][REST_METHOD_COUNT] = {
         {
@@ -917,15 +930,15 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
         return err;
     }
 
-    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[1], kvdb, ENDPOINT_FMT_KVDB_HOME,
-        alias);
+    err = rest_server_add_endpoint(
+        REST_ENDPOINT_EXACT, handlers[1], kvdb, ENDPOINT_FMT_KVDB_HOME, alias);
     if (err) {
         log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_HOME ")", err, alias);
         return err;
     }
 
-    err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[2], kvdb, ENDPOINT_FMT_KVDB_KVS,
-        alias);
+    err = rest_server_add_endpoint(
+        REST_ENDPOINT_EXACT, handlers[2], kvdb, ENDPOINT_FMT_KVDB_KVS, alias);
     if (err) {
         log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_KVS ")", err, alias);
         return err;
@@ -941,11 +954,11 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
         const char *mclass = hse_mclass_name_get(i);
 
-        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers[4], kvdb,
-            ENDPOINT_FMT_KVDB_MCLASS, alias, mclass);
+        err = rest_server_add_endpoint(
+            REST_ENDPOINT_EXACT, handlers[4], kvdb, ENDPOINT_FMT_KVDB_MCLASS, alias, mclass);
         if (err) {
-            log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_MCLASS ")", err,
-                alias, mclass);
+            log_errx(
+                "Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_MCLASS ")", err, alias, mclass);
             return err;
         }
     }
@@ -966,7 +979,7 @@ kvdb_rest_add_endpoints(struct ikvdb *const kvdb)
 }
 
 void
-kvdb_rest_remove_endpoints(struct ikvdb *const kvdb)
+kvdb_rest_remove_endpoints(struct ikvdb * const kvdb)
 {
     const char *alias;
 
@@ -985,7 +998,7 @@ kvdb_rest_remove_endpoints(struct ikvdb *const kvdb)
 }
 
 merr_t
-kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
+kvs_rest_add_endpoints(struct ikvdb * const kvdb, struct kvdb_kvs * const kvs)
 {
     static rest_handler *handlers[][REST_METHOD_COUNT] = {
         {
@@ -1005,19 +1018,19 @@ kvs_rest_add_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
 
     alias = ikvdb_alias(kvdb);
 
-    err = rest_server_add_endpoint(0, handlers[0], kvs, ENDPOINT_FMT_KVS_PARAMS,
-        alias, kvs->kk_name);
+    err =
+        rest_server_add_endpoint(0, handlers[0], kvs, ENDPOINT_FMT_KVS_PARAMS, alias, kvs->kk_name);
     if (err) {
-        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PARAMS ")", err,
-            alias, kvs->kk_name);
+        log_errx(
+            "Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PARAMS ")", err, alias, kvs->kk_name);
         goto out;
     }
 
-    err = rest_server_add_endpoint(0, handlers[1], kvs, ENDPOINT_FMT_KVS_PERFC,
-        alias, kvs->kk_name);
+    err =
+        rest_server_add_endpoint(0, handlers[1], kvs, ENDPOINT_FMT_KVS_PERFC, alias, kvs->kk_name);
     if (err) {
-        log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PERFC ")", err,
-            alias, kvs->kk_name);
+        log_errx(
+            "Failed to add REST endpoint (" ENDPOINT_FMT_KVS_PERFC ")", err, alias, kvs->kk_name);
         goto out;
     }
 
@@ -1032,7 +1045,7 @@ out:
 }
 
 void
-kvs_rest_remove_endpoints(struct ikvdb *const kvdb, struct kvdb_kvs *const kvs)
+kvs_rest_remove_endpoints(struct ikvdb * const kvdb, struct kvdb_kvs * const kvs)
 {
     const char *alias;
 

@@ -17,13 +17,9 @@ enum {
     CNDB_VERSION1 = 1,
 };
 
-enum {
-    HBLOCK_HDR_VERSION1 = 1
-};
+enum { HBLOCK_HDR_VERSION1 = 1 };
 
-enum {
-    VGROUP_MAP_VERSION1 = 1
-};
+enum { VGROUP_MAP_VERSION1 = 1 };
 
 enum {
     KBLOCK_HDR_VERSION6 = 6,
@@ -66,7 +62,7 @@ enum {
     KVDB_META_VERSION2 = 2,
 };
 
-#define GLOBAL_OMF_VERSION     GLOBAL_OMF_VERSION4
+#define GLOBAL_OMF_VERSION GLOBAL_OMF_VERSION4
 
 /* In the event one of the following versions in incremented, increment the
  * global OMF version.

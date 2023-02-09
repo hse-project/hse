@@ -14,11 +14,11 @@
 #include <hse/util/slab.h>
 #include <hse/util/storage.h>
 
-#include "omf.h"
-#include "mclass.h"
-#include "mblock_fset.h"
-#include "mblock_file.h"
 #include "io.h"
+#include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mclass.h"
+#include "omf.h"
 
 /* clang-format off */
 
@@ -49,26 +49,26 @@
  * @mname:   mblock fileset meta file name
  */
 struct mblock_fset {
-    struct media_class  *mc;
-    struct kmem_cache   *rmcache[MBLOCK_FSET_RMCACHE_CNT];
+    struct media_class *mc;
+    struct kmem_cache *rmcache[MBLOCK_FSET_RMCACHE_CNT];
 
-    atomic_ulong           fidx;
-    struct mblock_file   **filev;
-    struct mblock_metahdr  mhdr;
-    struct io_ops          io;
+    atomic_ulong fidx;
+    struct mblock_file **filev;
+    struct mblock_metahdr mhdr;
+    struct io_ops io;
 
-    char  *ug_maddr;
-    char  *ug_mname;
-    int    ug_metafd;
+    char *ug_maddr;
+    char *ug_mname;
+    int ug_metafd;
     size_t ug_metalen;
-    bool   ug_mlock;
+    bool ug_mlock;
 
-    char  *maddr;
+    char *maddr;
     size_t metalen;
-    int    metafd;
-    bool   mlock;
-    bool   rdonly;
-    char   mname[MBLOCK_FSET_NAME_LEN];
+    int metafd;
+    bool mlock;
+    bool rdonly;
+    char mname[MBLOCK_FSET_NAME_LEN];
 };
 
 static void
@@ -90,8 +90,8 @@ mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
     if (mh->vers > MBLOCK_METAHDR_VERSION)
         return merr(EPROTO);
 
-    if ((mh->mcid != mclass_id(mbfsp->mc)) ||
-        (mh->blkbits != MBID_BLOCK_BITS) || (mh->mcbits != MBID_MCID_BITS))
+    if ((mh->mcid != mclass_id(mbfsp->mc)) || (mh->blkbits != MBID_BLOCK_BITS) ||
+        (mh->mcbits != MBID_MCID_BITS))
         return merr(EBADMSG);
 
     return 0;
@@ -108,12 +108,12 @@ mblock_fset_metaoff_get(struct mblock_fset *mbfsp, int fidx, uint32_t version)
 static merr_t
 mblock_fset_meta_mmap(
     struct mblock_fset *mbfsp,
-    int                 metafd,
-    size_t              metalen,
-    int                 flags,
-    char              **addrout)
+    int metafd,
+    size_t metalen,
+    int flags,
+    char **addrout)
 {
-    int   prot, mode;
+    int prot, mode;
 
     *addrout = NULL;
 
@@ -172,7 +172,7 @@ static merr_t
 mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr *mh;
-    char  *addr;
+    char *addr;
     merr_t err = 0;
     size_t len = MBLOCK_FSET_HDR_LEN;
 
@@ -236,9 +236,9 @@ mblock_fset_free(struct mblock_fset *mbfsp)
 static merr_t
 mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 {
-    int    fd, dirfd, rc;
+    int fd, dirfd, rc;
     merr_t err;
-    bool   create = false;
+    bool create = false;
 
     mbfsp->metafd = -1;
 
@@ -246,8 +246,9 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
     if (flags & O_CREAT)
         create = true;
 
-    snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%s-%d", MBLOCK_FILE_PFX, "meta",
-             mclass_id(mbfsp->mc));
+    snprintf(
+        mbfsp->mname, sizeof(mbfsp->mname), "%s-%s-%d", MBLOCK_FILE_PFX, "meta",
+        mclass_id(mbfsp->mc));
     dirfd = mclass_dirfd(mbfsp->mc);
 
     rc = faccessat(dirfd, mbfsp->mname, F_OK, 0);
@@ -266,8 +267,8 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
         size_t metalen;
 
         assert(mbfsp->mhdr.fcnt != 0);
-        metalen = mblock_file_meta_len(mbfsp->mhdr.fszmax, mbfsp->mhdr.mblksz,
-                                       MBLOCK_METAHDR_VERSION);
+        metalen =
+            mblock_file_meta_len(mbfsp->mhdr.fszmax, mbfsp->mhdr.mblksz, MBLOCK_METAHDR_VERSION);
         mbfsp->metalen = MBLOCK_FSET_HDR_LEN + (mbfsp->mhdr.fcnt * metalen);
 
         rc = posix_fallocate(fd, 0, mbfsp->metalen);
@@ -429,18 +430,18 @@ errout:
 
 merr_t
 mblock_fset_open(
-    struct media_class  *mc,
-    uint8_t              fcnt,
-    size_t               fszmax,
-    int                  flags,
+    struct media_class *mc,
+    uint8_t fcnt,
+    size_t fszmax,
+    int flags,
     struct mblock_fset **handle)
 {
-    struct mblock_fset       *mbfsp;
+    struct mblock_fset *mbfsp;
     struct mblock_file_params fparams = { 0 };
     size_t sz;
     merr_t err;
-    bool   create;
-    int    i;
+    bool create;
+    int i;
 
     if (!mc || !handle)
         return merr(EINVAL);
@@ -470,10 +471,12 @@ mblock_fset_open(
     }
 
     if ((mbfsp->mhdr.fszmax < mbfsp->mhdr.mblksz) ||
-        ((1ULL << MBID_BLOCK_BITS) * mbfsp->mhdr.mblksz < mbfsp->mhdr.fszmax)) {
+        ((1ULL << MBID_BLOCK_BITS) * mbfsp->mhdr.mblksz < mbfsp->mhdr.fszmax))
+    {
         err = merr(EINVAL);
-        log_err("Invalid mblock parameters filesz %lu mblocksz %lu",
-                mbfsp->mhdr.fszmax, mbfsp->mhdr.mblksz);
+        log_err(
+            "Invalid mblock parameters filesz %lu mblocksz %lu", mbfsp->mhdr.fszmax,
+            mbfsp->mhdr.mblksz);
         goto errout;
     }
 
@@ -491,8 +494,8 @@ mblock_fset_open(
         char name[32];
 
         snprintf(name, sizeof(name), "%s-%d-%d", "mpool-rgnmap", mclass_id(mc), i);
-        mbfsp->rmcache[i] = kmem_cache_create(name, sizeof(struct mblock_rgn),
-                                              alignof(struct mblock_rgn), SLAB_PACKED, NULL);
+        mbfsp->rmcache[i] = kmem_cache_create(
+            name, sizeof(struct mblock_rgn), alignof(struct mblock_rgn), SLAB_PACKED, NULL);
         if (!mbfsp->rmcache[i])
             goto errout;
     }
@@ -572,7 +575,7 @@ static merr_t
 mblock_fset_meta_usage(struct mblock_fset *mbfsp, uint64_t *allocated)
 {
     struct stat sbuf = {};
-    int         rc;
+    int rc;
 
     if (!mbfsp || !allocated)
         return merr(EINVAL);
@@ -617,8 +620,8 @@ mblock_fset_alloc(struct mblock_fset *mbfsp, uint32_t flags, int mbidc, uint64_t
 {
     struct mblock_file *mbfp;
     merr_t err;
-    int    fidx;
-    int    retries;
+    int fidx;
+    int retries;
 
     if (!mbfsp || !mbidv)
         return merr(EINVAL);
@@ -646,8 +649,8 @@ merr_t
 mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
-    merr_t              err;
-    int                 rc;
+    merr_t err;
+    int rc;
 
     if (!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->mhdr.fcnt)
         return merr(EINVAL);
@@ -672,8 +675,8 @@ merr_t
 mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
-    merr_t              err;
-    int                 rc;
+    merr_t err;
+    int rc;
 
     if (!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->mhdr.fcnt)
         return merr(EINVAL);
@@ -735,10 +738,10 @@ mblock_fset_write(struct mblock_fset *mbfsp, uint64_t mbid, const struct iovec *
 merr_t
 mblock_fset_read(
     struct mblock_fset *mbfsp,
-    uint64_t            mbid,
+    uint64_t mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               off)
+    int iovc,
+    off_t off)
 {
     struct mblock_file *mbfp;
 
@@ -779,9 +782,9 @@ mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid)
 merr_t
 mblock_fset_info_get(struct mblock_fset *mbfsp, struct hse_mclass_info *info)
 {
-    uint64_t       allocated = 0;
-    int            i;
-    merr_t         err;
+    uint64_t allocated = 0;
+    int i;
+    merr_t err;
 
     INVARIANT(mbfsp);
     INVARIANT(info);
@@ -807,13 +810,13 @@ mblock_fset_info_get(struct mblock_fset *mbfsp, struct hse_mclass_info *info)
 }
 
 size_t
-mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp)
+mblock_fset_fmaxsz_get(const struct mblock_fset * const mbfsp)
 {
     return mbfsp ? mbfsp->mhdr.fszmax : 0;
 }
 
 uint8_t
-mblock_fset_filecnt_get(const struct mblock_fset *const mbfsp)
+mblock_fset_filecnt_get(const struct mblock_fset * const mbfsp)
 {
     return mbfsp ? mbfsp->mhdr.fcnt : 0;
 }
@@ -821,10 +824,10 @@ mblock_fset_filecnt_get(const struct mblock_fset *const mbfsp)
 merr_t
 mblock_fset_clone(
     struct mblock_fset *mbfsp,
-    uint64_t            src_mbid,
-    off_t               off,
-    size_t              len,
-    uint64_t           *mbid_out)
+    uint64_t src_mbid,
+    off_t off,
+    size_t len,
+    uint64_t *mbid_out)
 {
     struct mblock_file *src_mbfp, *tgt_mbfp;
     struct mblock_file_mbinfo src_mbinfo, tgt_mbinfo;

@@ -5,11 +5,11 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/support/random_buffer.h>
-
 #include <hse/error/merr.h>
 #include <hse/util/element_source.h>
+
+#include <hse/test/mtf/framework.h>
+#include <hse/test/support/random_buffer.h>
 
 #include "sample_element_source.h"
 
@@ -17,10 +17,10 @@ MTF_BEGIN_UTEST_COLLECTION(element_source_test);
 
 MTF_DEFINE_UTEST(element_source_test, linear_sequence)
 {
-    struct sample_es *     es;
-    uint32_t *             last, *n;
+    struct sample_es *es;
+    uint32_t *last, *n;
     struct element_source *handle;
-    merr_t                 err;
+    merr_t err;
 
     err = sample_es_create(&es, 10, SES_LINEAR);
     ASSERT_FALSE(err);
@@ -40,12 +40,12 @@ MTF_DEFINE_UTEST(element_source_test, linear_sequence)
 
 MTF_DEFINE_UTEST(element_source_test, random_sequence)
 {
-    struct sample_es *     es;
-    int                    count;
+    struct sample_es *es;
+    int count;
     struct element_source *handle;
-    merr_t                 err;
-    uint32_t *             n;
-    const int              COUNT = 173;
+    merr_t err;
+    uint32_t *n;
+    const int COUNT = 173;
 
     err = sample_es_create(&es, COUNT, SES_RANDOM);
     ASSERT_FALSE(err);
@@ -63,12 +63,12 @@ MTF_DEFINE_UTEST(element_source_test, random_sequence)
 
 MTF_DEFINE_UTEST(element_source_test, random_nr_sequence)
 {
-    struct sample_es *     es;
-    int                    count;
+    struct sample_es *es;
+    int count;
     struct element_source *handle;
-    merr_t                 err;
-    uint32_t *             n;
-    const int              COUNT = 173;
+    merr_t err;
+    uint32_t *n;
+    const int COUNT = 173;
 
     err = sample_es_create(&es, COUNT, SES_RANDOM_NR);
     ASSERT_FALSE(err);
@@ -86,12 +86,12 @@ MTF_DEFINE_UTEST(element_source_test, random_nr_sequence)
 
 MTF_DEFINE_UTEST(element_source_test, empty_sequence)
 {
-    struct sample_es *     es;
-    int                    count;
+    struct sample_es *es;
+    int count;
     struct element_source *handle;
-    merr_t                 err;
-    uint32_t *             n;
-    const int              COUNT = 0;
+    merr_t err;
+    uint32_t *n;
+    const int COUNT = 0;
 
     err = sample_es_create(&es, COUNT, SES_LINEAR);
     ASSERT_FALSE(err);

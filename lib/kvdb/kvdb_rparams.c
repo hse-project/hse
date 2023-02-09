@@ -15,18 +15,18 @@
 
 #include <hse/hse.h>
 
-#include <hse/mpool/mpool.h>
-#include <hse/ikvdb/mclass_policy.h>
 #include <hse/config/params.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/kvdb_cparams.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_home.h>
-#include <hse/ikvdb/wal.h>
-#include <hse/util/assert.h>
-#include <hse/util/storage.h>
-#include <hse/util/compiler.h>
 #include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/kvdb_cparams.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/wal.h>
+#include <hse/mpool/mpool.h>
+#include <hse/util/assert.h>
+#include <hse/util/compiler.h>
+#include <hse/util/storage.h>
 
 static void
 mclass_policies_default_builder(const struct param_spec *ps, void *data)
@@ -169,8 +169,7 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
         policy_name = cJSON_GetStringValue(policy_name_json);
         if (strlen(policy_name) >= HSE_MPOLICY_NAME_LEN_MAX) {
             log_err(
-                "Length of media class policy name '%s' is greater than %d",
-                policy_name,
+                "Length of media class policy name '%s' is greater than %d", policy_name,
                 HSE_MPOLICY_NAME_LEN_MAX - 1);
             return false;
         }
@@ -178,7 +177,8 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
         strlcpy(policies[i].mc_name, policy_name, HSE_MPOLICY_NAME_LEN_MAX);
 
         for (cJSON *agegroup_json = policy_config_json->child; agegroup_json;
-             agegroup_json = agegroup_json->next) {
+             agegroup_json = agegroup_json->next)
+        {
             int agegroup = -1;
 
             if (!cJSON_IsObject(agegroup_json)) {
@@ -200,7 +200,8 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
             }
 
             for (cJSON *dtype_json = agegroup_json->child; dtype_json;
-                    dtype_json = dtype_json->next) {
+                 dtype_json = dtype_json->next)
+            {
                 int dtype = -1;
                 enum hse_mclass mclass = HSE_MCLASS_INVALID;
 
@@ -232,7 +233,8 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                 if (mclass == HSE_MCLASS_INVALID) {
                     log_err(
                         "Unknown media class in media class policy: %s, "
-                        "must be one of capacity or staging or pmem", ctx);
+                        "must be one of capacity or staging or pmem",
+                        ctx);
                     return false;
                 }
 
@@ -248,7 +250,7 @@ static bool
 mclass_policies_validator(const struct param_spec *ps, const void *data)
 {
     const struct mclass_policy *policies = data;
-    unsigned int                times_matched[HSE_MPOLICY_COUNT] = { 0 };
+    unsigned int times_matched[HSE_MPOLICY_COUNT] = { 0 };
 
     assert(ps);
     assert(data);
@@ -276,14 +278,14 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
 
 static merr_t
 mclass_policies_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     cJSON *arr;
-    char * data;
+    char *data;
     size_t n;
 
     INVARIANT(ps);
@@ -309,8 +311,8 @@ mclass_policies_stringify(
     return 0;
 }
 
-static cJSON * HSE_NONNULL(1, 2)
-mclass_policies_jsonify(const struct param_spec *const ps, const void *const value)
+static cJSON *HSE_NONNULL(1, 2)
+mclass_policies_jsonify(const struct param_spec * const ps, const void * const value)
 {
     cJSON *arr;
     const struct mclass_policy *policies;
@@ -337,18 +339,25 @@ mclass_policies_jsonify(const struct param_spec *const ps, const void *const val
         config = cJSON_AddObjectToObject(policy, "config");
 
         leaf = cJSON_AddObjectToObject(config, "leaf");
-        leaf_k = cJSON_AddStringToObject(leaf, "keys",
+        leaf_k = cJSON_AddStringToObject(
+            leaf, "keys",
             hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]));
-        leaf_v = cJSON_AddStringToObject(leaf, "values",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]));
+        leaf_v = cJSON_AddStringToObject(
+            leaf, "values",
+            hse_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]));
         root = cJSON_AddObjectToObject(config, "root");
-        root_k = cJSON_AddStringToObject(root, "keys",
+        root_k = cJSON_AddStringToObject(
+            root, "keys",
             hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]));
-        root_v = cJSON_AddStringToObject(root, "values",
-            hse_mclass_name_get(policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
+        root_v = cJSON_AddStringToObject(
+            root, "values",
+            hse_mclass_name_get(
+                policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]));
 
-        if (!policy || !name || !config || !leaf || !leaf_k || !leaf_v ||
-            !root || !root_k || !root_v) {
+        if (!policy || !name || !config || !leaf || !leaf_k || !leaf_v || !root || !root_k ||
+            !root_v)
+        {
             cJSON_Delete(policy);
             goto out;
         }
@@ -366,9 +375,9 @@ out:
 
 static bool HSE_NONNULL(1, 2, 3)
 dur_mclass_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    const struct param_spec * const ps,
+    const cJSON * const node,
+    void * const data)
 {
     const char *value;
 
@@ -399,11 +408,11 @@ dur_mclass_converter(
 
 static merr_t
 dur_mclass_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     uint8_t mc = *(const uint8_t *)value;
     const char *param;
@@ -427,8 +436,8 @@ dur_mclass_stringify(
     return 0;
 }
 
-static cJSON * HSE_NONNULL(1, 2)
-dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
+static cJSON *HSE_NONNULL(1, 2)
+dur_mclass_jsonify(const struct param_spec * const ps, const void * const value)
 {
     uint8_t mc = *(const uint8_t *)value;
     const char *name;
@@ -446,9 +455,9 @@ dur_mclass_jsonify(const struct param_spec *const ps, const void *const value)
 
 static bool HSE_NONNULL(1, 2, 3)
 throttle_init_policy_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    const struct param_spec * const ps,
+    const cJSON * const node,
+    void * const data)
 {
     const char *value;
 
@@ -478,33 +487,33 @@ throttle_init_policy_converter(
 
 static merr_t
 throttle_init_policy_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
-    size_t      n;
+    size_t n;
     const char *param;
 
     INVARIANT(ps);
     INVARIANT(value);
 
     switch (*(uint *)value) {
-        case THROTTLE_DELAY_START_AUTO:
-            param = "\"auto\"";
-            break;
-        case THROTTLE_DELAY_START_LIGHT:
-            param = "\"light\"";
-            break;
-        case THROTTLE_DELAY_START_MEDIUM:
-            param = "\"medium\"";
-            break;
-        case THROTTLE_DELAY_START_HEAVY:
-            param = "\"heavy\"";
-            break;
-        default:
-            abort();
+    case THROTTLE_DELAY_START_AUTO:
+        param = "\"auto\"";
+        break;
+    case THROTTLE_DELAY_START_LIGHT:
+        param = "\"light\"";
+        break;
+    case THROTTLE_DELAY_START_MEDIUM:
+        param = "\"medium\"";
+        break;
+    case THROTTLE_DELAY_START_HEAVY:
+        param = "\"heavy\"";
+        break;
+    default:
+        abort();
     }
 
     n = strlcpy(buf, param, buf_sz);
@@ -515,31 +524,31 @@ throttle_init_policy_stringify(
     return 0;
 }
 
-static cJSON * HSE_NONNULL(1, 2)
-throttle_init_policy_jsonify(const struct param_spec *const ps, const void *const value)
+static cJSON *HSE_NONNULL(1, 2)
+throttle_init_policy_jsonify(const struct param_spec * const ps, const void * const value)
 {
     INVARIANT(ps);
     INVARIANT(value);
 
     switch (*(uint *)value) {
-        case THROTTLE_DELAY_START_AUTO:
-            return cJSON_CreateString("auto");
-        case THROTTLE_DELAY_START_LIGHT:
-            return cJSON_CreateString("light");
-        case THROTTLE_DELAY_START_MEDIUM:
-            return cJSON_CreateString("medium");
-        case THROTTLE_DELAY_START_HEAVY:
-            return cJSON_CreateString("heavy");
-        default:
-            abort();
+    case THROTTLE_DELAY_START_AUTO:
+        return cJSON_CreateString("auto");
+    case THROTTLE_DELAY_START_LIGHT:
+        return cJSON_CreateString("light");
+    case THROTTLE_DELAY_START_MEDIUM:
+        return cJSON_CreateString("medium");
+    case THROTTLE_DELAY_START_HEAVY:
+        return cJSON_CreateString("heavy");
+    default:
+        abort();
     }
 }
 
 static bool HSE_NONNULL(1, 2, 3)
 kvdb_open_mode_converter(
-    const struct param_spec *const ps,
-    const cJSON *const             node,
-    void *const                    data)
+    const struct param_spec * const ps,
+    const cJSON * const node,
+    void * const data)
 {
     enum kvdb_open_mode mode;
     const char *mode_str;
@@ -566,11 +575,11 @@ kvdb_open_mode_converter(
 
 static merr_t
 kvdb_open_mode_stringify(
-    const struct param_spec *const ps,
-    const void *const              value,
-    char *const                    buf,
-    const size_t                   buf_sz,
-    size_t *const                  needed_sz)
+    const struct param_spec * const ps,
+    const void * const value,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     int n;
 
@@ -587,8 +596,8 @@ kvdb_open_mode_stringify(
     return 0;
 }
 
-static cJSON * HSE_NONNULL(1, 2)
-kvdb_open_mode_jsonify(const struct param_spec *const ps, const void *const value)
+static cJSON *HSE_NONNULL(1, 2)
+kvdb_open_mode_jsonify(const struct param_spec * const ps, const void * const value)
 {
     INVARIANT(ps);
     INVARIANT(value);
@@ -1593,20 +1602,20 @@ kvdb_rparams_defaults()
 
 merr_t
 kvdb_rparams_get(
-    const struct kvdb_rparams *const params,
-    const char *const                param,
-    char *const                      buf,
-    const size_t                     buf_sz,
-    size_t *const                    needed_sz)
+    const struct kvdb_rparams * const params,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     return params_get(params, NELEM(pspecs), pspecs, param, buf, buf_sz, needed_sz);
 }
 
 merr_t
 kvdb_rparams_set(
-    struct kvdb_rparams *const params,
-    const char *const          param,
-    const char *const          value)
+    struct kvdb_rparams * const params,
+    const char * const param,
+    const char * const value)
 {
     if (!params || !param || !value)
         return merr(EINVAL);
@@ -1615,22 +1624,22 @@ kvdb_rparams_set(
 }
 
 merr_t
-kvdb_rparams_from_config(struct kvdb_rparams *const params, cJSON *const config)
+kvdb_rparams_from_config(struct kvdb_rparams * const params, cJSON * const config)
 {
     static const char *ignore_keys[] = { "kvs" };
 
     if (!params || !cJSON_IsObject(config))
         return merr(EINVAL);
 
-    return params_from_config(params, NELEM(pspecs), pspecs, NELEM(ignore_keys), ignore_keys, 1,
-        config);
+    return params_from_config(
+        params, NELEM(pspecs), pspecs, NELEM(ignore_keys), ignore_keys, 1, config);
 }
 
 merr_t
 kvdb_rparams_from_paramv(
-    struct kvdb_rparams *const params,
-    const size_t               paramc,
-    const char *const *const   paramv)
+    struct kvdb_rparams * const params,
+    const size_t paramc,
+    const char * const * const paramv)
 {
     assert(params);
 
@@ -1638,7 +1647,7 @@ kvdb_rparams_from_paramv(
 }
 
 cJSON *
-kvdb_rparams_to_json(const struct kvdb_rparams *const params)
+kvdb_rparams_to_json(const struct kvdb_rparams * const params)
 {
     if (!params)
         return NULL;

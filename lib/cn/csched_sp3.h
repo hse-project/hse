@@ -29,14 +29,14 @@ struct cn_compaction_work;
 
 struct sp3_rbe {
     struct rb_node rbe_node;
-    uint64_t       rbe_weight;
+    uint64_t rbe_weight;
 };
 
 struct sp3_node {
-    struct sp3_rbe   spn_rbe[wtype_MAX];
+    struct sp3_rbe spn_rbe[wtype_MAX];
     struct list_head spn_rlink;
     struct list_head spn_alink;
-    bool             spn_managed;
+    bool spn_managed;
 };
 
 /* Each sp3_tree maintains a list of dirty nodes (spt_dnode_listv).
@@ -45,10 +45,10 @@ struct sp3_node {
  */
 struct sp3_tree {
     struct list_head spt_tlink;
-    uint             spt_job_cnt;
-    atomic_bool      spt_enabled;
-    atomic_ulong     spt_ingest_alen;
-    atomic_ulong     spt_ingest_wlen;
+    uint spt_job_cnt;
+    atomic_bool spt_enabled;
+    atomic_ulong spt_ingest_alen;
+    atomic_ulong spt_ingest_wlen;
 
     struct list_head spt_dnode_listv[2] HSE_L1D_ALIGNED;
     struct list_head spt_dtree_linkv[2];
@@ -68,9 +68,9 @@ sp3_node_init(struct sp3_node *spn)
 merr_t
 sp3_create(
     struct kvdb_rparams *rp,
-    const char *         kvdb_alias,
-    struct kvdb_health * health,
-    struct csched      **handle);
+    const char *kvdb_alias,
+    struct kvdb_health *health,
+    struct csched **handle);
 
 void
 sp3_destroy(struct csched *handle);

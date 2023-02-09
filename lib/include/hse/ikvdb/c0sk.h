@@ -7,17 +7,14 @@
 #define HSE_C0_C0SK_H
 
 #include <stdint.h>
-
 #include <urcu-bp.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/mutex.h>
-
-#include <hse/mpool/mpool.h>
-
+#include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvdb_health.h>
+#include <hse/mpool/mpool.h>
+#include <hse/util/mutex.h>
 
 struct c0_kvmultiset;
 struct c0sk;
@@ -60,12 +57,12 @@ c0sk_fini(void);
 merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
-    struct mpool *       mp_dataset,
-    const char *         kvdb_alias,
-    struct kvdb_health * health,
-    atomic_ulong        *kvdb_seq,
-    uint64_t             gen,
-    struct c0sk **       c0sk);
+    struct mpool *mp_dataset,
+    const char *kvdb_alias,
+    struct kvdb_health *health,
+    atomic_ulong *kvdb_seq,
+    uint64_t gen,
+    struct c0sk **c0sk);
 
 /**
  * c0sk_close() - transition a struct c0sk into an offline state
@@ -156,11 +153,11 @@ c0sk_get_mhandle(struct c0sk *self);
 /* MTF_MOCK */
 merr_t
 c0sk_put(
-    struct c0sk *            self,
-    uint16_t                 skidx,
-    struct kvs_ktuple       *key,
+    struct c0sk *self,
+    uint16_t skidx,
+    struct kvs_ktuple *key,
     const struct kvs_vtuple *value,
-    uintptr_t                seqnoref);
+    uintptr_t seqnoref);
 
 /**
  * c0sk_get() - retrieve the value associated with the given key
@@ -178,14 +175,14 @@ c0sk_put(
 /* MTF_MOCK */
 merr_t
 c0sk_get(
-    struct c0sk *            self,
-    uint16_t                 skidx,
-    uint32_t                 pfx_len,
+    struct c0sk *self,
+    uint16_t skidx,
+    uint32_t pfx_len,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seq,
-    uintptr_t                seqref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf);
+    uint64_t view_seq,
+    uintptr_t seqref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf);
 
 /**
  * c0sk_del() - delete any value associated with the given key
@@ -202,17 +199,17 @@ c0sk_del(struct c0sk *self, uint16_t skidx, struct kvs_ktuple *key, uintptr_t se
 
 merr_t
 c0sk_pfx_probe(
-    struct c0sk *            handle,
-    uint16_t                 skidx,
-    uint32_t                 pfx_len,
-    uint32_t                 sfx_len,
+    struct c0sk *handle,
+    uint16_t skidx,
+    uint32_t pfx_len,
+    uint32_t sfx_len,
     const struct kvs_ktuple *kt,
-    uint64_t                 view_seq,
-    uintptr_t                seqref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf);
+    uint64_t view_seq,
+    uintptr_t seqref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /**
  * c0sk_prefix_del() - delete any value with the prefix key
@@ -252,15 +249,15 @@ c0sk_sync(struct c0sk *self, unsigned int flags);
  */
 merr_t
 c0sk_cursor_create(
-    struct c0sk *          self,
-    uint64_t               seqno,
-    int                    skidx,
-    bool                   dir,
-    uint32_t               ct_pfx_len,
-    const void *           prefix,
-    size_t                 pfx_len,
+    struct c0sk *self,
+    uint64_t seqno,
+    int skidx,
+    bool dir,
+    uint32_t ct_pfx_len,
+    const void *prefix,
+    size_t pfx_len,
     struct cursor_summary *summary,
-    struct c0_cursor **    cur);
+    struct c0_cursor **cur);
 
 /**
  * c0sk_cursor_bind_txn() - bind a txn kvms to iterable c0
@@ -279,8 +276,8 @@ c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn);
 merr_t
 c0sk_cursor_seek(
     struct c0_cursor *cur,
-    const void *      prefix,
-    size_t            pfx_len,
+    const void *prefix,
+    size_t pfx_len,
     struct kc_filter *filter);
 
 /**
@@ -297,10 +294,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
  * @flags_out:  (out) flags to update tombspan and cursor stats
  */
 merr_t
-c0sk_cursor_update(
-    struct c0_cursor *cur,
-    uint64_t          seqno,
-    uint32_t *        flags_out);
+c0sk_cursor_update(struct c0_cursor *cur, uint64_t seqno, uint32_t *flags_out);
 
 /**
  * c0sk_cursor_destroy() - destroy existing iterators over c0

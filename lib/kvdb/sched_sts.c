@@ -5,28 +5,27 @@
 
 #define MTF_MOCK_IMPL_sched_sts
 
+#include <bsd/string.h>
+
 #include <hse/error/merr.h>
+#include <hse/ikvdb/sched_sts.h>
 #include <hse/logging/logging.h>
 #include <hse/rest/server.h>
-#include <hse/ikvdb/sched_sts.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/mutex.h>
 #include <hse/util/platform.h>
 #include <hse/util/workqueue.h>
 
-#include <bsd/string.h>
-
 /**
  * struct sts - HSE scheduler used for cn tree ingest and compaction operations
  */
 struct sts {
-    struct mutex             sts_lock HSE_ACP_ALIGNED;
-    struct list_head         sts_joblist;
-    int                      sts_jobcnt;
+    struct mutex sts_lock HSE_ACP_ALIGNED;
+    struct list_head sts_joblist;
+    int sts_jobcnt;
     struct workqueue_struct *sts_wq;
-    struct cv                sts_cv;
+    struct cv sts_cv;
 };
-
 
 static void
 sts_job_run(struct work_struct *work)

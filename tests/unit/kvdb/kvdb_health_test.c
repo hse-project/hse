@@ -3,14 +3,14 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse/ikvdb/kvdb_health.h>
 #include <hse/error/merr.h>
+#include <hse/ikvdb/kvdb_health.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_health_test)
 
@@ -18,9 +18,9 @@ MTF_DEFINE_UTEST(kvdb_health_test, health)
 {
     struct kvdb_health health;
 
-    uint   event, mask;
+    uint event, mask;
     merr_t err = 0;
-    int    i;
+    int i;
     merr_t healtherr = merr(ENOANO);
 
     memset(&health, 0, sizeof(health));

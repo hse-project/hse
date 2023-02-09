@@ -13,6 +13,7 @@
 
 #if HSE_MOCKING
 #include <hse/test/mock/allocation.h>
+
 #include "alloc_ut.h"
 #endif /* HSE_MOCKING */
 

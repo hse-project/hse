@@ -6,6 +6,7 @@
 #define MTF_MOCK_IMPL_mpool
 
 #include <limits.h>
+
 #include <bsd/string.h>
 #include <sys/vfs.h>
 
@@ -13,22 +14,21 @@
 #include <linux/magic.h>
 #endif
 
-#include <hse/error/merr.h>
 #include <hse/hse.h>
-#include <hse/logging/logging.h>
 
+#include <hse/error/merr.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
+#include <hse/mpool/mpool_structs.h>
 #include <hse/util/assert.h>
 #include <hse/util/dax.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 #include <hse/util/workqueue.h>
 
-#include <hse/mpool/mpool.h>
-#include <hse/mpool/mpool_structs.h>
-
-#include "mpool_internal.h"
-#include "mblock_fset.h"
 #include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mpool_internal.h"
 
 /**
  * struct mpool - mpool handle
@@ -40,14 +40,14 @@
  */
 struct mpool {
     struct media_class *mc[HSE_MCLASS_COUNT];
-    const char          home[]; /* flexible array */
+    const char home[]; /* flexible array */
 };
 
 static merr_t
 mpool_to_mclass_params(
-    enum hse_mclass           mc,
+    enum hse_mclass mc,
     const struct mpool_cparams *cparams,
-    struct mclass_params       *mcp)
+    struct mclass_params *mcp)
 {
     size_t n;
 
@@ -67,9 +67,7 @@ mpool_to_mclass_params(
 }
 
 static merr_t
-mclass_params_init(
-    const char           *path,
-    struct mclass_params *mcp)
+mclass_params_init(const char *path, struct mclass_params *mcp)
 {
     size_t n;
 
@@ -112,9 +110,9 @@ mclass_path_check(enum hse_mclass mclass, const char *path, bool rdonly)
             return err;
 
         if (isdax != (mclass == HSE_MCLASS_PMEM)) {
-            log_err("%s mclass path (%s) %s reside on a DAX filesystem",
-                    hse_mclass_name_get(mclass), path,
-                    isdax ? "must not" : "must");
+            log_err(
+                "%s mclass path (%s) %s reside on a DAX filesystem", hse_mclass_name_get(mclass),
+                path, isdax ? "must not" : "must");
             return merr(ENOTSUP);
         }
     }
@@ -157,14 +155,14 @@ mclass_path_is_tmpfs(const char *path, bool *tmpfs)
 
 static merr_t
 mpool_mclass_open(
-    struct mpool               *mp,
-    enum hse_mclass             mclass,
+    struct mpool *mp,
+    enum hse_mclass mclass,
     const struct mclass_params *mcp,
-    uint32_t                    flags,
-    struct media_class **       mc)
+    uint32_t flags,
+    struct media_class **mc)
 {
     merr_t err;
-    char * path = NULL;
+    char *path = NULL;
 
     if (!mp || !mcp || !mc)
         return merr(EINVAL);
@@ -206,9 +204,9 @@ merr_t
 mpool_mclass_add(enum hse_mclass mclass, const struct mpool_cparams *cparams)
 {
     struct media_class *mc;
-    struct mclass_params mcp = {0};
-    merr_t              err = 0;
-    int                 flags = 0;
+    struct mclass_params mcp = { 0 };
+    merr_t err = 0;
+    int flags = 0;
 
     if (!cparams || cparams->mclass[mclass].path[0] == '\0')
         return merr(EINVAL);
@@ -247,10 +245,10 @@ merr_t
 mpool_create(const char *home, const struct mpool_cparams *cparams)
 {
     struct mpool *mp;
-    merr_t        err;
-    int           i, flags = 0;
-    size_t        sz;
-    bool          rmdefault[HSE_MCLASS_COUNT] = { 0 };
+    merr_t err;
+    int i, flags = 0;
+    size_t sz;
+    bool rmdefault[HSE_MCLASS_COUNT] = { 0 };
 
     if (!home || !cparams)
         return merr(EINVAL);
@@ -264,17 +262,17 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     flags |= (O_CREAT | O_RDWR);
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        struct mclass_params mcp = {0};
+        struct mclass_params mcp = { 0 };
 
         /* If the capacity/pmem path is the default, automatically create it */
         if (i == HSE_MCLASS_CAPACITY || i == HSE_MCLASS_PMEM) {
-            char   path[PATH_MAX];
+            char path[PATH_MAX];
             size_t n;
 
-            n = snprintf(path, sizeof(path), "%s%s%s", home,
-                         home[strlen(home) - 1] == '/' ? "" : "/",
-                         (i == HSE_MCLASS_CAPACITY) ? MPOOL_CAPACITY_MCLASS_DEFAULT_PATH :
-                         MPOOL_PMEM_MCLASS_DEFAULT_PATH);
+            n = snprintf(
+                path, sizeof(path), "%s%s%s", home, home[strlen(home) - 1] == '/' ? "" : "/",
+                (i == HSE_MCLASS_CAPACITY) ? MPOOL_CAPACITY_MCLASS_DEFAULT_PATH
+                                           : MPOOL_PMEM_MCLASS_DEFAULT_PATH);
             if (n >= sizeof(path)) {
                 err = merr(ENAMETOOLONG);
                 goto errout;
@@ -336,15 +334,15 @@ errout:
 
 merr_t
 mpool_open(
-    const char                 *home,
+    const char *home,
     const struct mpool_rparams *rparams,
-    uint32_t                    flags,
-    struct mpool              **handle)
+    uint32_t flags,
+    struct mpool **handle)
 {
     struct mpool *mp;
-    merr_t        err;
-    int           i;
-    size_t        sz;
+    merr_t err;
+    int i;
+    size_t sz;
 
     if (!home || !rparams || !handle || (flags & (O_CREAT | O_EXCL)))
         return merr(EINVAL);
@@ -359,7 +357,7 @@ mpool_open(
     strcpy((char *)mp->home, home);
 
     for (i = HSE_MCLASS_BASE; i < HSE_MCLASS_COUNT; i++) {
-        struct mclass_params mcp = {0};
+        struct mclass_params mcp = { 0 };
         uint32_t oflags = flags;
 
         err = mclass_params_init(rparams->mclass[i].path, &mcp);
@@ -376,8 +374,9 @@ mpool_open(
             if (!tmpfs)
                 oflags |= O_DIRECT;
             else
-                log_info("Disabling direct I/O access as the mclass (%d) path (%s) is on a tmpfs",
-                         i, mcp.path);
+                log_info(
+                    "Disabling direct I/O access as the mclass (%d) path (%s) is on a tmpfs", i,
+                    mcp.path);
         }
 
         err = mclass_path_check(i, mcp.path, (oflags & O_ACCMODE) == O_RDONLY);
@@ -406,7 +405,7 @@ merr_t
 mpool_close(struct mpool *mp)
 {
     merr_t err = 0;
-    int    i;
+    int i;
 
     if (!mp)
         return 0;
@@ -476,10 +475,7 @@ mpool_mclass_props_get(struct mpool *mp, enum hse_mclass mclass, struct mpool_mc
 }
 
 merr_t
-mpool_mclass_info_get(
-    struct mpool *          mp,
-    const enum hse_mclass mclass,
-    struct hse_mclass_info *info)
+mpool_mclass_info_get(struct mpool *mp, const enum hse_mclass mclass, struct hse_mclass_info *info)
 {
     struct media_class *mc;
 
@@ -569,9 +565,9 @@ mpool_mclass_dirfd(struct mpool *mp, enum hse_mclass mclass, int *dirfd)
 
 merr_t
 mpool_mclass_ftw(
-    struct mpool         *mp,
-    enum hse_mclass     mclass,
-    const char           *prefix,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    const char *prefix,
     struct mpool_file_cb *cb)
 {
     struct media_class *mc;
@@ -587,7 +583,7 @@ mpool_mclass_ftw(
 }
 
 bool
-mpool_mclass_is_configured(struct mpool *const mp, const enum hse_mclass mclass)
+mpool_mclass_is_configured(struct mpool * const mp, const enum hse_mclass mclass)
 {
     return !!mpool_mclass_handle(mp, mclass);
 }
@@ -607,8 +603,9 @@ mpool_cparams_defaults(struct mpool_cparams *cparams)
         cparams->mclass[i].path[0] = '\0';
     }
 
-    strlcpy(cparams->mclass[HSE_MCLASS_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-            sizeof(cparams->mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        cparams->mclass[HSE_MCLASS_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+        sizeof(cparams->mclass[HSE_MCLASS_CAPACITY].path));
 }
 
 #if HSE_MOCKING

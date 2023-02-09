@@ -4,20 +4,20 @@
  */
 
 #include <hse/error/merr.h>
-#include <hse/util/event_counter.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
 #include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/slab.h>
 
-#include "kvset.h"
 #include "kcompact.h"
+#include "kvset.h"
 
 merr_t
 kvset_keep_vblocks(
-    struct kvset_vblk_map  *vbm,
-    struct vgmap          **vgm_out,
-    struct kv_iterator    **iv,
-    int                     niv)
+    struct kvset_vblk_map *vbm,
+    struct vgmap **vgm_out,
+    struct kv_iterator **iv,
+    int niv)
 {
     struct vgmap *vgm = NULL;
     void *mem;

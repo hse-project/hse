@@ -46,13 +46,13 @@ enum key_lookup_res;
  * of the active kvms.
  */
 struct c0_kvset_impl {
-    struct c0_kvset       c0s_handle;
-    struct cheap         *c0s_cheap;
-    struct bonsai_root   *c0s_broot;
-    uint32_t              c0s_alloc_sz;
-    uint32_t              c0s_ccache_sz;
-    uint32_t              c0s_reset_sz;
-    atomic_int            c0s_finalized;
+    struct c0_kvset c0s_handle;
+    struct cheap *c0s_cheap;
+    struct bonsai_root *c0s_broot;
+    uint32_t c0s_alloc_sz;
+    uint32_t c0s_ccache_sz;
+    uint32_t c0s_reset_sz;
+    atomic_int c0s_finalized;
     struct c0_kvset_impl *c0s_next;
 
     /* these apply only to non-txn operations. */
@@ -72,16 +72,16 @@ struct c0_kvset_impl {
 
 merr_t
 c0kvs_pfx_probe_cmn(
-    struct bonsai_root      *root,
-    uint16_t                 skidx,
+    struct bonsai_root *root,
+    uint16_t skidx,
     const struct kvs_ktuple *key,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf,
-    uint64_t                 pt_seq,
-    uint64_t                 max_seq);
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    uint64_t pt_seq,
+    uint64_t max_seq);
 
 #endif

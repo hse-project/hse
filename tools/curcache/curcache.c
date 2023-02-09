@@ -12,22 +12,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/compiler.h>
 
-int              verbose = 0;
-int              nthreads = 128;
-int              niter = 10000;
+int verbose = 0;
+int nthreads = 128;
+int niter = 10000;
 struct hse_kvdb *kvdb;
 
-void * HSE_PRINTF(2, 3)
+void *HSE_PRINTF(2, 3)
 tdie(int err, char *fmt, ...)
 {
     static int fail = 1;
 
-    char    buf[256];
-    int     n;
+    char buf[256];
+    int n;
     va_list ap;
 
     memset(buf, 0, sizeof(buf));
@@ -43,8 +44,8 @@ tdie(int err, char *fmt, ...)
 void HSE_PRINTF(2, 3)
 die(int err, char *fmt, ...)
 {
-    char    buf[256];
-    int     n;
+    char buf[256];
+    int n;
     va_list ap;
 
     memset(buf, 0, sizeof(buf));
@@ -72,16 +73,16 @@ struct cursor_info {
 void *
 parallel_cursors(void *info)
 {
-    struct cursor_info *   ci = info;
+    struct cursor_info *ci = info;
     struct hse_kvs_cursor *c;
-    char                   buf[32];
-    const void *           k, *v;
-    size_t                 klen, vlen, slen;
-    int                    i;
-    int                    err;
+    char buf[32];
+    const void *k, *v;
+    size_t klen, vlen, slen;
+    int i;
+    int err;
 
     for (i = 0; i < niter; ++i) {
-        int  r = generate_random(100, 1000);
+        int r = generate_random(100, 1000);
         bool eof;
 
         /* create different prefixes each time */
@@ -111,11 +112,7 @@ parallel_cursors(void *info)
                 0,
                 "cursor iter %d key %.3s, read value %.*s, "
                 "wanted %.3s",
-                i,
-                (char *)k,
-                (int)vlen,
-                (char *)v,
-                buf);
+                i, (char *)k, (int)vlen, (char *)v, buf);
 
         err = hse_kvs_cursor_destroy(c);
         if (err)
@@ -129,16 +126,16 @@ void *
 maker(void *h)
 {
     struct hse_kvs *kvs = h;
-    int             loops = (niter + 99) / 100;
-    int             i, j;
-    int             err;
+    int loops = (niter + 99) / 100;
+    int i, j;
+    int err;
 
     int mod[] = { 10, 5, 3, 2, 1 };
 
     for (j = 0; j < loops; ++j) {
         for (i = 100; i < 1000; ++i) {
             char buf[32];
-            int  len = sprintf(buf, "%d", i);
+            int len = sprintf(buf, "%d", i);
 
             err = hse_kvs_put(kvs, 0, NULL, buf, len, buf, len);
             if (err)
@@ -164,12 +161,12 @@ maker(void *h)
 void
 stress(char *mp, char *kv)
 {
-    struct hse_kvs *   kvs = NULL;
-    pthread_t          t[nthreads];
-    pthread_t          mt;
+    struct hse_kvs *kvs = NULL;
+    pthread_t t[nthreads];
+    pthread_t mt;
     struct cursor_info info;
-    int                err;
-    int                i, rc;
+    int err;
+    int i, rc;
 
     err = hse_kvdb_open(mp, 0, NULL, &kvdb);
     if (err) {
@@ -208,9 +205,7 @@ stress(char *mp, char *kv)
     printf(
         "put keys 100.1000 into kvs %s; creating %d threads;"
         "each threads doing %d iterations\n",
-        kv,
-        nthreads,
-        niter);
+        kv, nthreads, niter);
 
     for (i = 0; i < nthreads; ++i) {
         rc = pthread_create(t + i, 0, parallel_cursors, &info);
@@ -253,28 +248,28 @@ int
 main(int argc, char **argv)
 {
     const char *config = NULL;
-    char *      parts[3];
-    int         c, err;
+    char *parts[3];
+    int c, err;
 
     progname_set(argv[0]);
 
     while ((c = getopt(argc, argv, "?vt:i:Z:")) != -1) {
         switch (c) {
-            case 'Z':
-                config = optarg;
-                break;
-            case 't':
-                nthreads = atoi(optarg);
-                break;
-            case 'i':
-                niter = atoi(optarg);
-                break;
-            case 'v':
-                ++verbose;
-                break;
-            case '?': /* fallthrough */
-            default:
-                usage();
+        case 'Z':
+            config = optarg;
+            break;
+        case 't':
+            nthreads = atoi(optarg);
+            break;
+        case 'i':
+            niter = atoi(optarg);
+            break;
+        case 'v':
+            ++verbose;
+            break;
+        case '?': /* fallthrough */
+        default:
+            usage();
         }
     }
 

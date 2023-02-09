@@ -4,12 +4,13 @@
  */
 
 #include <stdint.h>
-#include <sys/mman.h>
 
-#include <hse/test/mtf/framework.h>
+#include <sys/mman.h>
 
 #include <hse/error/merr.h>
 #include <hse/mpool/mpool.h>
+
+#include <hse/test/mtf/framework.h>
 
 #include "cn/mbset.h"
 
@@ -133,7 +134,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_simple, pre, post)
     uint64_t idv[32];
     uint idc = NELEM(idv);
     struct mbset *mbs;
-    merr_t        err;
+    merr_t err;
 
     idv_init(idv, idc);
 
@@ -243,10 +244,10 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_getters, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
 {
-    merr_t        err;
+    merr_t err;
     struct mbset *mbs;
-    uint64_t      idv[4];
-    uint          idc = NELEM(idv);
+    uint64_t idv[4];
+    uint idc = NELEM(idv);
     struct t_callback_info actual;
     struct t_callback_info expect;
     uint expect_mblock_delete_calls;
@@ -271,31 +272,31 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
         ASSERT_EQ(err, 0);
 
         switch (i) {
-            case 0:
-                expect.invoked = 1;
-                expect.delete_error_detected = 0;
-                expect_mblock_delete_calls = 0;
-                break;
-            case 1:
-                mbset_set_delete_flag(mbs);
-                expect.invoked = 1;
-                expect.delete_error_detected = 0;
-                expect_mblock_delete_calls = idc; /* one for each mblock */
-                break;
-            case 2:
-                mapi_inject_set(mapi_idx_mpool_mblock_delete,
-                    1, 2, 0,  /* calls 1 and 2 successful */
-                    3, 0, -1  /* calls 3 to forever fail */
-                    );
-                mbset_set_delete_flag(mbs);
-                expect.invoked = 1;
-                expect.delete_error_detected = 1;
-                expect_mblock_delete_calls = idc;
-                break;
+        case 0:
+            expect.invoked = 1;
+            expect.delete_error_detected = 0;
+            expect_mblock_delete_calls = 0;
+            break;
+        case 1:
+            mbset_set_delete_flag(mbs);
+            expect.invoked = 1;
+            expect.delete_error_detected = 0;
+            expect_mblock_delete_calls = idc; /* one for each mblock */
+            break;
+        case 2:
+            mapi_inject_set(
+                mapi_idx_mpool_mblock_delete, 1, 2, 0, /* calls 1 and 2 successful */
+                3, 0, -1                               /* calls 3 to forever fail */
+            );
+            mbset_set_delete_flag(mbs);
+            expect.invoked = 1;
+            expect.delete_error_detected = 1;
+            expect_mblock_delete_calls = idc;
+            break;
 
-            default:
-                ASSERT_TRUE(false);
-                break;
+        default:
+            ASSERT_TRUE(false);
+            break;
         }
 
         /* setup for callback */

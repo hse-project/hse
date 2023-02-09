@@ -26,11 +26,10 @@
  * are then allocated directly from slabs (e.g., via kmem_cache_alloc()).
  */
 
-#include <sys/mman.h>
-
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
+#include <sys/mman.h>
 
 #include <hse/logging/logging.h>
 #include <hse/rest/headers.h>
@@ -47,10 +46,10 @@
 #include <hse/util/minmax.h>
 #include <hse/util/mutex.h>
 #include <hse/util/page.h>
+#include <hse/util/platform.h>
 #include <hse/util/slab.h>
 #include <hse/util/spinlock.h>
 #include <hse/util/storage.h>
-#include <hse/util/platform.h>
 #include <hse/util/vlb.h>
 #include <hse/util/workqueue.h>
 
@@ -319,7 +318,7 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
     int prot = PROT_READ | PROT_WRITE;
     size_t chunksz, hugesz, basesz;
     struct kmc_chunk *chunk;
-    struct kmc_slab * slab;
+    struct kmc_slab *slab;
     cpu_set_t omask, nmask;
     int hugecnt, rc, i;
     void *base, *mem;
@@ -398,7 +397,7 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
     /* Initialize the chunk header, which is placed at the end
      * of the chunk.
      */
-  chunk_init:
+chunk_init:
     chunk = mem + chunksz - sizeof(*chunk);
     chunk->ch_magic = chunk;
     chunk->ch_hugecnt = hugecnt;
@@ -453,8 +452,8 @@ struct kmc_slab *
 kmc_slab_alloc(struct kmem_cache *zone, uint cpuid, uint nodeid)
 {
     struct kmc_chunk *chunk;
-    struct kmc_slab  *slab;
-    struct kmc_node  *node;
+    struct kmc_slab *slab;
+    struct kmc_node *node;
     char *item;
     size_t sz;
     uint i;
@@ -550,7 +549,7 @@ void
 kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
 {
     struct kmc_chunk *chunk;
-    struct kmc_node * node;
+    struct kmc_node *node;
 
     if (!slab)
         return;
@@ -558,10 +557,9 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
     assert_slab_magic(slab);
 
     if (slab->slab_iused > 0) {
-        log_err("mem leak in zone %s, slab %p, iused %u, max %u",
-                zone->zone_name, slab,
-                slab->slab_iused,
-                slab->slab_imax);
+        log_err(
+            "mem leak in zone %s, slab %p, iused %u, max %u", zone->zone_name, slab,
+            slab->slab_iused, slab->slab_imax);
         return; /* leak the slab */
     }
 
@@ -707,8 +705,8 @@ static struct kmc_slab *
 kmc_addr2slab(struct kmem_cache *zone, void *mem)
 {
     struct kmc_chunk *chunk;
-    struct kmc_slab * slab;
-    uintptr_t         addr;
+    struct kmc_slab *slab;
+    uintptr_t addr;
 
     assert(zone->zone_magic == zone);
 
@@ -718,7 +716,7 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem)
 
     /* Verify item alignment.
      */
-    if (HSE_UNLIKELY( addr & (zone->zone_ialign - 1) )) {
+    if (HSE_UNLIKELY(addr & (zone->zone_ialign - 1))) {
         assert((addr & (zone->zone_ialign - 1)) == 0);
         abort(); /* invalid free address */
     }
@@ -747,7 +745,7 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem)
     /* Verify item is within the slab (last slab in a chunk
      * is shorter than the rest).
      */
-    if (HSE_UNLIKELY( mem + zone->zone_iasz > slab->slab_end )) {
+    if (HSE_UNLIKELY(mem + zone->zone_iasz > slab->slab_end)) {
         assert(mem + zone->zone_iasz <= slab->slab_end);
         abort(); /* invalid free or slab corruption */
     }
@@ -994,7 +992,7 @@ void
 kmem_cache_destroy(struct kmem_cache *zone)
 {
     struct kmc_slab *slab;
-    int              i;
+    int i;
 
     if (ev(!zone))
         return;
@@ -1132,13 +1130,14 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     mutex_lock(&kmc.kmc_lock);
 
@@ -1154,8 +1153,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
 
         elem = cJSON_CreateObject();
         if (ev(!elem)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             break;
         }
 
@@ -1208,8 +1207,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         free(addrv);
 
         if (ev(!cJSON_AddItemToArray(root, elem))) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             goto out;
         }
 
@@ -1217,8 +1216,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         bad |= !cJSON_AddNumberToObject(elem, "used_chunks", nchunks);
         bad |= !cJSON_AddNumberToObject(elem, "huge_pages", nhuge);
         bad |= !cJSON_AddNumberToObject(elem, "used_slabs", zone->zone_nslabs);
-        bad |= !cJSON_AddNumberToObject(elem, "used_slabs_size_kb",
-                (KMC_SLAB_SZ * zone->zone_nslabs) >> KB_SHIFT);
+        bad |= !cJSON_AddNumberToObject(
+            elem, "used_slabs_size_kb", (KMC_SLAB_SZ * zone->zone_nslabs) >> KB_SHIFT);
         bad |= !cJSON_AddNumberToObject(elem, "empty_slabs", nempty);
         bad |= !cJSON_AddNumberToObject(elem, "allocated_slabs", zone->zone_salloc);
         bad |= !cJSON_AddNumberToObject(elem, "free_slabs", zone->zone_sfree);
@@ -1231,15 +1230,15 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
         bad |= !cJSON_AddNumberToObject(elem, "deallocations", zfree);
         bad |= !cJSON_AddBoolToObject(elem, "huge", zone->zone_flags & SLAB_HUGE);
         bad |= !cJSON_AddBoolToObject(elem, "packed", zone->zone_flags & SLAB_PACKED);
-        bad |= !cJSON_AddBoolToObject(elem, "hardware_cache_aligned",
-            zone->zone_flags & SLAB_HWCACHE_ALIGN);
+        bad |= !cJSON_AddBoolToObject(
+            elem, "hardware_cache_aligned", zone->zone_flags & SLAB_HWCACHE_ALIGN);
         bad |= !cJSON_AddBoolToObject(elem, "descriptor_convertible", zone->zone_flags & SLAB_DESC);
 
         kmc_zone_unlock(zone);
 
         if (ev(bad)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             break;
         }
     }
@@ -1249,8 +1248,8 @@ rest_kmc_get_vmstat(const struct rest_request *req, struct rest_response *resp, 
     if (status == REST_STATUS_OK) {
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
         if (ev(!data)) {
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            status = rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
             goto out;
         }
 

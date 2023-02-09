@@ -34,10 +34,10 @@ element_source_unget(struct element_source *source);
 
 struct element_source {
     element_source_get_next *es_get_next;
-    element_source_unget *   es_unget;
-    struct element_source *  es_next_src;
-    bool                     es_eof;
-    int64_t                  es_sort;
+    element_source_unget *es_unget;
+    struct element_source *es_next_src;
+    bool es_eof;
+    int64_t es_sort;
 };
 
 static inline struct element_source

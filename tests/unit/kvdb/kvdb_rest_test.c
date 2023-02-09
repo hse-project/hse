@@ -12,17 +12,18 @@
 #include <curl/curl.h>
 
 #include <hse/hse.h>
-#include <hse/test/mtf/framework.h>
+
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/mpool/mpool.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/status.h>
+#include <hse/util/base.h>
+
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
-
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/util/base.h>
-#include <hse/mpool/mpool.h>
+#include <hse/test/mtf/framework.h>
 
 char socket_path[PATH_MAX];
 char rest_socket_path_param[PATH_MAX + PATH_MAX / 2];
@@ -32,11 +33,11 @@ struct hse_kvdb *kvdb;
 struct hse_kvs *kvs1, *kvs2;
 
 void
-mtf_get_global_params(size_t *const paramc, char ***const paramv)
+mtf_get_global_params(size_t * const paramc, char *** const paramv)
 {
     snprintf(socket_path, sizeof(socket_path), "/tmp/hse-kvdb_rest_test-%d.sock", getpid());
-    snprintf(rest_socket_path_param, sizeof(rest_socket_path_param), "rest.socket_path=%s",
-        socket_path);
+    snprintf(
+        rest_socket_path_param, sizeof(rest_socket_path_param), "rest.socket_path=%s", socket_path);
 
     gparams[0] = "rest.enabled=true";
     gparams[1] = rest_socket_path_param;
@@ -46,7 +47,7 @@ mtf_get_global_params(size_t *const paramc, char ***const paramv)
 }
 
 static int
-collection_pre(struct mtf_test_info *const lcl_ti)
+collection_pre(struct mtf_test_info * const lcl_ti)
 {
     merr_t err;
 
@@ -72,7 +73,7 @@ out:
 }
 
 static int
-collection_post(struct mtf_test_info *const lcl_ti)
+collection_post(struct mtf_test_info * const lcl_ti)
 {
     merr_t err;
 
@@ -109,11 +110,11 @@ status_to_error(const long status)
 static merr_t
 check_status_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     const long *needed = arg;
 
@@ -125,11 +126,11 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_rest_test, collection_pre, collection_po
 static merr_t
 check_compaction_status_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body, *samp_lwm_pct, *samp_hwm_pct, *samp_curr_pct, *active, *canceled;
@@ -192,34 +193,34 @@ MTF_DEFINE_UTEST(kvdb_rest_test, compact)
     long status = REST_STATUS_OK;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_compaction_status_cb, NULL,
-        "/kvdbs/%s/compact", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_compaction_status_cb, NULL, "/kvdbs/%s/compact", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_ACCEPTED;
-    err = rest_client_fetch("POST", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/compact", alias);
+    err = rest_client_fetch(
+        "POST", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_ACCEPTED;
-    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/compact", alias);
+    err = rest_client_fetch(
+        "DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/compact?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_csched_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -256,24 +257,23 @@ MTF_DEFINE_UTEST(kvdb_rest_test, csched)
     long status = REST_STATUS_OK;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_csched_cb, NULL,
-        "/kvdbs/%s/csched", alias);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_csched_cb, NULL, "/kvdbs/%s/csched", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/csched?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/csched?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_home_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body;
@@ -313,23 +313,22 @@ MTF_DEFINE_UTEST(kvdb_rest_test, home)
     long status = REST_STATUS_BAD_REQUEST;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_home_cb, NULL, "/kvdbs/%s/home",
-        alias);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_home_cb, NULL, "/kvdbs/%s/home", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/home?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/home?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_kvs_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body;
@@ -405,23 +404,22 @@ MTF_DEFINE_UTEST(kvdb_rest_test, kvs)
     long status = REST_STATUS_BAD_REQUEST;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_kvs_cb, NULL, "/kvdbs/%s/kvs",
-        alias);
+    err = rest_client_fetch("GET", NULL, NULL, 0, check_kvs_cb, NULL, "/kvdbs/%s/kvs", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/kvs?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/kvs?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_mclass_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body;
@@ -510,19 +508,19 @@ MTF_DEFINE_UTEST(kvdb_rest_test, mclass)
     err = rest_client_fetch("GET", NULL, NULL, 0, check_mclass_cb, NULL, "/kvdbs/%s/mclass", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/mclass?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/mclass?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 check_specific_mclass_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     struct hse_mclass_info info;
@@ -599,23 +597,24 @@ MTF_DEFINE_UTEST(kvdb_rest_test, mclass_specific)
     long status = REST_STATUS_NOT_FOUND;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/mclass/" HSE_MCLASS_STAGING_NAME,
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/mclass/" HSE_MCLASS_STAGING_NAME,
         alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/mclass/" HSE_MCLASS_PMEM_NAME,
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/mclass/" HSE_MCLASS_PMEM_NAME,
         alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_specific_mclass_cb,
-        HSE_MCLASS_CAPACITY_NAME, "/kvdbs/%s/mclass/" HSE_MCLASS_CAPACITY_NAME,
-        alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_specific_mclass_cb, HSE_MCLASS_CAPACITY_NAME,
+        "/kvdbs/%s/mclass/" HSE_MCLASS_CAPACITY_NAME, alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status,
         "/kvdbs/%s/mclass/" HSE_MCLASS_CAPACITY_NAME "?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
@@ -623,11 +622,11 @@ MTF_DEFINE_UTEST(kvdb_rest_test, mclass_specific)
 static merr_t
 params_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body;
@@ -664,32 +663,31 @@ MTF_DEFINE_UTEST(kvdb_rest_test, params)
     long status = REST_STATUS_METHOD_NOT_ALLOWED;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params",
-        alias);
+    err = rest_client_fetch(
+        "DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("PUT", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params",
-        alias);
+    err = rest_client_fetch(
+        "PUT", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, params_cb, NULL, "/kvdbs/%s/params",
-        alias);
+    err = rest_client_fetch("GET", NULL, NULL, 0, params_cb, NULL, "/kvdbs/%s/params", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/params?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 
 static merr_t
 read_csched_leaf_pct(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     if (status != REST_STATUS_OK)
         return merr(EINVAL);
@@ -710,44 +708,49 @@ MTF_DEFINE_UTEST(kvdb_rest_test, params_specific)
     long status = REST_STATUS_METHOD_NOT_ALLOWED;
     const char *alias = ikvdb_alias((struct ikvdb *)kvdb);
 
-    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-        REST_APPLICATION_JSON));
+    headers = curl_slist_append(
+        headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON));
     ASSERT_NE(NULL, headers);
 
-    err = rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
-    ASSERT_EQ(0, merr_errno(err));
-
-    err = rest_client_fetch("GET", NULL, NULL, 0, read_csched_leaf_pct, "90",
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
-    ASSERT_EQ(0, merr_errno(err));
-
-    status = REST_STATUS_NOT_FOUND;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/params/does-not-exist",
+    err = rest_client_fetch(
+        "DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params/csched_leaf_pct",
         alias);
     ASSERT_EQ(0, merr_errno(err));
 
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, read_csched_leaf_pct, "90", "/kvdbs/%s/params/csched_leaf_pct",
+        alias);
+    ASSERT_EQ(0, merr_errno(err));
+
+    status = REST_STATUS_NOT_FOUND;
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params/does-not-exist", alias);
+    ASSERT_EQ(0, merr_errno(err));
+
     status = REST_STATUS_BAD_REQUEST;
-    err = rest_client_fetch("PUT", headers, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    err = rest_client_fetch(
+        "PUT", headers, NULL, 0, check_status_cb, &status, "/kvdbs/%s/params/csched_leaf_pct",
+        alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("PUT", NULL, "91", 1, check_status_cb, &status,
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    err = rest_client_fetch(
+        "PUT", NULL, "91", 1, check_status_cb, &status, "/kvdbs/%s/params/csched_leaf_pct", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status,
         "/kvdbs/%s/params/csched_leaf_pct?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_CREATED;
-    err = rest_client_fetch("PUT", headers, "91", 1, check_status_cb, &status,
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    err = rest_client_fetch(
+        "PUT", headers, "91", 1, check_status_cb, &status, "/kvdbs/%s/params/csched_leaf_pct",
+        alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, read_csched_leaf_pct, "91",
-        "/kvdbs/%s/params/csched_leaf_pct", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, read_csched_leaf_pct, "91", "/kvdbs/%s/params/csched_leaf_pct",
+        alias);
     ASSERT_EQ(0, merr_errno(err));
 
     curl_slist_free_all(headers);
@@ -756,11 +759,11 @@ MTF_DEFINE_UTEST(kvdb_rest_test, params_specific)
 static merr_t
 check_perfc_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
     cJSON *body = NULL;
@@ -801,24 +804,24 @@ MTF_DEFINE_UTEST(kvdb_rest_test, perfc)
     memset(long_path, 'a', sizeof(long_path));
     long_path[DT_PATH_MAX] = '\0';
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/perfc/%s",
-        alias, long_path);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/perfc/%s", alias, long_path);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/perfc?pretty=xyz", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/perfc?pretty=xyz", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     status = REST_STATUS_NOT_FOUND;
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_status_cb, &status,
-        "/kvdbs/%s/perfc/does-not-exist", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/perfc/does-not-exist", alias);
     ASSERT_EQ(0, merr_errno(err));
 
     err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL, "/kvdbs/%s/perfc", alias);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = rest_client_fetch("GET", NULL, NULL, 0, check_perfc_cb, NULL,
-        "/kvdbs/%s/perfc/C0SKOP/set", alias);
+    err = rest_client_fetch(
+        "GET", NULL, NULL, 0, check_perfc_cb, NULL, "/kvdbs/%s/perfc/C0SKOP/set", alias);
     ASSERT_EQ(0, merr_errno(err));
 }
 

@@ -3,53 +3,53 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
+#include <assert.h>
+#include <ctype.h>
+#include <curses.h>
+#include <errno.h>
+#include <getopt.h>
+#include <math.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdalign.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <signal.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <getopt.h>
-#include <ctype.h>
 #include <sysexits.h>
-#include <pthread.h>
-#include <math.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-
-#include <bsd/string.h>
-#include <curses.h>
 #include <term.h>
-#include <sys/sysinfo.h>
-
-#include <hse/cli/program.h>
-#include <hse/hse.h>
-#include <hse/util/platform.h>
-#include <hse/util/compiler.h>
-#include <hse/util/page.h>
-#include <hse/util/timer.h>
-#include <hse/util/mutex.h>
-#include <hse/util/bonsai_tree.h>
-#include <hse/version.h>
-
+#include <unistd.h>
 #include <xoroshiro.h>
 
+#include <bsd/string.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/param.h>
+#include <sys/poll.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/sysinfo.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
+#include <hse/hse.h>
+#include <hse/version.h>
+
+#include <hse/cli/program.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/compiler.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/timer.h>
+
 #ifndef __aligned
-#define __aligned(_sz)      __attribute__((__aligned__(_sz)))
+#define __aligned(_sz) __attribute__((__aligned__(_sz)))
 #endif
 
-#define __read_mostly       __attribute__((__section__(".read_mostly")))
-#define __unused            __attribute__((__unused__))
+#define __read_mostly __attribute__((__section__(".read_mostly")))
+#define __unused      __attribute__((__unused__))
 
 #ifndef timespecsub
 /* From FreeBSD */
@@ -65,8 +65,8 @@
 #endif
 
 struct suftab {
-    const char *list;   /* list of suffix characters */
-    double      mult[]; /* list of multipliers */
+    const char *list; /* list of suffix characters */
+    double mult[];    /* list of multipliers */
 };
 
 /* kibibytes, mebibytes, ..., including the dd suffixes b and w.
@@ -78,7 +78,10 @@ struct suftab suftab_iec = {
 
 /* kilo, mega, giga, ...
  */
-struct suftab suftab_si = { "kmgtpezy", { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }, };
+struct suftab suftab_si = {
+    "kmgtpezy",
+    { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 },
+};
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
@@ -105,45 +108,45 @@ struct stats {
 
 struct tdargs {
     struct stats stats;
-    pthread_t    tid;
-    uint64_t     seed;
-    u_int        job;
-    bool         full;
+    pthread_t tid;
+    uint64_t seed;
+    u_int job;
+    bool full;
 };
 
-const u_char u64tostrtab[] __aligned(64) =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const u_char
+    u64tostrtab[] __aligned(64) = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 uint8_t strtou64tab[256] __read_mostly;
 
 struct kvtree {
-    struct mutex        kvt_lock __aligned(128);
-    u_long              kvt_inserts;
-    u_long              kvt_deletes;
+    struct mutex kvt_lock __aligned(128);
+    u_long kvt_inserts;
+    u_long kvt_deletes;
 
     struct bonsai_root *kvt_root __aligned(64);
 };
 
 struct kvrec {
-    u_int          kvr_lock;
-    u_int          kvr_keylen;
-    uint64_t       kvr_keyid;
+    u_int kvr_lock;
+    u_int kvr_keylen;
+    uint64_t kvr_keyid;
     struct kvtree *kvr_tree;
-    char           kvr_keybuf[40];
+    char kvr_keybuf[40];
 };
 
-sig_atomic_t sigint         __read_mostly;
-sig_atomic_t sigalrm        __read_mostly;
+sig_atomic_t sigint __read_mostly;
+sig_atomic_t sigalrm __read_mostly;
 
-struct kvtree *kvtreev      __read_mostly;
-u_int kvtreec               __read_mostly;
+struct kvtree *kvtreev __read_mostly;
+u_int kvtreec __read_mostly;
 
-struct kvrec *kvrecv        __read_mostly;
-u_int kvrecc                __read_mostly;
-u_int kvrecc_shift          __read_mostly;
+struct kvrec *kvrecv __read_mostly;
+u_int kvrecc __read_mostly;
+u_int kvrecc_shift __read_mostly;
 
-u_int keybase               __read_mostly;
-u_long updateprob           __read_mostly;
+u_int keybase __read_mostly;
+u_long updateprob __read_mostly;
 
 pthread_barrier_t bnt_barrier;
 
@@ -160,11 +163,15 @@ bool human;
 
 static bonsai_ior_cb bnt_ior_cb;
 
-static int bnt_test(void);
-static void *bnt_test_main(void *arg);
+static int
+bnt_test(void);
+static void *
+bnt_test_main(void *arg);
 
-static int bnt_check(void);
-static void *bnt_check_main(void *arg);
+static int
+bnt_check(void);
+static void *
+bnt_check_main(void *arg);
 
 static thread_local uint64_t xrand64_state[2];
 
@@ -214,10 +221,10 @@ tsi_delta(tsi_t *startp)
     return now.tv_sec * 1000000 + now.tv_nsec / 1000;
 }
 
-static thread_local char    dmsg[256], emsg[256];
-static thread_local int     dmsglen, emsglen;
+static thread_local char dmsg[256], emsg[256];
+static thread_local int dmsglen, emsglen;
 static thread_local ssize_t dcc, ecc;
-static thread_local u_int   job = UINT_MAX;
+static thread_local u_int job = UINT_MAX;
 
 int
 dputc(int c)
@@ -230,9 +237,9 @@ dputc(int c)
 __attribute__((format(printf, 2, 3))) void
 dprint(int lvl, const char *fmt, ...)
 {
-    size_t  dmsgsz = sizeof(dmsg) - 8;
+    size_t dmsgsz = sizeof(dmsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     if (lvl > verbosity)
         return;
@@ -270,9 +277,9 @@ eputc(int c)
 __attribute__((format(printf, 2, 3))) void
 eprint(hse_err_t err, const char *fmt, ...)
 {
-    size_t  emsgsz = sizeof(emsg) - 8;
+    size_t emsgsz = sizeof(emsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     emsglen = snprintf(emsg, emsgsz, "%s: ", progname);
 
@@ -305,9 +312,9 @@ eprint(hse_err_t err, const char *fmt, ...)
 __attribute__((format(printf, 1, 2))) void
 status(const char *fmt, ...)
 {
-    size_t  dmsgsz = sizeof(dmsg) - 8;
+    size_t dmsgsz = sizeof(dmsg) - 8;
     va_list ap;
-    int     n;
+    int n;
 
     if (verbosity < 1)
         return;
@@ -359,7 +366,7 @@ uint64_t
 strtou64(const void *str, char **endp, u_int base)
 {
     const uint8_t *p8 = str;
-    uint64_t       acc = 0, val;
+    uint64_t acc = 0, val;
 
     while (isspace(*p8))
         ++p8;
@@ -385,9 +392,9 @@ int
 u64tostr(void *buf, size_t bufsz, uint64_t num, u_int base)
 {
     uint64_t val = num;
-    char *   right = buf;
-    char *   left;
-    int      len;
+    char *right = buf;
+    char *left;
+    int len;
 
     assert(buf && base >= 2 && base < NELEM(u64tostrtab));
 
@@ -431,7 +438,7 @@ strtou64_init(void)
 u_long
 cvt_strtoul(const char *str, char **endp, const struct suftab *suftab)
 {
-    char * pc, *end;
+    char *pc, *end;
     u_long val;
 
     errno = 0;
@@ -553,8 +560,7 @@ kvtree_fini(void)
         struct kvtree *kvt = kvtreev + i;
 
         if (verbosity > 0 && bn_summary(kvt->kvt_root, buf, sizeof(buf)) > 0)
-            printf("%2d: ins %lu  del %lu  %s\n",
-                   i, kvt->kvt_inserts, kvt->kvt_deletes, buf);
+            printf("%2d: ins %lu  del %lu  %s\n", i, kvt->kvt_inserts, kvt->kvt_deletes, buf);
         mutex_destroy(&kvt->kvt_lock);
         bn_destroy(kvt->kvt_root);
     }
@@ -600,8 +606,9 @@ kvrec_init(void)
 
         n = keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf), kvr->kvr_keyid, keybase);
         if (n >= sizeof(kvr->kvr_keybuf)) {
-            eprint(errno, "keyid %lx for rid %u exceeds sizeof keybuf %zu",
-                   kvr->kvr_keyid, rid, sizeof(kvr->kvr_keybuf));
+            eprint(
+                errno, "keyid %lx for rid %u exceeds sizeof keybuf %zu", kvr->kvr_keyid, rid,
+                sizeof(kvr->kvr_keybuf));
             return EX_SOFTWARE;
         }
 
@@ -625,8 +632,8 @@ kvrec_trylock(u_int rid)
     struct kvrec *kvr = kvrecv + rid;
     u_int exp = 0;
 
-    if (!__atomic_compare_exchange_n(&kvr->kvr_lock, &exp, 1, true,
-                                     __ATOMIC_SEQ_CST, __ATOMIC_RELAXED))
+    if (!__atomic_compare_exchange_n(
+            &kvr->kvr_lock, &exp, 1, true, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED))
         return NULL;
 
     return kvr;
@@ -639,8 +646,8 @@ kvrec_unlock(u_int rid)
     u_int exp = 1;
     bool b __unused;
 
-    b = __atomic_compare_exchange_n(&kvr->kvr_lock, &exp, 0, false,
-                                    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
+    b = __atomic_compare_exchange_n(
+        &kvr->kvr_lock, &exp, 0, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
     assert(b);
 }
 
@@ -657,7 +664,6 @@ prob_decode(const char *value, char **endp)
 
     if (d >= 1)
         return ULONG_MAX;
-
 
     return (d < 0) ? 0 : (d * (double)ULONG_MAX);
 }
@@ -746,8 +752,9 @@ usage(void)
     printf("usage: %s [options] [name=value ...]\n", progname);
     printf("usage: %s -h\n", progname);
     printf("usage: %s -V\n", progname);
-    printf("-b base   specify rid-to-key base [2 <= base <= %zu] (default: %u)\n",
-           NELEM(u64tostrtab) - 1, keybase);
+    printf(
+        "-b base   specify rid-to-key base [2 <= base <= %zu] (default: %u)\n",
+        NELEM(u64tostrtab) - 1, keybase);
     printf("-h        show this help list\n");
     printf("-i kmax   limit initial load to at most kmax keys\n");
     printf("-j jobs   specify max number worker threads (default: %u)\n", tjobsmax);
@@ -770,8 +777,9 @@ usage(void)
 
     printf("\nPROPERTIES:\n");
     printf("  kvtreec      specify number of bonsai trees (default: %u)\n", kvtreec);
-    printf("  updateprob   probability to update a key (default: %.3lf)\n",
-           (double)updateprob / (double)ULONG_MAX);
+    printf(
+        "  updateprob   probability to update a key (default: %.3lf)\n",
+        (double)updateprob / (double)ULONG_MAX);
 }
 
 int
@@ -803,9 +811,9 @@ main(int argc, char **argv)
         tgs_clrtoeol = tgetstr("ce", &areap);
 
     while (1) {
-        char *   errmsg, *end;
+        char *errmsg, *end;
         uint64_t seed;
-        int      c;
+        int c;
 
         c = getopt(argc, argv, ":b:hi:j:k:m:no:pS:t:Vv");
         if (-1 == c)
@@ -1140,7 +1148,7 @@ bnt_test(void)
         u_long latmax = 0, latavg = 0;
         u_long latmin = ULONG_MAX;
         u_long delta, ips;
-        char * ipssuf = "";
+        char *ipssuf = "";
 
         usleep(mark * 1000000);
         done = 0;
@@ -1178,14 +1186,11 @@ bnt_test(void)
             humanize(&deletes, &delsuf);
         }
 
-        status("testing %lu %lu%s (%lu%s/s) %.2lf%%, find %lu%s, insert %lu%s, delete %lu%s, "
-               "latency %lu %lu %lu",
-               delta, iters, itersuf, ips, ipssuf,
-               (delta * 100.0) / testsecs,
-               finds, findsuf,
-               inserts, inssuf,
-               deletes, delsuf,
-               latmin, latavg, latmax);
+        status(
+            "testing %lu %lu%s (%lu%s/s) %.2lf%%, find %lu%s, insert %lu%s, delete %lu%s, "
+            "latency %lu %lu %lu",
+            delta, iters, itersuf, ips, ipssuf, (delta * 100.0) / testsecs, finds, findsuf, inserts,
+            inssuf, deletes, delsuf, latmin, latavg, latmax);
     }
 
 join:
@@ -1276,8 +1281,7 @@ bnt_test_main(void *arg)
 
                 ++args->stats.finds;
             }
-        }
-        else if (kvt) {
+        } else if (kvt) {
             kvtree_lock(kvt);
 
             rcu_read_lock();
@@ -1292,13 +1296,12 @@ bnt_test_main(void *arg)
             /* Generate a new key ID for next insert...
              */
             kvr->kvr_keyid = (xrand64() << kvrecc_shift) | rid;
-            kvr->kvr_keylen = keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf),
-                                        kvr->kvr_keyid, keybase);
+            kvr->kvr_keylen =
+                keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf), kvr->kvr_keyid, keybase);
 
             ++args->stats.deletes;
             kvt = NULL;
-        }
-        else {
+        } else {
             bn_sval_init(&kvr->kvr_keyid, sizeof(kvr->kvr_keyid), 0, &sval);
 
             kvt = kvtreev + (xrand64() % kvtreec);
@@ -1323,7 +1326,6 @@ bnt_test_main(void *arg)
         kvrec_unlock(rid);
 
         ++args->stats.iters;
-
 
         if (cycles < args->stats.latmin)
             args->stats.latmin = cycles;
@@ -1405,7 +1407,7 @@ bnt_check(void)
         u_long latmax = 0, latavg = 0;
         u_long latmin = ULONG_MAX;
         u_long delta, ips;
-        char * ipssuf = "";
+        char *ipssuf = "";
 
         usleep(mark * 1000000);
         done = 0;
@@ -1439,12 +1441,11 @@ bnt_check(void)
             humanize(&finds, &findsuf);
         }
 
-        status("checking %lu %lu%s (%lu%s/s) %.2lf%%, find %lu%s, "
-               "latency %lu %lu %lu",
-               delta, iters, itersuf, ips, ipssuf,
-               (delta * 100.0) / testsecs,
-               finds, findsuf,
-               latmin, latavg, latmax);
+        status(
+            "checking %lu %lu%s (%lu%s/s) %.2lf%%, find %lu%s, "
+            "latency %lu %lu %lu",
+            delta, iters, itersuf, ips, ipssuf, (delta * 100.0) / testsecs, finds, findsuf, latmin,
+            latavg, latmax);
     }
 
 join:

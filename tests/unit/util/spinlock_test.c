@@ -11,7 +11,7 @@
 #include "multithreaded_tester.h"
 #include "thread_tester.h"
 
-struct thread_test *   spinlock_tester;
+struct thread_test *spinlock_tester;
 struct thread_test_ops spinlock_test_ops;
 
 struct thread_state {
@@ -23,10 +23,10 @@ struct spinlock_test_data {
     int sltest_iters;
 
     /* global/shared state */
-    int         sltest_num_threads;
-    int *       sltest_protected_var;
-    int *       sltest_unprotected_var;
-    spinlock_t  sltest_spinlock2;
+    int sltest_num_threads;
+    int *sltest_protected_var;
+    int *sltest_unprotected_var;
+    spinlock_t sltest_spinlock2;
     spinlock_t *sltest_lock;
 
     /* private/per-thread state */
@@ -137,12 +137,8 @@ spinlock_test_report(struct thread_test *stester, void *test_data, double elapse
     log_info(
         "Test: Threads=%d Iterations=%d Time=%f secs:"
         " EV=%d, Protected=%d UnProtected=%d\n",
-        stest_data->sltest_num_threads,
-        stest_data->sltest_iters,
-        elapsed_time,
-        expected_value,
-        *stest_data->sltest_protected_var,
-        *stest_data->sltest_unprotected_var);
+        stest_data->sltest_num_threads, stest_data->sltest_iters, elapsed_time, expected_value,
+        *stest_data->sltest_protected_var, *stest_data->sltest_unprotected_var);
 
     VERIFY_EQ(expected_value, *stest_data->sltest_protected_var);
 }
@@ -239,9 +235,9 @@ trylock_thr(void *arg)
 MTF_DEFINE_UTEST(spinlock_test, trylock_test)
 {
     spinlock_t morlock;
-    pthread_t  tid;
-    int        rc;
-    void *     trylock_status;
+    pthread_t tid;
+    int rc;
+    void *trylock_status;
 
     spin_lock_init(&morlock);
 

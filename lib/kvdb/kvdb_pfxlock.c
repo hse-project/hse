@@ -18,18 +18,17 @@
  * acquire the prefix lock from each and every tree within the range.
  */
 
+#include <rbtree.h>
 #include <stdint.h>
 
+#include <hse/logging/logging.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/mutex.h>
 #include <hse/util/platform.h>
 #include <hse/util/printbuf.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/workqueue.h>
-#include <hse/util/timer.h>
-#include <hse/util/mutex.h>
 #include <hse/util/slab.h>
-#include <hse/logging/logging.h>
-
-#include <rbtree.h>
+#include <hse/util/timer.h>
+#include <hse/util/workqueue.h>
 
 #define MTF_MOCK_IMPL_kvdb_pfxlock
 
@@ -88,8 +87,8 @@ kvdb_pfxlock_gc(struct work_struct *work);
 static void
 kvdb_pfxlock_entry_free(struct kvdb_pfxlock_tree *tree, struct kvdb_pfxlock_entry *entry)
 {
-    bool freeme = entry < tree->kplt_ecachev ||
-                  entry >= (tree->kplt_ecachev + NELEM(tree->kplt_ecachev));
+    bool freeme =
+        entry < tree->kplt_ecachev || entry >= (tree->kplt_ecachev + NELEM(tree->kplt_ecachev));
 
     entry->kple_hash = -1;
 
@@ -167,8 +166,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
 
     INIT_DELAYED_WORK(&pfxlock->kpl_gc.kpl_gc_dwork, kvdb_pfxlock_gc);
     queue_delayed_work(
-        pfxlock->kpl_gc_wq,
-        &pfxlock->kpl_gc.kpl_gc_dwork,
+        pfxlock->kpl_gc_wq, &pfxlock->kpl_gc.kpl_gc_dwork,
         msecs_to_jiffies(pfxlock->kpl_gc_delay_ms));
 
     *pfxlock_out = pfxlock;
@@ -188,7 +186,7 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
     destroy_workqueue(pfxlock->kpl_gc_wq);
 
     for (i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
-        struct kvdb_pfxlock_tree  *tree = &pfxlock->kpl_tree[i];
+        struct kvdb_pfxlock_tree *tree = &pfxlock->kpl_tree[i];
         struct kvdb_pfxlock_entry *entry, *next;
 
         rbtree_postorder_for_each_entry_safe(entry, next, &tree->kplt_root, kple_node) {
@@ -196,7 +194,7 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
         }
 
         /* Cleanup cache */
-        while (( entry = tree->kplt_mcache )) {
+        while ((entry = tree->kplt_mcache)) {
             tree->kplt_mcache = *(void **)entry;
             free(entry);
         }
@@ -207,9 +205,9 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
 
 static void
 kvdb_pfxlock_entry_add(
-    struct rb_node *           parent,
-    struct rb_root *           tree,
-    struct rb_node **          link,
+    struct rb_node *parent,
+    struct rb_root *tree,
+    struct rb_node **link,
     struct kvdb_pfxlock_entry *entry)
 {
     rb_link_node(&entry->kple_node, parent, link);
@@ -319,7 +317,8 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, uint64_t hash, uint64_t start_se
                 entry = rb_entry(*link, typeof(*entry), kple_node);
 
                 if (start_seqno <= entry->kple_end_seqno ||
-                    start_seqno <= entry->kple_end_seqno_excl) {
+                    start_seqno <= entry->kple_end_seqno_excl)
+                {
                     rc = ECANCELED;
                 } else if (entry->kple_refcnt > 0) {
                     if (entry->kple_refcnt == 1 && *cookie == entry) {
@@ -374,7 +373,7 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, uint64_t hash, uint64_t start_se
         ev(1);
     }
 
-  errout:
+errout:
     while (cookiec-- > 0) {
         entry = cookiev[cookiec];
         tree = pfxlock->kpl_tree + entry->kple_treeidx;
@@ -423,7 +422,7 @@ kvdb_pfxlock_shared(
         link = (hash < entry->kple_hash) ? &parent->rb_left : &parent->rb_right;
     }
 
-    if (HSE_LIKELY( *link )) {
+    if (HSE_LIKELY(*link)) {
         if (entry->kple_excl || start_seqno <= entry->kple_end_seqno_excl) {
             err = merr(ECANCELED);
         } else {
@@ -503,18 +502,18 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 
 #ifndef HSE_BUILD_RELEASE
     uint64_t tstart = get_time_ns();
-    char     distbuf[4096];
-    size_t   off = 0;
+    char distbuf[4096];
+    size_t off = 0;
 #endif
 
     for (int i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
-        struct kvdb_pfxlock_tree  *tree = &pfxlock->kpl_tree[i];
+        struct kvdb_pfxlock_tree *tree = &pfxlock->kpl_tree[i];
         struct kvdb_pfxlock_entry *entry, *next;
 
 #ifndef HSE_BUILD_RELEASE
-        snprintf_append(distbuf, sizeof(distbuf), &off, "%s%x",
-                        (i % KVDB_PFXLOCK_RANGE_MAX) ? "" : " ",
-                        tree->kplt_entry_cnt);
+        snprintf_append(
+            distbuf, sizeof(distbuf), &off, "%s%x", (i % KVDB_PFXLOCK_RANGE_MAX) ? "" : " ",
+            tree->kplt_entry_cnt);
 #endif
 
         if (tree->kplt_entry_cnt < 2) {
@@ -549,10 +548,9 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 
 #ifndef HSE_BUILD_RELEASE
     if (scanned > 0)
-        log_info("%4luus %4u/%u %4u %4u  %s",
-                 (get_time_ns() - tstart) / 1000,
-                 skipped, KVDB_PFXLOCK_TREES_MAX,
-                 scanned, pruned, distbuf);
+        log_info(
+            "%4luus %4u/%u %4u %4u  %s", (get_time_ns() - tstart) / 1000, skipped,
+            KVDB_PFXLOCK_TREES_MAX, scanned, pruned, distbuf);
 #endif
 }
 
@@ -560,7 +558,7 @@ static void
 kvdb_pfxlock_gc(struct work_struct *work)
 {
     struct kvdb_pfxlock_gc *gc = container_of(work, struct kvdb_pfxlock_gc, kpl_gc_dwork.work);
-    struct kvdb_pfxlock *   kpl = container_of(gc, struct kvdb_pfxlock, kpl_gc);
+    struct kvdb_pfxlock *kpl = container_of(gc, struct kvdb_pfxlock, kpl_gc);
 
     kvdb_pfxlock_prune(kpl);
 

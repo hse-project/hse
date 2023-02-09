@@ -10,7 +10,6 @@
 #include <stdbool.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/compiler.h>
 
 #ifndef HSE_UTIL_MAP_H
@@ -67,7 +66,7 @@ unsigned int
 map_count_get(struct map *map);
 
 struct map_iter {
-    struct map     *map;
+    struct map *map;
     struct rb_node *curr;
 };
 

@@ -8,17 +8,17 @@
 #include <stdint.h>
 
 #include <hse/logging/logging.h>
-#include <hse/util/bin_heap.h>
-#include <hse/util/event_counter.h>
 #include <hse/util/alloc.h>
 #include <hse/util/arch.h>
 #include <hse/util/assert.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/minmax.h>
 #include <hse/util/slab.h>
 
-#define BH_PARENT(_index)  (((_index) - 1) / 2)
-#define BH_LEFT(_index)    (2 * (_index) + 1)
-#define BH_RIGHT(_index)   (2 * (_index) + 2)
+#define BH_PARENT(_index) (((_index)-1) / 2)
+#define BH_LEFT(_index)   (2 * (_index) + 1)
+#define BH_RIGHT(_index)  (2 * (_index) + 2)
 
 static HSE_ALWAYS_INLINE int
 bin_heap_cmp(bin_heap_compare_fn *cmp, struct heap_node *elts, int a, int b)
@@ -248,8 +248,8 @@ merr_t
 bin_heap_insert_src(struct bin_heap *bh, struct element_source *es)
 {
     struct heap_node *node;
-    void *            elt;
-    int               width;
+    void *elt;
+    int width;
 
     /*
      * ensure the incoming src will fit and has something to contribute;
@@ -286,7 +286,7 @@ bin_heap_insert_src(struct bin_heap *bh, struct element_source *es)
 merr_t
 bin_heap_replace_src(struct bin_heap *bh, struct element_source *es)
 {
-    int   i;
+    int i;
     void *es_data;
 
     if (!es->es_get_next(es, &es_data)) {
@@ -313,10 +313,10 @@ bin_heap_replace_src(struct bin_heap *bh, struct element_source *es)
 bool
 bin_heap_pop(struct bin_heap *bh, void **item)
 {
-    struct heap_node       node;
-    void *                 elt;
+    struct heap_node node;
+    void *elt;
     struct element_source *es;
-    int                    sort;
+    int sort;
 
     if (bh->bh_width == 0) {
         if (item)

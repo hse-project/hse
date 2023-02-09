@@ -26,20 +26,20 @@
  * @ids[]: initd by mock_make_kvi
  */
 struct mock_kvset {
-    char                    tripwire[PAGE_SIZE * 7];
+    char tripwire[PAGE_SIZE * 7];
     struct kvset_list_entry entry;
-    struct kvset_stats      stats;
-    size_t                  alloc_sz;
-    void *                  iter_data;
-    int                     start;
-    int                     ref;
-    uint64_t                dgen_hi;
-    uint64_t                dgen_lo;
-    uint64_t                kvsetid;
-    uint64_t                nodeid;
-    const void             *work;
-    uint32_t                compc;
-    uint64_t                ids[];
+    struct kvset_stats stats;
+    size_t alloc_sz;
+    void *iter_data;
+    int start;
+    int ref;
+    uint64_t dgen_hi;
+    uint64_t dgen_lo;
+    uint64_t kvsetid;
+    uint64_t nodeid;
+    const void *work;
+    uint32_t compc;
+    uint64_t ids[];
 };
 
 enum val_mix { VMX_S32 = 1, VMX_BUF = 2, VMX_MIXED = 3 };
@@ -48,16 +48,16 @@ enum val_mix { VMX_S32 = 1, VMX_BUF = 2, VMX_MIXED = 3 };
  * struct nkv_tab - number of keys/values to generate
  */
 struct nkv_tab {
-    int          nkeys;
-    int          key1;
-    int          val1;
+    int nkeys;
+    int key1;
+    int val1;
     enum val_mix vmix;
-    int          be;
-    uint64_t     dgen;
+    int be;
+    uint64_t dgen;
 };
 
 /* Values for 'int be` member of struct nkv_tab */
-#define KVDATA_BE_KEY true
+#define KVDATA_BE_KEY  true
 #define KVDATA_INT_KEY false
 
 /*
@@ -68,10 +68,10 @@ struct nkv_tab {
 
 struct mock_kv_iterator {
     struct kv_iterator kvi;
-    char               tripwire[1024]; /* not an mprotect enforced tripwire */
+    char tripwire[1024]; /* not an mprotect enforced tripwire */
     struct mock_kvset *kvset;
-    int                src;
-    int                nextkey;
+    int src;
+    int nextkey;
 };
 
 void

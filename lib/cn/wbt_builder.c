@@ -5,28 +5,27 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
-#include <hse/util/vlb.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/key_util.h>
+#include <hse/limits.h>
 
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/omf_kmd.h>
-
-#include <hse/limits.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/key_util.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/vlb.h>
 
 #define MTF_MOCK_IMPL_wbt_builder
-#include "wbt_builder.h"
-#include "wbt_reader.h"
-#include "wbt_internal.h"
 #include "intern_builder.h"
+#include "wbt_builder.h"
+#include "wbt_internal.h"
+#include "wbt_reader.h"
 
 #define KMD_CHUNK_PAGES 256
-#define KMD_CHUNK_LEN (KMD_CHUNK_PAGES * PAGE_SIZE)
-#define KMD_CHUNKS (KBLOCK_MAX_SIZE / KMD_CHUNK_LEN)
+#define KMD_CHUNK_LEN   (KMD_CHUNK_PAGES * PAGE_SIZE)
+#define KMD_CHUNKS      (KBLOCK_MAX_SIZE / KMD_CHUNK_LEN)
 
 /**
  * struct wbb - a wb tree builder (wb --> "wants to be a b-tree")
@@ -52,14 +51,14 @@
  */
 struct wbb {
     void *nodev;
-    uint  nodev_len;
-    uint  lnodec;
-    uint  inodec;
-    uint  max_inodec;
-    uint  max_pgc;
-    uint  used_pgc;
+    uint nodev_len;
+    uint lnodec;
+    uint inodec;
+    uint max_inodec;
+    uint max_pgc;
+    uint used_pgc;
     uint64_t total_kvlen;
-    bool  finalized;
+    bool finalized;
 
     void *cnode;
 
@@ -71,9 +70,9 @@ struct wbb {
     uint64_t cnode_kvlen;
     uint16_t cnode_nkeys;
     uint16_t cnode_pfx_len;
-    uint  cnode_sumlen;
-    uint  cnode_key_stage_pgc;
-    uint  cnode_key_extra_cnt;
+    uint cnode_sumlen;
+    uint cnode_key_stage_pgc;
+    uint cnode_key_extra_cnt;
     void *cnode_first_key;
     void *cnode_last_key;
     uint16_t cnode_first_klen;
@@ -86,14 +85,14 @@ struct wbb {
 
     uint entries;
 
-    uint         kmd_iov_index;
+    uint kmd_iov_index;
     struct iovec kmd_iov[KMD_CHUNKS + 1];
 };
 
 struct key_stage_entry_leaf {
     uint32_t kmd_off;
     uint16_t klen;
-    uint8_t  kdata[] HSE_ALIGNED(4);
+    uint8_t kdata[] HSE_ALIGNED(4);
 };
 
 static HSE_ALWAYS_INLINE size_t
@@ -156,8 +155,8 @@ static merr_t
 _new_leaf_node(struct wbb *wbb, struct key_obj *right_edge)
 {
     struct wbt_node_hdr_omf *node_hdr;
-    uint                     max_inodec = 0;
-    merr_t                   err;
+    uint max_inodec = 0;
+    merr_t err;
 
     /* Get number of pages required if the current key is added to the internal
      * nodes. Do not add the key yet.
@@ -203,7 +202,7 @@ wbb_lcp_len(struct wbb *wbb, const struct key_obj *ko)
     new_pfx_len = memlcp(wbb->cnode_first_key, ko->ko_pfx, ko->ko_pfx_len);
     if (new_pfx_len == ko->ko_pfx_len) {
         void *p = wbb->cnode_first_key + new_pfx_len;
-        uint  cmplen = old_pfx_len - new_pfx_len;
+        uint cmplen = old_pfx_len - new_pfx_len;
 
         assert(old_pfx_len >= new_pfx_len);
         new_pfx_len += memlcp(p, ko->ko_sfx, cmplen);
@@ -215,8 +214,8 @@ wbb_lcp_len(struct wbb *wbb, const struct key_obj *ko)
 static merr_t
 wbb_kmd_append(struct wbb *wbb, const void *data, uint dlen, bool copy)
 {
-    uint          bytes;
-    uint          ix = wbb->kmd_iov_index;
+    uint bytes;
+    uint ix = wbb->kmd_iov_index;
     struct iovec *iov = wbb->kmd_iov + ix;
 
     while (dlen > 0) {
@@ -265,10 +264,10 @@ wbt_leaf_publish(struct wbb *wbb)
 {
     struct wbt_node_hdr_omf *node_hdr = wbb->cnode;
 
-    size_t              pfx_len = wbb->cnode_pfx_len;
+    size_t pfx_len = wbb->cnode_pfx_len;
     struct wbt_lfe_omf *entry; /* (out) current key entry ptr */
-    void *              sfxp;  /* (out) current suffix ptr */
-    int                 i;
+    void *sfxp;                /* (out) current suffix ptr */
+    int i;
 
     struct key_stage_entry_leaf *kin = wbb->cnode_key_stage_base;
 
@@ -332,24 +331,24 @@ wbt_leaf_publish(struct wbb *wbb)
 
 merr_t
 wbb_add_entry(
-    struct wbb *          wbb,
+    struct wbb *wbb,
     const struct key_obj *kobj,
-    uint                  kmd_entries,
-    uint64_t              vblk_om_vlen,
-    const void *          key_kmd,
-    uint                  key_kmd_len,
-    uint                  max_pgc,
-    uint *                wbt_pgc,
-    bool *                added)
+    uint kmd_entries,
+    uint64_t vblk_om_vlen,
+    const void *key_kmd,
+    uint key_kmd_len,
+    uint max_pgc,
+    uint *wbt_pgc,
+    bool *added)
 {
     merr_t err;
-    uint   kmd_pgc;
-    uint   entry_kmd_off;
-    uint   key_extra;
+    uint kmd_pgc;
+    uint entry_kmd_off;
+    uint key_extra;
     size_t space, encoded_cnt_len;
-    char   encoded_cnt[4]; /* large enough to hold kmd encoded count */
+    char encoded_cnt[4]; /* large enough to hold kmd encoded count */
     size_t new_pfx_len;
-    uint   klen = key_obj_len(kobj);
+    uint klen = key_obj_len(kobj);
 
     struct key_stage_entry_leaf *kst_leaf;
 
@@ -397,8 +396,8 @@ wbb_add_entry(
 
     /* Create a new node if space exceeds PAGE_SIZE */
     space = sizeof(struct wbt_node_hdr_omf) + new_pfx_len +
-            ((wbb->cnode_nkeys + 1) * sizeof(struct wbt_lfe_omf)) + wbb->cnode_sumlen +
-            (sizeof(uint32_t) * wbb->cnode_key_extra_cnt) - ((wbb->cnode_nkeys + 1) * new_pfx_len);
+        ((wbb->cnode_nkeys + 1) * sizeof(struct wbt_lfe_omf)) + wbb->cnode_sumlen +
+        (sizeof(uint32_t) * wbb->cnode_key_extra_cnt) - ((wbb->cnode_nkeys + 1) * new_pfx_len);
 
     if (space > PAGE_SIZE) {
         /* close out current node */
@@ -429,7 +428,8 @@ wbb_add_entry(
 
     /* Copy kmd into iovec. Should not fail b/c space has been reserved. */
     if (wbb_kmd_append(wbb, encoded_cnt, encoded_cnt_len, true) ||
-        wbb_kmd_append(wbb, key_kmd, key_kmd_len, true)) {
+        wbb_kmd_append(wbb, key_kmd, key_kmd_len, true))
+    {
         assert(0);
         return merr(ev(EBUG));
     }
@@ -449,8 +449,8 @@ wbb_add_entry(
 
     /* Grow the staging area, if necessary */
     if (wbb->cnode_key_stage_end - wbb->cnode_key_cursor < get_kst_sz(klen)) {
-        void *                       mem;
-        uint                         off, new_pgc;
+        void *mem;
+        uint off, new_pgc;
         struct key_stage_entry_leaf *first;
 
         new_pgc = wbb->cnode_key_stage_pgc ? wbb->cnode_key_stage_pgc * 2 : 8;
@@ -525,13 +525,13 @@ wbb_hdr_set(struct wbt_hdr_omf *hdr, struct wbt_desc *desc)
 
 merr_t
 wbb_freeze(
-    struct wbb *        wbb,
+    struct wbb *wbb,
     struct wbt_hdr_omf *hdr,
-    uint                max_pgc,
-    uint *              wbt_pgc, /* in/out */
-    struct iovec *      iov,     /* in/out */
-    uint                iov_max,
-    uint *              iov_cnt_out) /* out */
+    uint max_pgc,
+    uint *wbt_pgc,     /* in/out */
+    struct iovec *iov, /* in/out */
+    uint iov_max,
+    uint *iov_cnt_out) /* out */
 {
     uint first_leaf_node, num_leaf_nodes, root_node;
     uint i, kmd_pgc;
@@ -612,10 +612,10 @@ wbb_freeze(
 merr_t
 wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 {
-    void  *kst_base, *kst_end, *iov_base[KMD_CHUNKS + 1];
+    void *kst_base, *kst_end, *iov_base[KMD_CHUNKS + 1];
     struct intern_builder *ibldr;
-    uint   kst_pgc;
-    uint   i;
+    uint kst_pgc;
+    uint i;
     merr_t err;
 
     /* Save state that persists across "init" */
@@ -662,9 +662,9 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 merr_t
 wbb_create(
     struct wbb **wbb_out,
-    uint         max_pgc,
-    uint *       wbt_pgc /* in/out */
-    )
+    uint max_pgc,
+    uint *wbt_pgc /* in/out */
+)
 {
     struct wbb *wbb;
     void *nodev;

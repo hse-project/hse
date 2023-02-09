@@ -8,10 +8,9 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/atomic.h>
-
 #include <hse/mpool/mpool.h>
+#include <hse/util/atomic.h>
+#include <hse/util/platform.h>
 
 #include "cn/kvs_mblk_desc.h"
 
@@ -34,28 +33,28 @@ mbset_udata_init_fn(const struct kvs_mblk_desc *mblk, void *rock);
  * possibly referenced by multiple kvsets (e.g., after k-compaction).
  */
 struct mbset {
-    struct kvs_mblk_desc *    mbs_mblkv;
-    uint64_t                  mbs_alen;
-    uint64_t                  mbs_wlen;
-    uint                      mbs_mblkc;
-    atomic_int                mbs_ref;
-    struct mpool *            mbs_mp;
-    mbset_callback *          mbs_callback;
-    void *                    mbs_callback_rock;
-    void *                    mbs_udata;
-    uint                      mbs_udata_sz;
-    bool                      mbs_del;
+    struct kvs_mblk_desc *mbs_mblkv;
+    uint64_t mbs_alen;
+    uint64_t mbs_wlen;
+    uint mbs_mblkc;
+    atomic_int mbs_ref;
+    struct mpool *mbs_mp;
+    mbset_callback *mbs_callback;
+    void *mbs_callback_rock;
+    void *mbs_udata;
+    uint mbs_udata_sz;
+    bool mbs_del;
 };
 
 /* MTF_MOCK */
 merr_t
 mbset_create(
-    struct mpool *      ds,
-    uint                idc,
-    uint64_t *          idv,
-    size_t              udata_sz,
+    struct mpool *ds,
+    uint idc,
+    uint64_t *idv,
+    size_t udata_sz,
     mbset_udata_init_fn udata_init_fn,
-    struct mbset **     handle);
+    struct mbset **handle);
 
 /* MTF_MOCK */
 struct mbset *

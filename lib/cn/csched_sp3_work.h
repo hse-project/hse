@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include <sys/types.h>
 
 #include <hse/error/merr.h>
@@ -60,41 +61,40 @@ struct cn_compaction_work;
  * the work tree arrays, so be sure to add new work types before wtype_root.
  */
 enum sp3_work_type {
-    wtype_length = 0u,  /* leaf nodes: k-compact to reduce node length */
-    wtype_garbage,      /* leaf nodes: kv-compact to reduce garbage */
-    wtype_scatter,      /* leaf nodes: kv-compact to reduce vgroup scatter */
-    wtype_split,        /* leaf nodes: split to eliminate large nodes */
-    wtype_join,         /* leaf nodes: join to eliminate small nodes */
-    wtype_idle,         /* root+leaf nodes: kv-compact idle nodes */
-    wtype_root,         /* root node: spill to leaves */
+    wtype_length = 0u, /* leaf nodes: k-compact to reduce node length */
+    wtype_garbage,     /* leaf nodes: kv-compact to reduce garbage */
+    wtype_scatter,     /* leaf nodes: kv-compact to reduce vgroup scatter */
+    wtype_split,       /* leaf nodes: split to eliminate large nodes */
+    wtype_join,        /* leaf nodes: join to eliminate small nodes */
+    wtype_idle,        /* root+leaf nodes: kv-compact idle nodes */
+    wtype_root,        /* root node: spill to leaves */
     wtype_MAX
 };
 
 struct sp3_thresholds {
-    size_t   rspill_wlen_max;
-    uint8_t  rspill_runlen_min;
-    uint8_t  rspill_runlen_max;
-    uint8_t  lcomp_runlen_max;
-    uint     lcomp_join_pct;      /* leaf node join-by-wlen percentage threshold */
-    uint     lcomp_split_keys;    /* leaf node split-by-keys threshold */
+    size_t rspill_wlen_max;
+    uint8_t rspill_runlen_min;
+    uint8_t rspill_runlen_max;
+    uint8_t lcomp_runlen_max;
+    uint lcomp_join_pct;   /* leaf node join-by-wlen percentage threshold */
+    uint lcomp_split_keys; /* leaf node split-by-keys threshold */
     uint16_t lscat_hwm;
-    uint8_t  lscat_runlen_max;
-    uint8_t  llen_runlen_min;
-    uint8_t  llen_runlen_max;
-    uint8_t  llen_idlec;
-    uint8_t  llen_idlem;
-    uint8_t  split_cnt_max;       /* max node splits per batch */
+    uint8_t lscat_runlen_max;
+    uint8_t llen_runlen_min;
+    uint8_t llen_runlen_max;
+    uint8_t llen_idlec;
+    uint8_t llen_idlem;
+    uint8_t split_cnt_max; /* max node splits per batch */
 };
 
 /* MTF_MOCK */
 merr_t
 sp3_work(
-    struct sp3_node            *spn,
-    enum sp3_work_type          wtype,
-    struct sp3_thresholds      *thresholds,
-    uint                        debug,
+    struct sp3_node *spn,
+    enum sp3_work_type wtype,
+    struct sp3_thresholds *thresholds,
+    uint debug,
     struct cn_compaction_work **wp);
-
 
 struct cn_tree_node *
 sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thresh);

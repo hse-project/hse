@@ -6,20 +6,21 @@
 #ifndef HSE_KVDB_HEALTH_H
 #define HSE_KVDB_HEALTH_H
 
-#include <sys/types.h>
 #include <stddef.h>
 
-#include <hse/util/atomic.h>
+#include <sys/types.h>
+
 #include <hse/error/merr.h>
+#include <hse/util/atomic.h>
 
 struct kvdb_health_stat {
     atomic_ulong khs_odometer;
     atomic_ulong khs_tripped;
-    atomic_long  khs_err; /* first merr since last clear */
+    atomic_long khs_err; /* first merr since last clear */
 };
 
 struct kvdb_health {
-    atomic_uint             krx_tripped_mask;
+    atomic_uint krx_tripped_mask;
     struct kvdb_health_stat krx_nomem;
     struct kvdb_health_stat krx_nospace;
     struct kvdb_health_stat krx_delblkfail;
@@ -27,12 +28,12 @@ struct kvdb_health {
     struct kvdb_health_stat krx_io;
 };
 
-#define KVDB_HEALTH_FLAG_NONE       0x0000u
-#define KVDB_HEALTH_FLAG_NOMEM      0x0001u
-#define KVDB_HEALTH_FLAG_NOSPACE    0x0002u
-#define KVDB_HEALTH_FLAG_CNDBFAIL   0x0004u
-#define KVDB_HEALTH_FLAG_IO         0x0008u
-#define KVDB_HEALTH_FLAG_ALL        0x000fu
+#define KVDB_HEALTH_FLAG_NONE     0x0000u
+#define KVDB_HEALTH_FLAG_NOMEM    0x0001u
+#define KVDB_HEALTH_FLAG_NOSPACE  0x0002u
+#define KVDB_HEALTH_FLAG_CNDBFAIL 0x0004u
+#define KVDB_HEALTH_FLAG_IO       0x0008u
+#define KVDB_HEALTH_FLAG_ALL      0x000fu
 
 /**
  * kvdb_health_event() - specify a kvdb health event, with error

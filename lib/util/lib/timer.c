@@ -7,7 +7,6 @@
 #include <sys/resource.h>
 
 #include <hse/logging/logging.h>
-
 #include <hse/util/condvar.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/platform.h>
@@ -27,7 +26,6 @@ static struct work_struct timer_dispatch_work;
 unsigned long timer_slack HSE_READ_MOSTLY;
 
 struct timer_jclock timer_jclock;
-
 
 static HSE_ALWAYS_INLINE void
 timer_lock(void)
@@ -153,7 +151,7 @@ timer_pending(const struct timer_list *timer)
 void
 add_timer(struct timer_list *timer)
 {
-    struct list_head * prev = &timer_list;
+    struct list_head *prev = &timer_list;
     struct timer_list *t;
 
     /* Insert the new timer in time-to-expire sorted order.
@@ -255,8 +253,9 @@ hse_timer_fini(void)
         timer_lock();
         first = timer_first();
         if (first) {
-            log_err("timer %p abandoned, func %p, data %lu, expires in %lu jiffies\n",
-                    first, first->function, first->data, first->expires - jiffies);
+            log_err(
+                "timer %p abandoned, func %p, data %lu, expires in %lu jiffies\n", first,
+                first->function, first->data, first->expires - jiffies);
             first->expires = jiffies;
             assert(0);
         }

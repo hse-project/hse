@@ -3,9 +3,9 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/ikvdb/omf_version.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(omf_version_test)
 
@@ -19,7 +19,7 @@ MTF_DEFINE_UTEST(omf_version_test, omf_version)
      * this test will need to be updated accordingly.
      */
 
-     /* Global OMF version */
+    /* Global OMF version */
     ASSERT_EQ(GLOBAL_OMF_VERSION, 4);
 
     /* Low-level OMF versions */

@@ -5,29 +5,25 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/ikvdb/tuple.h>
-
 #include <hse/logging/logging.h>
-#include <hse/util/page.h>
 #include <hse/util/bloom_filter.h>
-
-#include "cn/omf.h"
-#include "cn/bloom_reader.h"
-#include "cn/wbt_internal.h"
+#include <hse/util/page.h>
 
 #include <hse/test/mock/mock_mpool.h>
+#include <hse/test/mtf/framework.h>
+
+#include "cn/bloom_reader.h"
+#include "cn/omf.h"
+#include "cn/wbt_internal.h"
 
 char data_path[PATH_MAX / 2];
 
 char *kblock_files[] = {
 #if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
-    "simple_1031c.kb5_w6_b5-be.xz",
-    "simple_1c.kb5_w6_b5-be.xz"
+    "simple_1031c.kb5_w6_b5-be.xz", "simple_1c.kb5_w6_b5-be.xz"
 #else
-    "simple_1031c.kb5_w6_b5.xz",
-    "simple_1c.kb5_w6_b5.xz"
+    "simple_1031c.kb5_w6_b5.xz", "simple_1c.kb5_w6_b5.xz"
 #endif
 };
 
@@ -35,7 +31,7 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *coll_info = info->ti_coll;
-    int                        len, idx;
+    int len, idx;
 
     if (coll_info->tci_argc - coll_info->tci_optind != 1) {
         log_err("Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
@@ -74,19 +70,19 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 void
 read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
 {
-    merr_t                err;
-    struct bloom_desc     rgndesc = { 0 };
+    merr_t err;
+    struct bloom_desc rgndesc = { 0 };
     struct kblock_hdr_omf kb_hdr;
-    struct bloom_hdr_omf  blm_hdr;
-    struct kvs_ktuple     ktuple;
-    bool                  hit;
-    uint                  i, cnt, fpc;
-    char *                endptr;
-    char                  filename[PATH_MAX];
-    char                  keybuf[32];
-    struct kvs_mblk_desc  blkdesc = { 0 };
-    uint64_t              blkid;
-    uint8_t *             blm_pages;
+    struct bloom_hdr_omf blm_hdr;
+    struct kvs_ktuple ktuple;
+    bool hit;
+    uint i, cnt, fpc;
+    char *endptr;
+    char filename[PATH_MAX];
+    char keybuf[32];
+    struct kvs_mblk_desc blkdesc = { 0 };
+    uint64_t blkid;
+    uint8_t *blm_pages;
 
     snprintf(filename, sizeof(filename), "%s/%s", data_path, kblock_file);
 

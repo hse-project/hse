@@ -30,10 +30,10 @@ enum cn_mutation {
 };
 
 /* flags for cn_mb_est_alen() */
-#define CN_MB_EST_FLAGS_NONE (0)
+#define CN_MB_EST_FLAGS_NONE     (0)
 #define CN_MB_EST_FLAGS_PREALLOC (1u << 0) /* preallocate w/ max_captgt */
 #define CN_MB_EST_FLAGS_TRUNCATE (1u << 1) /* truncation enabled */
-#define CN_MB_EST_FLAGS_POW2 (1u << 2)     /* round mblk sz to power of 2 */
+#define CN_MB_EST_FLAGS_POW2     (1u << 2) /* round mblk sz to power of 2 */
 
 /* MTF_MOCK */
 size_t
@@ -58,18 +58,14 @@ cn_mb_est_alen(size_t max_captgt, size_t alloc_unit, size_t payload, unsigned in
 /* MTF_MOCK */
 merr_t
 cn_mblocks_commit(
-    struct mpool *        ds,
-    uint32_t              num_lists,
+    struct mpool *ds,
+    uint32_t num_lists,
     struct kvset_mblocks *list,
-    enum cn_mutation      mutation);
+    enum cn_mutation mutation);
 
 /* MTF_MOCK */
 void
-cn_mblocks_destroy(
-    struct mpool *        ds,
-    uint32_t              num_lists,
-    struct kvset_mblocks *list,
-    bool                  kcompact);
+cn_mblocks_destroy(struct mpool *ds, uint32_t num_lists, struct kvset_mblocks *list, bool kcompact);
 
 #if HSE_MOCKING
 #include "cn_mblocks_ut.h"

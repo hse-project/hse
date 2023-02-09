@@ -15,6 +15,8 @@
 
 #include <hse/experimental.h>
 #include <hse/hse.h>
+#include <hse/version.h>
+
 #include <hse/config/config.h>
 #include <hse/ikvdb/hse_gparams.h>
 #include <hse/ikvdb/ikvdb.h>
@@ -41,7 +43,6 @@
 #include <hse/util/mutex.h>
 #include <hse/util/platform.h>
 #include <hse/util/vlb.h>
-#include <hse/version.h>
 
 /* clang-format off */
 
@@ -57,11 +58,11 @@
 
 /* clang-format on */
 
-#define ENDPOINT_FMT_EVENTS      "/events"
-#define ENDPOINT_FMT_KMC_VMSTAT  "/kmc/vmstat"
-#define ENDPOINT_FMT_PARAMS      "/params"
-#define ENDPOINT_FMT_PERFC       "/perfc"
-#define ENDPOINT_FMT_WORKQUEUES  "/workqueues"
+#define ENDPOINT_FMT_EVENTS     "/events"
+#define ENDPOINT_FMT_KMC_VMSTAT "/kmc/vmstat"
+#define ENDPOINT_FMT_PARAMS     "/params"
+#define ENDPOINT_FMT_PERFC      "/perfc"
+#define ENDPOINT_FMT_WORKQUEUES "/workqueues"
 
 static DEFINE_MUTEX(hse_lock);
 
@@ -93,7 +94,7 @@ static void
 hse_lowmem_adjust(unsigned long *memgb)
 {
     struct hse_gparams gpdef = hse_gparams_defaults();
-    unsigned long      mavail = 0;
+    unsigned long mavail = 0;
 
     /* [HSE_REVISIT] mapi breaks initialization of mavail.
      */
@@ -122,9 +123,9 @@ hse_lowmem_adjust(unsigned long *memgb)
 
 static enum rest_status
 rest_get_dt(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     char *data;
     merr_t err;
@@ -135,8 +136,9 @@ rest_get_dt(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     snprintf(dt_path, sizeof(dt_path), DT_PATH_ROOT "%s", req->rr_actual);
 
@@ -149,18 +151,18 @@ rest_get_dt(
              * that is too long.
              */
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                "Data tree element does not exist", merr(ENOENT));
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Data tree element does not exist", merr(ENOENT));
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", merr(EBADMSG));
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", merr(EBADMSG));
         }
     }
 
     data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!data)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -177,17 +179,18 @@ out:
 
 static enum rest_status
 rest_global_params_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     bool pretty;
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     /* Check for single parameter or all parameters */
     if (strcmp(req->rr_matched, req->rr_actual)) {
@@ -207,11 +210,11 @@ rest_global_params_get(
             case EINVAL:
                 return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
             case ENOENT:
-                return rest_response_perror(resp, REST_STATUS_NOT_FOUND,
-                    "Parameter does not exist", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
             default:
-                return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                    "Unhandled error", err);
+                return rest_response_perror(
+                    resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
             }
         }
 
@@ -222,8 +225,8 @@ rest_global_params_get(
             dbuf_sz = needed_sz + 1;
             dbuf = malloc(dbuf_sz * sizeof(*dbuf));
             if (ev(!dbuf))
-                return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                    merr(ENOMEM));
+                return rest_response_perror(
+                    resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
             err = hse_gparams_get(&hse_gparams, param, dbuf, dbuf_sz, NULL);
             assert(err == 0);
@@ -239,14 +242,14 @@ rest_global_params_get(
 
         root = hse_gparams_to_json(&hse_gparams);
         if (ev(!root))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         data = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
         cJSON_Delete(root);
         if (ev(!data))
-            return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                merr(ENOMEM));
+            return rest_response_perror(
+                resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
         fputs(data, resp->rr_stream);
         cJSON_free(data);
@@ -259,9 +262,9 @@ rest_global_params_get(
 
 static enum rest_status
 rest_global_params_put(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
-    void *const ctx)
+    const struct rest_request * const req,
+    struct rest_response * const resp,
+    void * const ctx)
 {
     merr_t err;
     const char *param;
@@ -270,13 +273,15 @@ rest_global_params_put(
 
     /* Check for case when no parameter is specified, /params */
     if (ev(!has_param))
-        return rest_response_perror(resp, REST_STATUS_METHOD_NOT_ALLOWED,
-            "Method for endpoint does not exist", merr(ENOENT));
+        return rest_response_perror(
+            resp, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
+            merr(ENOENT));
 
     content_type = rest_headers_get(req->rr_headers, REST_HEADER_CONTENT_TYPE);
     if (ev(!content_type || strcmp(content_type, REST_APPLICATION_JSON) != 0))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "Invalid '"REST_HEADER_CONTENT_TYPE"' header", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "Invalid '" REST_HEADER_CONTENT_TYPE "' header",
+            merr(EINVAL));
 
     /* move past the final '/' */
     param = req->rr_actual + strlen(req->rr_matched) + 1;
@@ -289,13 +294,13 @@ rest_global_params_put(
         case EINVAL:
             return rest_response_perror(resp, REST_STATUS_BAD_REQUEST, "No request body", err);
         case ENOENT:
-            return rest_response_perror(resp, REST_STATUS_NOT_FOUND, "Parameter does not exist",
-                err);
+            return rest_response_perror(
+                resp, REST_STATUS_NOT_FOUND, "Parameter does not exist", err);
         case EROFS:
             return rest_response_perror(resp, REST_STATUS_LOCKED, "Parameter is not writable", err);
         default:
-            return rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            return rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
         }
     }
 
@@ -381,7 +386,7 @@ hse_conf_validate(cJSON *config)
 }
 
 hse_err_t
-hse_init(const char *const config, const size_t paramc, const char *const *const paramv)
+hse_init(const char * const config, const size_t paramc, const char * const * const paramv)
 {
     ulong memgb;
     merr_t err = 0;
@@ -491,10 +496,10 @@ hse_fini(void)
 
 hse_err_t
 hse_param_get(
-    const char *const param,
-    char *const       buf,
-    const size_t      buf_sz,
-    size_t *const     needed_sz)
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     if (!param || (buf_sz > 0 && !buf))
         return merr(EINVAL);
@@ -503,7 +508,7 @@ hse_param_get(
 }
 
 hse_err_t
-hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const paramv)
+hse_kvdb_create(const char *kvdb_home, size_t paramc, const char * const * const paramv)
 {
     size_t n;
     merr_t err;
@@ -633,10 +638,10 @@ hse_kvdb_drop(const char *kvdb_home)
 
 hse_err_t
 hse_kvdb_open(
-    const char *             kvdb_home,
-    size_t                   paramc,
-    const char *const *const paramv,
-    struct hse_kvdb **       handle)
+    const char *kvdb_home,
+    size_t paramc,
+    const char * const * const paramv,
+    struct hse_kvdb **handle)
 {
     size_t n;
     merr_t err;
@@ -728,7 +733,8 @@ hse_kvdb_open(
     n = strlcpy(content.alias, ikvdb_alias(ikvdb), sizeof(content.alias));
     assert(n < sizeof(content.alias));
     if (hse_gparams.gp_rest.enabled)
-        strlcpy(content.rest.socket_path, hse_gparams.gp_rest.socket_path,
+        strlcpy(
+            content.rest.socket_path, hse_gparams.gp_rest.socket_path,
             sizeof(content.rest.socket_path));
 
     err = pidfile_serialize(pfh, &content);
@@ -863,11 +869,11 @@ out:
 
 hse_err_t
 hse_kvdb_param_get(
-    struct hse_kvdb *const handle,
-    const char *const      param,
-    char *const            buf,
-    const size_t           buf_sz,
-    size_t *const          needed_sz)
+    struct hse_kvdb * const handle,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     if (!handle || !param || (buf_sz > 0 && !buf))
         return merr(EINVAL);
@@ -901,9 +907,9 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *handle, char **namev)
 
 hse_err_t
 hse_kvdb_mclass_info_get(
-    struct hse_kvdb *const        handle,
-    const enum hse_mclass         mclass,
-    struct hse_mclass_info *const info)
+    struct hse_kvdb * const handle,
+    const enum hse_mclass mclass,
+    struct hse_mclass_info * const info)
 {
     if (!handle || !(mclass >= HSE_MCLASS_BASE && mclass <= HSE_MCLASS_MAX) || !info)
         return merr(EINVAL);
@@ -914,7 +920,7 @@ hse_kvdb_mclass_info_get(
 }
 
 bool
-hse_kvdb_mclass_is_configured(struct hse_kvdb *const handle, const enum hse_mclass mclass)
+hse_kvdb_mclass_is_configured(struct hse_kvdb * const handle, const enum hse_mclass mclass)
 {
     if (!handle || !(mclass >= HSE_MCLASS_BASE && mclass <= HSE_MCLASS_MAX))
         return false;
@@ -925,9 +931,9 @@ hse_kvdb_mclass_is_configured(struct hse_kvdb *const handle, const enum hse_mcla
 hse_err_t
 hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const char *path)
 {
-    merr_t         err;
-    char           pidfile_path[PATH_MAX];
-    struct pidfh  *pfh;
+    merr_t err;
+    char pidfile_path[PATH_MAX];
+    struct pidfh *pfh;
 
     if (!kvdb_home) {
         log_err("A KVDB home must be provided");
@@ -935,8 +941,9 @@ hse_kvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const
     }
 
     if (!path) {
-        log_err("Cannot reconfigure %s mclass path for the KVDB (%s) if path is NULL",
-                hse_mclass_name_get(mclass), kvdb_home);
+        log_err(
+            "Cannot reconfigure %s mclass path for the KVDB (%s) if path is NULL",
+            hse_mclass_name_get(mclass), kvdb_home);
         return merr(EINVAL);
     }
 
@@ -967,13 +974,12 @@ out:
     return err;
 }
 
-
 hse_err_t
 hse_kvdb_kvs_create(
-    struct hse_kvdb *        handle,
-    const char *             kvs_name,
-    size_t                   paramc,
-    const char *const *const paramv)
+    struct hse_kvdb *handle,
+    const char *kvs_name,
+    size_t paramc,
+    const char * const * const paramv)
 {
     merr_t err;
     struct kvs_cparams params = kvs_cparams_defaults();
@@ -1011,7 +1017,7 @@ hse_kvdb_kvs_create(
 }
 
 hse_err_t
-hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *const kvs_name)
+hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char * const kvs_name)
 {
     merr_t err;
 
@@ -1032,11 +1038,11 @@ hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *const kvs_name)
 
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *        handle,
-    const char *             kvs_name,
-    size_t                   paramc,
-    const char *const *const paramv,
-    struct hse_kvs **        kvs_out)
+    struct hse_kvdb *handle,
+    const char *kvs_name,
+    size_t paramc,
+    const char * const * const paramv,
+    struct hse_kvs **kvs_out)
 {
     merr_t err;
     uint64_t tstart;
@@ -1092,7 +1098,7 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
 }
 
 const char *
-hse_kvdb_home_get(struct hse_kvdb *const handle)
+hse_kvdb_home_get(struct hse_kvdb * const handle)
 {
     if (!handle)
         return NULL;
@@ -1101,13 +1107,13 @@ hse_kvdb_home_get(struct hse_kvdb *const handle)
 }
 
 hse_err_t
-hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *const paramv)
+hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char * const * const paramv)
 {
     struct kvdb_cparams cparams = kvdb_cparams_defaults();
-    merr_t              err;
-    char                pidfile_path[PATH_MAX];
-    struct pidfh *      pfh;
-    size_t              n;
+    merr_t err;
+    char pidfile_path[PATH_MAX];
+    struct pidfh *pfh;
+    size_t n;
 
     if (!kvdb_home) {
         log_err("A KVDB home must be provided");
@@ -1165,7 +1171,7 @@ out:
 }
 
 const char *
-hse_kvs_name_get(struct hse_kvs *const handle)
+hse_kvs_name_get(struct hse_kvs * const handle)
 {
     if (!handle)
         return NULL;
@@ -1175,11 +1181,11 @@ hse_kvs_name_get(struct hse_kvs *const handle)
 
 hse_err_t
 hse_kvs_param_get(
-    struct hse_kvs *const handle,
-    const char *const     param,
-    char *const           buf,
-    const size_t          buf_sz,
-    size_t *const         needed_sz)
+    struct hse_kvs * const handle,
+    const char * const param,
+    char * const buf,
+    const size_t buf_sz,
+    size_t * const needed_sz)
 {
     if (!handle || !param || (buf_sz > 0 && !buf))
         return merr(EINVAL);
@@ -1189,19 +1195,20 @@ hse_kvs_param_get(
 
 hse_err_t
 hse_kvs_put(
-    struct hse_kvs *           handle,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
-    const void *               key,
-    size_t                     key_len,
-    const void *               val,
-    size_t                     val_len)
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *key,
+    size_t key_len,
+    const void *val,
+    size_t val_len)
 {
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    merr_t            err;
+    merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK ||
+    if (HSE_UNLIKELY(
+            !handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK ||
             (flags & HSE_KVS_PUT_VCOMP_MASK) == HSE_KVS_PUT_VCOMP_MASK))
         return merr(EINVAL);
 
@@ -1229,20 +1236,20 @@ hse_kvs_put(
 
 hse_err_t
 hse_kvs_get(
-    struct hse_kvs *           handle,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
-    const void *               key,
-    size_t                     key_len,
-    bool *                     found,
-    void *                     valbuf,
-    size_t                     valbuf_sz,
-    size_t *                   val_len)
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *key,
+    size_t key_len,
+    bool *found,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len)
 {
-    struct kvs_ktuple   kt;
-    struct kvs_buf      vbuf;
+    struct kvs_ktuple kt;
+    struct kvs_buf vbuf;
     enum key_lookup_res res;
-    merr_t              err;
+    merr_t err;
 
     if (HSE_UNLIKELY(!handle || !key || !found || !val_len || flags != 0))
         return merr(EINVAL);
@@ -1291,13 +1298,13 @@ hse_kvs_get(
  */
 hse_err_t
 hse_kvs_delete(
-    struct hse_kvs *           handle,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
-    const void *               key,
-    size_t                     key_len)
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *key,
+    size_t key_len)
 {
-    merr_t            err = 0;
+    merr_t err = 0;
     struct kvs_ktuple kt;
 
     if (HSE_UNLIKELY(!handle || !key || flags != 0))
@@ -1322,18 +1329,18 @@ hse_kvs_delete(
 
 hse_err_t
 hse_kvs_prefix_probe(
-    struct hse_kvs *            handle,
-    const unsigned int          flags,
-    struct hse_kvdb_txn *const  txn,
-    const void *                pfx,
-    size_t                      pfx_len,
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *pfx,
+    size_t pfx_len,
     enum hse_kvs_pfx_probe_cnt *found,
-    void *                      keybuf,
-    size_t                      keybuf_sz,
-    size_t *                    key_len,
-    void *                      valbuf,
-    size_t                      valbuf_sz,
-    size_t *                    val_len)
+    void *keybuf,
+    size_t keybuf_sz,
+    size_t *key_len,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len)
 {
     merr_t err = 0;
     struct kvs_ktuple kt;
@@ -1389,21 +1396,21 @@ hse_kvs_prefix_probe(
         break;
     }
 
-    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB,
-                    kbuf.b_len + vbuf.b_len);
+    PERFC_INCADD_RU(
+        &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB, kbuf.b_len + vbuf.b_len);
 
     return 0;
 }
 
 hse_err_t
 hse_kvs_prefix_delete(
-    struct hse_kvs *           handle,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
-    const void *               pfx,
-    size_t                     pfx_len)
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *pfx,
+    size_t pfx_len)
 {
-    merr_t            err;
+    merr_t err;
     struct kvs_ktuple kt;
 
     if (HSE_UNLIKELY(!handle || !pfx || flags != 0))
@@ -1430,7 +1437,7 @@ hse_kvs_prefix_delete(
 hse_err_t
 hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 {
-    merr_t   err;
+    merr_t err;
     uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || flags & ~HSE_KVDB_SYNC_MASK))
@@ -1487,7 +1494,7 @@ hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t   err;
+    merr_t err;
     uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
@@ -1507,7 +1514,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t   err;
+    merr_t err;
     uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
@@ -1527,7 +1534,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 hse_err_t
 hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    merr_t   err;
+    merr_t err;
     uint64_t tstart;
 
     if (HSE_UNLIKELY(!handle || !txn))
@@ -1548,8 +1555,8 @@ enum hse_kvdb_txn_state
 hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
     enum hse_kvdb_txn_state state = 0;
-    enum kvdb_ctxn_state    istate;
-    struct kvdb_ctxn *      ctxn;
+    enum kvdb_ctxn_state istate;
+    struct kvdb_ctxn *ctxn;
 
     if (HSE_UNLIKELY(!handle || !txn))
         return HSE_KVDB_TXN_INVALID;
@@ -1561,21 +1568,21 @@ hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     istate = kvdb_ctxn_get_state(ctxn);
 
     switch (istate) {
-        case KVDB_CTXN_ACTIVE:
-            state = HSE_KVDB_TXN_ACTIVE;
-            break;
+    case KVDB_CTXN_ACTIVE:
+        state = HSE_KVDB_TXN_ACTIVE;
+        break;
 
-        case KVDB_CTXN_COMMITTED:
-            state = HSE_KVDB_TXN_COMMITTED;
-            break;
+    case KVDB_CTXN_COMMITTED:
+        state = HSE_KVDB_TXN_COMMITTED;
+        break;
 
-        case KVDB_CTXN_ABORTED:
-            state = HSE_KVDB_TXN_ABORTED;
-            break;
+    case KVDB_CTXN_ABORTED:
+        state = HSE_KVDB_TXN_ABORTED;
+        break;
 
-        default:
-            state = HSE_KVDB_TXN_INVALID;
-            break;
+    default:
+        state = HSE_KVDB_TXN_INVALID;
+        break;
     }
 
     return state;
@@ -1585,14 +1592,14 @@ hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
 hse_err_t
 hse_kvs_cursor_create(
-    struct hse_kvs *           handle,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn,
-    const void *               prefix,
-    size_t                     pfx_len,
-    struct hse_kvs_cursor **   cursor)
+    struct hse_kvs *handle,
+    const unsigned int flags,
+    struct hse_kvdb_txn * const txn,
+    const void *prefix,
+    size_t pfx_len,
+    struct hse_kvs_cursor **cursor)
 {
-    merr_t   err;
+    merr_t err;
     uint64_t t_cur;
 
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_CURSOR_CREATE_MASK))
@@ -1630,14 +1637,14 @@ hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, const unsigned int fla
 hse_err_t
 hse_kvs_cursor_seek(
     struct hse_kvs_cursor *cursor,
-    const unsigned int     flags,
-    const void *           key,
-    size_t                 len,
-    const void **          found,
-    size_t *               flen)
+    const unsigned int flags,
+    const void *key,
+    size_t len,
+    const void **found,
+    size_t *flen)
 {
     struct kvs_ktuple kt;
-    merr_t            err;
+    merr_t err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr(EINVAL);
@@ -1659,16 +1666,16 @@ hse_kvs_cursor_seek(
 hse_err_t
 hse_kvs_cursor_seek_range(
     struct hse_kvs_cursor *cursor,
-    const unsigned int     flags,
-    const void *           key,
-    size_t                 key_len,
-    const void *           limit,
-    size_t                 limit_len,
-    const void **          found,
-    size_t *               flen)
+    const unsigned int flags,
+    const void *key,
+    size_t key_len,
+    const void *limit,
+    size_t limit_len,
+    const void **found,
+    size_t *flen)
 {
     struct kvs_ktuple kt;
-    merr_t            err;
+    merr_t err;
 
     if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr(EINVAL);
@@ -1690,12 +1697,12 @@ hse_kvs_cursor_seek_range(
 hse_err_t
 hse_kvs_cursor_read(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    const void **          key,
-    size_t *               klen,
-    const void **          val,
-    size_t *               vlen,
-    bool *                 eof)
+    unsigned int flags,
+    const void **key,
+    size_t *klen,
+    const void **val,
+    size_t *vlen,
+    bool *eof)
 {
     merr_t err;
 
@@ -1723,14 +1730,14 @@ hse_kvs_cursor_read(
 hse_err_t
 hse_kvs_cursor_read_copy(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    void *                 keybuf,
-    size_t                 keybuf_sz,
-    size_t *               key_len,
-    void *                 valbuf,
-    size_t                 valbuf_sz,
-    size_t *               val_len,
-    bool *                 eof)
+    unsigned int flags,
+    void *keybuf,
+    size_t keybuf_sz,
+    size_t *key_len,
+    void *valbuf,
+    size_t valbuf_sz,
+    size_t *val_len,
+    bool *eof)
 {
     merr_t err;
 
@@ -1740,8 +1747,8 @@ hse_kvs_cursor_read_copy(
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
         return merr(EINVAL);
 
-    err = ikvdb_kvs_cursor_read_copy(cursor, flags, keybuf, keybuf_sz, key_len,
-        valbuf, valbuf_sz, val_len, eof);
+    err = ikvdb_kvs_cursor_read_copy(
+        cursor, flags, keybuf, keybuf_sz, key_len, valbuf, valbuf_sz, val_len, eof);
     ev(err);
 
     if (!err && !*eof) {
@@ -1755,7 +1762,6 @@ hse_kvs_cursor_read_copy(
 
     return err;
 }
-
 
 hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)

@@ -24,15 +24,15 @@ typedef int
 bin_heap_compare_fn(const void *a, const void *b);
 
 struct heap_node {
-    void *                 hn_data;
+    void *hn_data;
     struct element_source *hn_es;
 };
 
-#define BIN_HEAP_BODY                      \
-    struct {                               \
-        int                  bh_width;     \
-        int                  bh_max_width; \
-        bin_heap_compare_fn *bh_cmp;       \
+#define BIN_HEAP_BODY                \
+    struct {                         \
+        int bh_width;                \
+        int bh_max_width;            \
+        bin_heap_compare_fn *bh_cmp; \
     }
 
 struct bin_heap {

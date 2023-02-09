@@ -4,23 +4,24 @@
  */
 
 #include <stdint.h>
+
 #include <sys/mman.h>
 
+#include <hse/util/alloc.h>
 #include <hse/util/arch.h>
 #include <hse/util/assert.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
-#include <hse/util/xrand.h>
-#include <hse/util/minmax.h>
-#include <hse/util/event_counter.h>
 #include <hse/util/cursor_heap.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/minmax.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
+#include <hse/util/xrand.h>
 
 struct cheap *
 cheap_create(size_t alignment, size_t size)
 {
     struct cheap *h = NULL;
-    void *        mem;
+    void *mem;
 
     if (alignment < 2)
         alignment = 1;
@@ -99,7 +100,7 @@ void
 cheap_trim(struct cheap *h, size_t rss)
 {
     size_t len;
-    int    rc;
+    int rc;
 
     assert(h->magic == (uintptr_t)h);
 

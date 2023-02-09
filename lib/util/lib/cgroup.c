@@ -3,17 +3,17 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/util/platform.h>
+#include <mntent.h>
+
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
-
-#include <mntent.h>
+#include <hse/util/platform.h>
 
 enum cgroup_version {
     CGROUP_VERS_UNKNOWN = 0,
-    CGROUP_VERS_1       = 1,
-    CGROUP_VERS_2       = 2,
-    CGROUP_VERS_NONE    = 3,
+    CGROUP_VERS_1 = 1,
+    CGROUP_VERS_2 = 2,
+    CGROUP_VERS_NONE = 3,
 };
 
 static enum cgroup_version cgvers = CGROUP_VERS_UNKNOWN;
@@ -142,15 +142,17 @@ hse_meminfo_cgroup(unsigned long *freep, unsigned long *availp, unsigned int shi
     snprintf(cgpath, sz, "%s%s", cgmntpt, buf);
 
     /* Determine cgroup mem limit */
-    snprintf(buf, sizeof(buf), "%s/memory.%s", cgpath,
-             (cgvers == CGROUP_VERS_1) ? "limit_in_bytes" : "max");
+    snprintf(
+        buf, sizeof(buf), "%s/memory.%s", cgpath,
+        (cgvers == CGROUP_VERS_1) ? "limit_in_bytes" : "max");
     n = cgroup_parse_ulong(buf, fmt_ulong, &total);
     if (n != 1 || total == 0 || total >= (INT64_MAX & PAGE_MASK))
         goto errout;
 
     /* Determine cgroup mem usage */
-    snprintf(buf, sizeof(buf), "%s/memory.%s", cgpath,
-             (cgvers == CGROUP_VERS_1) ? "usage_in_bytes" : "current");
+    snprintf(
+        buf, sizeof(buf), "%s/memory.%s", cgpath,
+        (cgvers == CGROUP_VERS_1) ? "usage_in_bytes" : "current");
     n = cgroup_parse_ulong(buf, fmt_ulong, &used);
     if (n != 1)
         goto errout;
@@ -163,7 +165,7 @@ hse_meminfo_cgroup(unsigned long *freep, unsigned long *availp, unsigned int shi
 
         snprintf(buf, sizeof(buf), "%s/memory.stat", cgpath);
         n = cgroup_parse_ulong(
-                buf, (cgvers == CGROUP_VERS_1) ? fmt_cache_v1 : fmt_cache_v2, &cached);
+            buf, (cgvers == CGROUP_VERS_1) ? fmt_cache_v1 : fmt_cache_v2, &cached);
         if (n != 1)
             goto errout;
 

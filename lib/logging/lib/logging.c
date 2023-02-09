@@ -30,7 +30,7 @@ static thread_local char log_buffer_tls[1024];
 static uint64_t log_squelch_ns = LOG_SQUELCH_NS_DEFAULT;
 
 static void HSE_PRINTF(2, 3)
-backstop(const int level, const char *const fmt, ...)
+backstop(const int level, const char * const fmt, ...)
 {
     va_list args;
 
@@ -46,7 +46,7 @@ backstop(const int level, const char *const fmt, ...)
 }
 
 merr_t
-logging_init(const struct logging_params *const params, merr_stringify *const ctx_stringify)
+logging_init(const struct logging_params * const params, merr_stringify * const ctx_stringify)
 {
     FILE *fp = NULL;
 
@@ -75,8 +75,9 @@ logging_init(const struct logging_params *const params, merr_stringify *const ct
 
             merr_strinfo(err, buf, sizeof(buf), NULL, NULL);
 
-            fprintf(stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s\n",
-                REL_FILE(__FILE__), __LINE__, __func__, params->lp_path, buf);
+            fprintf(
+                stderr, "[HSE] %s:%d %s: failed to open log file (%s): %s\n", REL_FILE(__FILE__),
+                __LINE__, __func__, params->lp_path, buf);
             return err;
         }
 
@@ -113,14 +114,14 @@ logging_fini(void)
 
 void
 log_impl(
-    const int level,        /* log level                     */
-    const char *const file, /* file                          */
-    const int lineno,       /* line number                   */
-    const char *const func, /* function name                 */
-    uint64_t *const timer,  /* timer                         */
-    const merr_t err,       /* error value                   */
-    const char *const fmt,  /* format string                 */
-    ...)                    /* variable-length argument list */
+    const int level,         /* log level                     */
+    const char * const file, /* file                          */
+    const int lineno,        /* line number                   */
+    const char * const func, /* function name                 */
+    uint64_t * const timer,  /* timer                         */
+    const merr_t err,        /* error value                   */
+    const char * const fmt,  /* format string                 */
+    ...)                     /* variable-length argument list */
 {
     int rc;
     va_list args;
@@ -149,19 +150,22 @@ log_impl(
         merr_strinfo(err, buf, sizeof(buf), log_err_ctx_stringify, &needed_sz);
         assert(needed_sz < sizeof(buf));
 
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls),
-            "[HSE] %s:%d: %s: %s: %s\n",
-            file, lineno, func, fmt, buf);
+        rc = snprintf(
+            log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d: %s: %s: %s\n", file, lineno, func,
+            fmt, buf);
     } else {
-        rc = snprintf(log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d: %s: %s\n",
-            file, lineno, func, fmt);
+        rc = snprintf(
+            log_buffer_tls, sizeof(log_buffer_tls), "[HSE] %s:%d: %s: %s\n", file, lineno, func,
+            fmt);
     }
     if (rc >= sizeof(log_buffer_tls)) {
-        backstop(LOG_ERR, "[HSE] %s:%d: %s: scatch buffer size too small, needed %d for %s:%d\n",
+        backstop(
+            LOG_ERR, "[HSE] %s:%d: %s: scatch buffer size too small, needed %d for %s:%d\n",
             REL_FILE(__FILE__), __LINE__ - 1, __func__, rc, file, lineno);
     } else if (rc < 0) {
-        backstop(LOG_ERR, "[HSE] %s:%d: %s: bad format string from %s:%d\n",
-            REL_FILE(__FILE__), __LINE__ - 1, __func__, file, lineno);
+        backstop(
+            LOG_ERR, "[HSE] %s:%d: %s: bad format string from %s:%d\n", REL_FILE(__FILE__),
+            __LINE__ - 1, __func__, file, lineno);
 
         return;
     }
@@ -180,9 +184,8 @@ log_impl(
 const char *
 log_level_to_string(int level)
 {
-    static const char *namev[] = {
-        "EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
-    };
+    static const char *namev[] = { "EMERG",   "ALERT",  "CRIT", "ERR",
+                                   "WARNING", "NOTICE", "INFO", "DEBUG" };
 
     level = clamp_t(int, level, 0, NELEM(namev) - 1);
 

@@ -26,8 +26,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/fmt.h>
 
 #include <hse/tools/common.h>
@@ -38,11 +39,7 @@ enum Actions { PUT = 0, GET = 1, DEL = 2, VFY = 3 };
 struct parm_groups *pg;
 
 int
-do_open(
-    const char *      mpname,
-    const char *      kvname,
-    struct hse_kvdb **kvdb,
-    struct hse_kvs ** kvs)
+do_open(const char *mpname, const char *kvname, struct hse_kvdb **kvdb, struct hse_kvs **kvs)
 {
     int rc;
     uint64_t err;
@@ -91,18 +88,18 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    static char      buf[(HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
+    static char buf[(HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
     struct parm_groups *pg = NULL;
-    char *           mpname;
-    const char *     kvsname;
+    char *mpname;
+    const char *kvsname;
     struct hse_kvdb *kvdb;
-    struct hse_kvs * kvs;
-    hse_err_t        err;
-    int              c, rc, help;
-    bool             fnd;
-    enum Actions     action;
-    struct svec      hse_gparm = { 0 };
-    const char *     config = NULL;
+    struct hse_kvs *kvs;
+    hse_err_t err;
+    int c, rc, help;
+    bool fnd;
+    enum Actions action;
+    struct svec hse_gparm = { 0 };
+    const char *config = NULL;
 
     progname_set(argv[0]);
 
@@ -115,28 +112,28 @@ main(int argc, char **argv)
 
     while ((c = getopt(argc, argv, "?PGDVCzZ:")) != -1) {
         switch (c) {
-            case 'P':
-                action = PUT;
-                break;
-            case 'G':
-                action = GET;
-                break;
-            case 'D':
-                action = DEL;
-                break;
-            case 'V':
-                action = VFY;
-                break;
-            case 'z':
-                Opts.zero++;
-                break;
-            case 'Z':
-                config = optarg;
-                break;
-            case '?': /* fallthru */
-            default:
-                help = 1;
-                break;
+        case 'P':
+            action = PUT;
+            break;
+        case 'G':
+            action = GET;
+            break;
+        case 'D':
+            action = DEL;
+            break;
+        case 'V':
+            action = VFY;
+            break;
+        case 'z':
+            Opts.zero++;
+            break;
+        case 'Z':
+            config = optarg;
+            break;
+        case '?': /* fallthru */
+        default:
+            help = 1;
+            break;
         }
     }
 
@@ -152,17 +149,16 @@ main(int argc, char **argv)
     /* get hse parms from command line */
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
@@ -181,11 +177,11 @@ main(int argc, char **argv)
         static char vbuf[HSE_KVS_VALUE_LEN_MAX];
         static char gbuf[HSE_KVS_VALUE_LEN_MAX];
         static char obuf[HSE_KVS_VALUE_LEN_MAX];
-        char *      key = buf;
-        char *      val = 0;
-        char *      cp = strchr(buf, ' ');
-        int         klen, vlen;
-        size_t      glen;
+        char *key = buf;
+        char *val = 0;
+        char *cp = strchr(buf, ' ');
+        int klen, vlen;
+        size_t glen;
 
         buf[strlen(buf) - 1] = 0; /* lose trailing newline */
 
@@ -211,27 +207,27 @@ main(int argc, char **argv)
         vlen = fmt_data(vbuf, val);
 
         switch (action) {
-            case PUT:
-                err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
+        case PUT:
+            err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
+            break;
+        case DEL:
+            err = hse_kvs_delete(kvs, 0, NULL, kbuf, klen);
+            break;
+        case GET:
+        case VFY:
+            glen = sizeof(gbuf);
+            err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, gbuf, glen, &glen);
+            if (err)
                 break;
-            case DEL:
-                err = hse_kvs_delete(kvs, 0, NULL, kbuf, klen);
-                break;
-            case GET:
-            case VFY:
-                glen = sizeof(gbuf);
-                err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, gbuf, glen, &glen);
-                if (err)
-                    break;
-                if (!fnd)
-                    warn(ENOENT, "cannot find key %s", key);
-                else if (action == GET)
-                    show(kbuf, klen, gbuf, glen, 0);
-                else if (glen != vlen || memcmp(vbuf, gbuf, vlen)) {
-                    fmt_pe(obuf, sizeof(gbuf), gbuf, glen);
-                    warn(EIO, "wanted %d/%s, got %ld/%s", vlen, val, glen, obuf);
-                }
-                break;
+            if (!fnd)
+                warn(ENOENT, "cannot find key %s", key);
+            else if (action == GET)
+                show(kbuf, klen, gbuf, glen, 0);
+            else if (glen != vlen || memcmp(vbuf, gbuf, vlen)) {
+                fmt_pe(obuf, sizeof(gbuf), gbuf, glen);
+                warn(EIO, "wanted %d/%s, got %ld/%s", vlen, val, glen, obuf);
+            }
+            break;
         }
     }
 

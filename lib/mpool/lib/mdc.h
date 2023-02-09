@@ -6,11 +6,11 @@
 #ifndef MPOOL_MDC_H
 #define MPOOL_MDC_H
 
-#include <hse/util/mutex.h>
 #include <hse/error/merr.h>
+#include <hse/util/mutex.h>
 
-#define MDC_FILES_MAX        10
-#define MDC_NAME_LENGTH_MAX  128
+#define MDC_FILES_MAX       10
+#define MDC_NAME_LENGTH_MAX 128
 
 struct mpool;
 struct mpool_mdc;

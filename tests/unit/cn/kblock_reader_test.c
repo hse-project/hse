@@ -5,25 +5,25 @@
 
 #include <sys/mman.h>
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/logging/logging.h>
 #include <hse/util/bloom_filter.h>
 #include <hse/util/page.h>
 
-#include "cn/omf.h"
-#include "cn/kblock_reader.h"
+#include <hse/test/mtf/framework.h>
+
 #include "cn/bloom_reader.h"
+#include "cn/cn_metrics.h"
+#include "cn/kblock_reader.h"
+#include "cn/omf.h"
 #include "cn/wbt_internal.h"
 #include "cn/wbt_reader.h"
-#include "cn/cn_metrics.h"
 
 /* 1 header page + 4 wbtree pages + 3 bloom pages */
-#define FAKE_WBTREE_DOFF_PG  1
-#define FAKE_WBTREE_DLEN_PG  4
+#define FAKE_WBTREE_DOFF_PG 1
+#define FAKE_WBTREE_DLEN_PG 4
 
-#define FAKE_BLOOM_DOFF_PG   5
-#define FAKE_BLOOM_DLEN_PG   3
+#define FAKE_BLOOM_DOFF_PG 5
+#define FAKE_BLOOM_DLEN_PG 3
 
 #define FAKE_KBLOCK_SIZE ((1 + 4 + 3) * PAGE_SIZE)
 
@@ -33,17 +33,17 @@ size_t madvise_len;
 uint8_t kblock[FAKE_KBLOCK_SIZE];
 struct kvs_mblk_desc mblk;
 
-#define NUM_KEYS         1178
-#define NUM_TOMBSTONES    100
-#define TOT_KEY_BYTES    (NUM_KEYS * 20)
-#define TOT_VAL_BYTES    (NUM_KEYS * 100)
-#define TOT_KVLEN        (NUM_KEYS * 200)
-#define TOT_VUSED_BYTES  ((NUM_KEYS * 100) - 100)
-#define TOT_VGARB_BYTES   0
+#define NUM_KEYS        1178
+#define NUM_TOMBSTONES  100
+#define TOT_KEY_BYTES   (NUM_KEYS * 20)
+#define TOT_VAL_BYTES   (NUM_KEYS * 100)
+#define TOT_KVLEN       (NUM_KEYS * 200)
+#define TOT_VUSED_BYTES ((NUM_KEYS * 100) - 100)
+#define TOT_VGARB_BYTES 0
 
-#define HOFF_ALIGN  8
-#define WBT_HOFF ((sizeof(struct kblock_hdr_omf) + HOFF_ALIGN) & ~(HOFF_ALIGN - 1))
-#define BLM_HOFF (WBT_HOFF + ((sizeof(struct wbt_hdr_omf) + HOFF_ALIGN) & ~(HOFF_ALIGN - 1)))
+#define HOFF_ALIGN 8
+#define WBT_HOFF   ((sizeof(struct kblock_hdr_omf) + HOFF_ALIGN) & ~(HOFF_ALIGN - 1))
+#define BLM_HOFF   (WBT_HOFF + ((sizeof(struct wbt_hdr_omf) + HOFF_ALIGN) & ~(HOFF_ALIGN - 1)))
 
 const struct kblk_metrics met = {
     .num_keys = NUM_KEYS,
@@ -215,7 +215,6 @@ MTF_DEFINE_UTEST_PRE(kblock_reader, t_kbr_read_metrics, pre)
     ASSERT_EQ(met.tot_vused_bytes, kbhro.kbh_vused_bytes);
     ASSERT_EQ(met.tot_wbt_pages, kbhro.kbh_wbt_dlen_pg);
     ASSERT_EQ(met.tot_blm_pages, kbhro.kbh_blm_dlen_pg);
-
 }
 
 MTF_DEFINE_UTEST_PRE(kblock_reader, t_kbr_read_invalid_version, pre)

@@ -6,27 +6,27 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/assert.h>
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/minmax.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/mutex.h>
-#include <hse/util/log2.h>
-#include <hse/util/page.h>
-#include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/log2.h>
+#include <hse/util/minmax.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/spinlock.h>
 
 #define MTF_MOCK_IMPL_viewset
 
-#include "viewset.h"
+#include <semaphore.h>
 
 #include <hse/ikvdb/limits.h>
 
-#include <semaphore.h>
+#include "viewset.h"
 
-#define VIEWSET_BKT_MAX         (16)
+#define VIEWSET_BKT_MAX (16)
 
 #define viewlock_t              spinlock_t
 #define viewlock_init(_view)    spin_lock_init(&(_view)->vs_lock)
@@ -40,8 +40,7 @@
 #define treelock_trylock(_tree) mutex_trylock(&(_tree)->vst_lock)
 #define treelock_unlock(_tree)  mutex_unlock(&(_tree)->vst_lock)
 
-struct viewset {
-};
+struct viewset {};
 
 /**
  * struct viewset_bkt -
@@ -51,8 +50,8 @@ struct viewset {
  */
 struct viewset_bkt {
     struct viewset_tree *vsb_tree;
-    volatile uint64_t    vsb_min_view_sns;
-    atomic_int           vsb_active HSE_ACP_ALIGNED;
+    volatile uint64_t vsb_min_view_sns;
+    atomic_int vsb_active HSE_ACP_ALIGNED;
 };
 
 /**
@@ -70,9 +69,9 @@ struct viewset_bkt {
  * @vs_bktv:           active client transaction sets
  */
 struct viewset_impl {
-    struct viewset      vs_handle;
-    atomic_ulong       *vs_seqno_addr;
-    atomic_ulong       *vs_tseqnop;
+    struct viewset vs_handle;
+    atomic_ulong *vs_seqno_addr;
+    atomic_ulong *vs_tseqnop;
     struct viewset_bkt *vs_bkt_first;
     struct viewset_bkt *vs_bkt_last;
 
@@ -81,11 +80,11 @@ struct viewset_impl {
     atomic_ulong vs_horizon;
 
     struct {
-        sem_t  vs_sema HSE_ACP_ALIGNED;
+        sem_t vs_sema HSE_ACP_ALIGNED;
     } vs_nodev[2];
 
-    viewlock_t vs_lock     HSE_ACP_ALIGNED;
-    uint       vs_chgaccum HSE_L1X_ALIGNED;
+    viewlock_t vs_lock HSE_ACP_ALIGNED;
+    uint vs_chgaccum HSE_L1X_ALIGNED;
     atomic_int vs_changing HSE_ACP_ALIGNED;
 
     struct viewset_bkt vs_bktv[VIEWSET_BKT_MAX];
@@ -96,7 +95,7 @@ struct viewset_impl {
 struct viewset_tree;
 
 struct viewset_entry {
-    struct list_head    vse_link HSE_L1D_ALIGNED;
+    struct list_head vse_link HSE_L1D_ALIGNED;
     struct viewset_bkt *vse_bkt;
     union {
         uint64_t vse_view_sn;
@@ -112,12 +111,12 @@ struct viewset_entry {
  * @vst_entryv: fixed-size cache of entry objects
  */
 struct viewset_tree {
-    treelock_t            vst_lock  HSE_ACP_ALIGNED;
-    struct list_head      vst_head  HSE_L1X_ALIGNED;
+    treelock_t vst_lock HSE_ACP_ALIGNED;
+    struct list_head vst_head HSE_L1X_ALIGNED;
     struct viewset_entry *vst_cache;
-    uint                  vst_entryc;
-    uint                  vst_entrymax;
-    struct viewset_entry  vst_entryv[];
+    uint vst_entryc;
+    uint vst_entrymax;
+    struct viewset_entry vst_entryv[];
 };
 
 static merr_t
@@ -338,10 +337,10 @@ merr_t
 viewset_insert(struct viewset *handle, uint64_t *viewp, uint64_t *tseqnop, void **cookiep)
 {
     struct viewset_impl *self = viewset_h2r(handle);
-    struct viewset_entry *   entry;
-    struct viewset_tree *    tree;
-    struct viewset_bkt *     bkt;
-    bool                     changed;
+    struct viewset_entry *entry;
+    struct viewset_tree *tree;
+    struct viewset_bkt *bkt;
+    bool changed;
     uint cpu, node;
 
     cpu = hse_getcpu(&node);
@@ -436,11 +435,7 @@ viewset_insert(struct viewset *handle, uint64_t *viewp, uint64_t *tseqnop, void 
 
 /* GCOV_EXCL_START */
 void
-viewset_remove(
-    struct viewset *handle,
-    void           *cookie,
-    uint32_t       *min_changed,
-    uint64_t       *min_view_sn)
+viewset_remove(struct viewset *handle, void *cookie, uint32_t *min_changed, uint64_t *min_view_sn)
 {
     struct viewset_impl *self = viewset_h2r(handle);
     struct viewset_entry *entry, *first;

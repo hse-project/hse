@@ -5,9 +5,9 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/util/platform.h>
+
+#include <hse/test/mtf/framework.h>
 
 #include "cn/cn_perfc_internal.h"
 

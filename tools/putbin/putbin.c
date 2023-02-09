@@ -10,19 +10,21 @@
  * it is hardly useful for simulating any real life application
  */
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <getopt.h>
 #include <poll.h>
 #include <pthread.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
-#include <hse/cli/program.h>
+#include <arpa/inet.h>
+
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/event_timer.h>
 
 #include <hse/tools/common.h>
@@ -45,38 +47,38 @@ struct Action {
 
 struct info {
     pthread_t tid;
-    int       joined;
+    int joined;
     struct hse_kvs *kvs;
     struct hse_kvdb *kvdb;
-    char *    buf;
-    int       paws;
-    int       niter;
-    int       action;
-    int       error;
-    unsigned  long start;
-    unsigned  long last;
-    unsigned  stride;
-    unsigned  endian;
+    char *buf;
+    int paws;
+    int niter;
+    int action;
+    int error;
+    unsigned long start;
+    unsigned long last;
+    unsigned stride;
+    unsigned endian;
 
-    void * key;
+    void *key;
     size_t klen;
-    void * val;
+    void *val;
     size_t vlen;
 };
 
 void *
 run(void *p)
 {
-    struct info *   ti = p;
-    uint32_t *      seq = ti->key;
-    uint32_t *      uniq = ti->val + sizeof(*seq);
+    struct info *ti = p;
+    uint32_t *seq = ti->key;
+    uint32_t *uniq = ti->val + sizeof(*seq);
     struct hse_kvs *h = ti->kvs;
-    char *          test = tab[ti->action].name;
-    unsigned long   i;
-    bool            found;
-    int             now;
+    char *test = tab[ti->action].name;
+    unsigned long i;
+    bool found;
+    int now;
     struct timespec ts;
-    char            msg[256];
+    char msg[256];
 
     EVENT_TIMER(t);
     EVENT_INIT(t);
@@ -107,28 +109,27 @@ run(void *p)
          * The Meat-N-Potatos is all in this one switch.
          */
         switch (ti->action) {
-            case GET:
-                EVENT_START(t);
+        case GET:
+            EVENT_START(t);
 
-                rc = hse_kvs_get(
-                    h, 0, NULL, ti->key, ti->klen, &found, ti->val, ti->vlen, &ti->vlen);
-                EVENT_SAMPLE(t);
-                break;
+            rc = hse_kvs_get(h, 0, NULL, ti->key, ti->klen, &found, ti->val, ti->vlen, &ti->vlen);
+            EVENT_SAMPLE(t);
+            break;
 
-            case DEL:
-                EVENT_START(t);
-                rc = hse_kvs_delete(h, 0, NULL, ti->key, ti->klen);
-                EVENT_SAMPLE(t);
-                break;
+        case DEL:
+            EVENT_START(t);
+            rc = hse_kvs_delete(h, 0, NULL, ti->key, ti->klen);
+            EVENT_SAMPLE(t);
+            break;
 
-            case PUT:
-                EVENT_START(t);
-                rc = hse_kvs_put(h, 0, NULL, ti->key, ti->klen, ti->val, ti->vlen);
-                EVENT_SAMPLE(t);
-                break;
+        case PUT:
+            EVENT_START(t);
+            rc = hse_kvs_put(h, 0, NULL, ti->key, ti->klen, ti->val, ti->vlen);
+            EVENT_SAMPLE(t);
+            break;
 
-            default:
-                fatal(ESRCH, "invalid action");
+        default:
+            fatal(ESRCH, "invalid action");
         }
 
         if (rc)
@@ -159,11 +160,11 @@ run(void *p)
 
 int
 do_open(
-    const char *       mpname,
-    const char *       kvname,
-    struct parm_groups * pg,
-    struct hse_kvdb ** kvdb,
-    struct hse_kvs **  kvs)
+    const char *mpname,
+    const char *kvname,
+    struct parm_groups *pg,
+    struct hse_kvdb **kvdb,
+    struct hse_kvs **kvs)
 {
     hse_err_t rc;
 
@@ -237,21 +238,21 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    const char *       config = NULL;
-    char *             mpname;
-    struct parm_groups  *pg = NULL;
-    const char *       kvname;
-    unsigned char      data[4096];
-    struct hse_kvdb *  kvdb;
-    struct hse_kvs *   kvs;
-    struct info *      info;
-    int                c, tc;
-    int                rc;
-    unsigned           action, endian, iter, paws, comp;
-    unsigned           klen, vlen;
-    unsigned long      start, cnt;
-    unsigned           opt_sync = 0;
-    struct svec        hse_gparm = { 0 };
+    const char *config = NULL;
+    char *mpname;
+    struct parm_groups *pg = NULL;
+    const char *kvname;
+    unsigned char data[4096];
+    struct hse_kvdb *kvdb;
+    struct hse_kvs *kvs;
+    struct info *info;
+    int c, tc;
+    int rc;
+    unsigned action, endian, iter, paws, comp;
+    unsigned klen, vlen;
+    unsigned long start, cnt;
+    unsigned opt_sync = 0;
+    struct svec hse_gparm = { 0 };
 
     klen = 4;
     vlen = klen + 4;
@@ -274,52 +275,52 @@ main(int argc, char **argv)
 
     while ((c = getopt(argc, argv, "?hVDC:Xen:p:t:i:l:L:c:s:o:Z:")) != -1) {
         switch (c) {
-            case 'V':
-                action = GET;
-                break;
-            case 'D':
-                action = DEL;
-                break;
-            case 'X':
-                opt_sync++;
-                break;
-            case 'e':
-                endian = LITTLE_ENDIAN;
-                break;
-            case 'n':
-                comp = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 'p':
-                paws = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 't':
-                tc = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 'i':
-                iter = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 'l':
-                klen = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 'L':
-                vlen = (unsigned)strtoul(optarg, 0, 0);
-                break;
-            case 'c':
-                cnt = strtoul(optarg, 0, 0);
-                break;
-            case 's':
-                start = strtoul(optarg, 0, 0);
-                break;
-            case 'Z':
-                config = optarg;
-                break;
-            case 'h':
-                usage();
-                break;
-            case '?': /* fallthru */
-            default:
-                fatal(0, "invalid option: -%c\nuse -h for help\n", c);
-                break;
+        case 'V':
+            action = GET;
+            break;
+        case 'D':
+            action = DEL;
+            break;
+        case 'X':
+            opt_sync++;
+            break;
+        case 'e':
+            endian = LITTLE_ENDIAN;
+            break;
+        case 'n':
+            comp = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 'p':
+            paws = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 't':
+            tc = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 'i':
+            iter = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 'l':
+            klen = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 'L':
+            vlen = (unsigned)strtoul(optarg, 0, 0);
+            break;
+        case 'c':
+            cnt = strtoul(optarg, 0, 0);
+            break;
+        case 's':
+            start = strtoul(optarg, 0, 0);
+            break;
+        case 'Z':
+            config = optarg;
+            break;
+        case 'h':
+            usage();
+            break;
+        case '?': /* fallthru */
+        default:
+            fatal(0, "invalid option: -%c\nuse -h for help\n", c);
+            break;
         }
     }
 
@@ -331,17 +332,16 @@ main(int argc, char **argv)
 
     rc = pg_parse_argv(pg, argc, argv, &optind);
     switch (rc) {
-        case 0:
-            if (optind < argc)
-                fatal(0, "unknown parameter: %s", argv[optind]);
-            break;
-        case EINVAL:
-            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
-            break;
-        default:
-            fatal(rc, "error processing parameter %s\n", argv[optind]);
-            break;
+    case 0:
+        if (optind < argc)
+            fatal(0, "unknown parameter: %s", argv[optind]);
+        break;
+    case EINVAL:
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        break;
+    default:
+        fatal(rc, "error processing parameter %s\n", argv[optind]);
+        break;
     }
 
     rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
@@ -380,7 +380,7 @@ main(int argc, char **argv)
 
     for (c = 0; c < tc; ++c) {
         char *buf;
-        int   len = klen > vlen ? klen : vlen;
+        int len = klen > vlen ? klen : vlen;
 
         buf = malloc(len);
         if (!buf)
@@ -396,17 +396,13 @@ main(int argc, char **argv)
 
     for (int i = 0; i < iter; ++i) {
         struct info *ti;
-        unsigned     stride = cnt / (tc ? tc : 1);
-        int          rc;
+        unsigned stride = cnt / (tc ? tc : 1);
+        int rc;
 
         printf(
             "%s %lu binary keys of len %d, starting with %lu, "
             "in %d threads\n",
-            tab[action].verb,
-            cnt,
-            klen,
-            start,
-            tc);
+            tab[action].verb, cnt, klen, start, tc);
 
         if (i == 0 || !opt_sync)
             do_open(mpname, kvname, pg, &kvdb, &kvs);

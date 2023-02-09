@@ -7,13 +7,13 @@
 #define HSE_KVS_CN_WBT_INTERNAL_H
 
 #include <stdint.h>
+
 #include <sys/types.h>
 
-#include "kvs_mblk_desc.h"
-
-#include <hse/util/compiler.h>
 #include <hse/util/byteorder.h>
+#include <hse/util/compiler.h>
 
+#include "kvs_mblk_desc.h"
 #include "omf.h"
 
 static HSE_ALWAYS_INLINE const struct wbt_lfe_omf *

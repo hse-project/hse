@@ -4,26 +4,25 @@
  */
 
 #include <stdbool.h>
+
 #include <sys/mman.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/page.h>
-#include <hse/util/spinlock.h>
+#include <hse/ikvdb/hse_gparams.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/spinlock.h>
 #include <hse/util/vlb.h>
 
-#include <hse/ikvdb/hse_gparams.h>
-#include <hse/ikvdb/hse_gparams.h>
-
-#define VLB_NODES_MAX       (4) /* max numa nodes */
-#define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
+#define VLB_NODES_MAX (4) /* max numa nodes */
+#define VLB_BPN_MAX   (4) /* max per-cpu buckets per node */
 
 static bool vlb_initialized = false;
 
 struct vlb_cache {
-    spinlock_t  lock HSE_ACP_ALIGNED;
-    int         cnt;
-    void       *head;
+    spinlock_t lock HSE_ACP_ALIGNED;
+    int cnt;
+    void *head;
 };
 
 static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];

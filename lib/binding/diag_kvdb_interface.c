@@ -5,43 +5,41 @@
 
 #define MTF_MOCK_IMPL_hse
 
-#include <hse/mpool/mpool.h>
-
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/diag_kvdb.h>
-#include <hse/ikvdb/kvdb_ctxn.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/config/config.h>
-#include <hse/ikvdb/kvdb_home.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/hse_gparams.h>
+#include <bsd/string.h>
 
 #include <hse/version.h>
-#include <hse/logging/logging.h>
-#include <hse/pidfile/pidfile.h>
 
+#include <hse/config/config.h>
+#include <hse/ikvdb/diag_kvdb.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_ctxn.h>
+#include <hse/ikvdb/kvdb_home.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
+#include <hse/pidfile/pidfile.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/platform.h>
 
-#include <bsd/string.h>
-
 merr_t
 diag_kvdb_open(
-    const char *       kvdb_home,
-    size_t             paramc,
-    const char *const *paramv,
-    struct hse_kvdb ** handle)
+    const char *kvdb_home,
+    size_t paramc,
+    const char * const *paramv,
+    struct hse_kvdb **handle)
 {
-    merr_t              err;
-    struct ikvdb *      ikvdb;
-    struct mpool *      mp = NULL;
+    merr_t err;
+    struct ikvdb *ikvdb;
+    struct mpool *mp = NULL;
     struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct pidfh *      pfh = NULL;
-    struct pidfile      content;
-    char                pidfile_path[PATH_MAX];
-    size_t              n;
-    cJSON *             conf = NULL;
+    struct pidfh *pfh = NULL;
+    struct pidfile content;
+    char pidfile_path[PATH_MAX];
+    size_t n;
+    cJSON *conf = NULL;
 
     if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
@@ -77,7 +75,8 @@ diag_kvdb_open(
     }
 
     content.pid = getpid();
-    n = strlcpy(content.rest.socket_path, hse_gparams.gp_rest.socket_path,
+    n = strlcpy(
+        content.rest.socket_path, hse_gparams.gp_rest.socket_path,
         sizeof(content.rest.socket_path));
     if (n >= sizeof(content.rest.socket_path)) {
         err = merr(ENAMETOOLONG);
@@ -111,9 +110,9 @@ close_mp:
 merr_t
 diag_kvdb_close(struct hse_kvdb *handle)
 {
-    merr_t        err = 0, err2 = 0;
+    merr_t err = 0, err2 = 0;
     struct pidfh *pfh;
-    char          home[PATH_MAX];
+    char home[PATH_MAX];
     struct mpool *ds;
 
     if (ev(!handle))

@@ -90,7 +90,7 @@ static inline void
 mutex_init_adaptive(struct mutex *mutex)
 {
     pthread_mutexattr_t attr;
-    int                 rc;
+    int rc;
 
     DEFINE_MUTEX(tmp);
 

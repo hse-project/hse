@@ -7,16 +7,14 @@
 
 #include <bsd/string.h>
 
-#include <hse/error/merr.h>
-#include <hse/util/err_ctx.h>
-#include <hse/util/platform.h>
-#include <hse/util/parse_num.h>
-#include <hse/util/page.h>
-#include <hse/util/page.h>
-
 #include <hse/hse.h>
 
+#include <hse/error/merr.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/err_ctx.h>
+#include <hse/util/page.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/platform.h>
 
 #define BUF_SIZE 1024
 #define BUF_CNT  512
@@ -47,17 +45,18 @@
 merr_t
 mdc_correctness_simple(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     char errbuf[ERROR_BUFFER_SIZE];
     uint64_t oid[2];
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
     enum hse_mclass mclass;
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -185,17 +184,18 @@ close_mp:
 merr_t
 mdc_correctness_mp_release(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     char errbuf[ERROR_BUFFER_SIZE];
     uint64_t oid[2];
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
     enum hse_mclass mclass;
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -348,7 +348,7 @@ verify_buf(char *buf_in, size_t buf_len, char val)
 merr_t
 mdc_correctness_multi_reader_single_app(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     int i, rc;
     char errbuf[ERROR_BUFFER_SIZE];
@@ -357,12 +357,13 @@ mdc_correctness_multi_reader_single_app(const char *path)
     char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc[2];
     enum hse_mclass mclass;
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool RDWR */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -402,9 +403,9 @@ mdc_correctness_multi_reader_single_app(const char *path)
 
     /* 5. Write pattern to MDC */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf;
+        char *bufp = buf;
         size_t sz = BUF_SIZE;
-        bool   sync = false;
+        bool sync = false;
 
         if (i % 8 == 0) {
             bufp = largebuf;
@@ -435,9 +436,9 @@ mdc_correctness_multi_reader_single_app(const char *path)
         }
 
         for (i = 0; i < BUF_CNT; i++) {
-            char  *bufp = buf;
+            char *bufp = buf;
             size_t sz = BUF_SIZE;
-            bool   sync = false;
+            bool sync = false;
 
             if (i % 8 == 0) {
                 bufp = largebuf;
@@ -494,7 +495,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
 
     /* 9. Read/Verify pattern via mdc[0] */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf_in;
+        char *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -515,12 +516,8 @@ mdc_correctness_multi_reader_single_app(const char *path)
         if (sz != read_len) {
             original_err = merr(EINVAL);
             fprintf(
-                stderr,
-                "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__,
-                __LINE__,
-                (int)sz,
-                (int)read_len);
+                stderr, "%s.%d: Requested size not read exp %d, got %d\n", __func__, __LINE__,
+                (int)sz, (int)read_len);
             goto close_mdc0;
         }
 
@@ -560,7 +557,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
 
     /* 13. Read/Verify pattern via mdc[1] */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf_in;
+        char *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -581,12 +578,8 @@ mdc_correctness_multi_reader_single_app(const char *path)
         if (sz != read_len) {
             original_err = merr(EINVAL);
             fprintf(
-                stderr,
-                "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__,
-                __LINE__,
-                (int)sz,
-                (int)read_len);
+                stderr, "%s.%d: Requested size not read exp %d, got %d\n", __func__, __LINE__,
+                (int)sz, (int)read_len);
             goto close_mdc1;
         }
 
@@ -651,7 +644,7 @@ close_mp:
 merr_t
 mdc_correctness_reader_then_writer(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     int i, rc;
     char errbuf[ERROR_BUFFER_SIZE];
@@ -660,12 +653,13 @@ mdc_correctness_reader_then_writer(const char *path)
     char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
     enum hse_mclass mclass;
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool RDWR */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -705,9 +699,9 @@ mdc_correctness_reader_then_writer(const char *path)
 
     /* 5. Write pattern to MDC */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf;
+        char *bufp = buf;
         size_t sz = BUF_SIZE;
-        bool   sync = false;
+        bool sync = false;
 
         if (i < 32) {
             bufp = largebuf;
@@ -737,9 +731,9 @@ mdc_correctness_reader_then_writer(const char *path)
         }
 
         for (i = 0; i < BUF_CNT; i++) {
-            char  *bufp = buf;
+            char *bufp = buf;
             size_t sz = BUF_SIZE;
-            bool   sync = false;
+            bool sync = false;
 
             if (i < 32) {
                 bufp = largebuf;
@@ -797,7 +791,7 @@ mdc_correctness_reader_then_writer(const char *path)
 
     /* 9. Read/Verify pattern via mdc */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf_in;
+        char *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i < 32) {
@@ -816,12 +810,8 @@ mdc_correctness_reader_then_writer(const char *path)
 
         if (sz != read_len) {
             fprintf(
-                stderr,
-                "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__,
-                __LINE__,
-                (int)sz,
-                (int)read_len);
+                stderr, "%s.%d: Requested size not read exp %d, got %d\n", __func__, __LINE__,
+                (int)sz, (int)read_len);
             goto close_mdc;
         }
 
@@ -889,7 +879,7 @@ close_mp:
 merr_t
 mdc_correctness_writer_then_reader(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     int i, rc;
     char errbuf[ERROR_BUFFER_SIZE];
@@ -898,12 +888,13 @@ mdc_correctness_writer_then_reader(const char *path)
     char largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc[2];
     enum hse_mclass mclass;
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool RDWR */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -943,9 +934,9 @@ mdc_correctness_writer_then_reader(const char *path)
 
     /* 5. Write pattern to MDC (handle: mdc[0]) */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf;
+        char *bufp = buf;
         size_t sz = BUF_SIZE;
-        bool   sync = false;
+        bool sync = false;
 
         if (i % 8 == 0) {
             bufp = largebuf;
@@ -994,7 +985,7 @@ mdc_correctness_writer_then_reader(const char *path)
 
     /* 9. Read/Verify pattern via mdc[1] */
     for (i = 0; i < BUF_CNT; i++) {
-        char  *bufp = buf_in;
+        char *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -1013,12 +1004,8 @@ mdc_correctness_writer_then_reader(const char *path)
 
         if (sz != read_len) {
             fprintf(
-                stderr,
-                "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__,
-                __LINE__,
-                (int)sz,
-                (int)read_len);
+                stderr, "%s.%d: Requested size not read exp %d, got %d\n", __func__, __LINE__,
+                (int)sz, (int)read_len);
             goto close_mdc1;
         }
 
@@ -1078,7 +1065,7 @@ close_mp:
 merr_t
 mdc_correctness_multi_mdc(const char *path)
 {
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     merr_t err = 0, original_err = 0;
     int i, j, rc;
     char errbuf[ERROR_BUFFER_SIZE];
@@ -1088,9 +1075,9 @@ mdc_correctness_multi_mdc(const char *path)
 
     struct oid_s {
         uint64_t oid[2];
-    } * oid;
+    } *oid;
 
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc[4];
     enum hse_mclass mclass;
 
@@ -1100,8 +1087,9 @@ mdc_correctness_multi_mdc(const char *path)
         return merr(ENOMEM);
     }
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool RDWR */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -1213,12 +1201,8 @@ mdc_correctness_multi_mdc(const char *path)
 
             if (BUF_SIZE != read_len) {
                 fprintf(
-                    stderr,
-                    "%s.%d: Requested size not read exp %d, got %d\n",
-                    __func__,
-                    __LINE__,
-                    (int)BUF_SIZE,
-                    (int)read_len);
+                    stderr, "%s.%d: Requested size not read exp %d, got %d\n", __func__, __LINE__,
+                    (int)BUF_SIZE, (int)read_len);
                 goto close_mdcs;
             }
 
@@ -1267,11 +1251,11 @@ freeoid:
 int
 main(int argc, char **argv)
 {
-    struct mpool_cparams cparams = {0};
-    struct mpool_dparams dparams = {0};
-    merr_t   err;
+    struct mpool_cparams cparams = { 0 };
+    struct mpool_dparams dparams = { 0 };
+    merr_t err;
     uint64_t herr;
-    int      tests = 0, failed = 0;
+    int tests = 0, failed = 0;
     const char *path, *progname;
 
     progname = strrchr(argv[0], '/');
@@ -1295,8 +1279,9 @@ main(int argc, char **argv)
     }
 
     mpool_cparams_defaults(&cparams);
-    strlcpy(cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
@@ -1349,8 +1334,9 @@ main(int argc, char **argv)
 
     fprintf(stdout, "MDC correctness tests: %d/%d passed\n", tests - failed, tests);
 
-    strlcpy(dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_destroy(path, &dparams);
     if (err) {
         fprintf(stderr, "mpool destroy at path %s failed\n", path);

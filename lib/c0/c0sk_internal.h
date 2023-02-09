@@ -6,23 +6,20 @@
 #ifndef HSE_KVS_C0SK_INTERNAL_H
 #define HSE_KVS_C0SK_INTERNAL_H
 
+#include <semaphore.h>
 #include <stdint.h>
 
 #include <urcu/rculist.h>
 
 #include <hse/limits.h>
 
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/arch.h>
-#include <hse/util/mutex.h>
 #include <hse/util/condvar.h>
+#include <hse/util/mutex.h>
 #include <hse/util/perfc.h>
 #include <hse/util/workqueue.h>
-
-#include <hse/ikvdb/kvdb_rparams.h>
-
-#include <hse/mpool/mpool.h>
-
-#include <semaphore.h>
 
 /* clang-format off */
 
@@ -188,10 +185,10 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, uint64_t *genp, bool destroy
  */
 merr_t
 c0sk_merge_impl(
-    struct c0sk_impl *     self,
-    struct c0_kvmultiset * src,
+    struct c0sk_impl *self,
+    struct c0_kvmultiset *src,
     struct c0_kvmultiset **dstp,
-    uintptr_t **           refp);
+    uintptr_t **refp);
 
 enum c0sk_op {
     C0SK_OP_PUT,
@@ -218,12 +215,12 @@ enum c0sk_op {
  */
 merr_t
 c0sk_putdel(
-    struct c0sk_impl *       self,
-    uint32_t                 skidx,
-    enum c0sk_op             op,
-    struct kvs_ktuple       *kt,
+    struct c0sk_impl *self,
+    uint32_t skidx,
+    enum c0sk_op op,
+    struct kvs_ktuple *kt,
     const struct kvs_vtuple *vt,
-    uintptr_t                seqnoref);
+    uintptr_t seqnoref);
 
 struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, uint64_t skidx);

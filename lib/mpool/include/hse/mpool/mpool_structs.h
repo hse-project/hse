@@ -9,29 +9,28 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <hse/mpool/limits.h>
-
 #include <hse/types.h>
 
-#include <hse/util/storage.h>
+#include <hse/mpool/limits.h>
 #include <hse/util/page.h>
+#include <hse/util/storage.h>
 
-#define WAL_FILE_PFX           "wal"
-#define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
+#define WAL_FILE_PFX     "wal"
+#define WAL_FILE_PFX_LEN (sizeof(WAL_FILE_PFX) - 1)
 
 /* [HSE_REVISIT]: The fact that this is necessary at all seems like a code
  * smell. Ideally, I think we remove this and properly propogate errors up the
  * stack, assert(), or abort(). This is a holdover from MP_MED_INVALID.
  */
-#define HSE_MCLASS_INVALID         UINT8_MAX
-#define HSE_MCLASS_AUTO            HSE_MCLASS_COUNT
-#define HSE_MCLASS_AUTO_NAME       "auto"
+#define HSE_MCLASS_INVALID   UINT8_MAX
+#define HSE_MCLASS_AUTO      HSE_MCLASS_COUNT
+#define HSE_MCLASS_AUTO_NAME "auto"
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"
 
 /* Both prealloc and punch hole flags are mutually exclusive */
-#define MPOOL_MBLOCK_PREALLOC   (1u << 0)   /* advisory */
+#define MPOOL_MBLOCK_PREALLOC   (1u << 0) /* advisory */
 #define MPOOL_MBLOCK_PUNCH_HOLE (1u << 1)
 
 /**
@@ -46,8 +45,8 @@ struct mpool_cparams {
     struct {
         uint64_t fmaxsz;
         uint32_t mblocksz;
-        uint8_t  filecnt;
-        char     path[PATH_MAX];
+        uint8_t filecnt;
+        char path[PATH_MAX];
     } mclass[HSE_MCLASS_COUNT];
 };
 
@@ -92,8 +91,8 @@ struct mpool_mclass_props {
     uint64_t mc_fmaxsz;
     uint32_t mc_mblocksz;
     uint16_t mc_ra_pages;
-    uint8_t  mc_filecnt;
-    char     mc_path[PATH_MAX];
+    uint8_t mc_filecnt;
+    char mc_path[PATH_MAX];
 };
 
 /**

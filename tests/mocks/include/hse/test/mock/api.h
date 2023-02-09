@@ -106,10 +106,10 @@ mapi_inject_set_ptr(
     uint32_t api,
     uint32_t start1,
     uint32_t stop1,
-    void *   rc1,
+    void *rc1,
     uint32_t start2,
     uint32_t stop2,
-    void *   rc2);
+    void *rc2);
 
 /**
  * mapi_inject_unset - configure @api to operate normally
@@ -170,10 +170,10 @@ mapi_inject_check_ptr(uint32_t api, void **ptr);
 extern bool mapi_enabled;
 
 struct mapi_injection {
-    int      api;
-    int      rc_cookie;
+    int api;
+    int rc_cookie;
     uint64_t rc_scalar;
-    void *   rc_ptr;
+    void *rc_ptr;
 };
 /* A hack to make the initialization of struct mapi_injection arrays
  * both readable and safe (ie, can detect misuse).  Users do this:

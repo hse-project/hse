@@ -3,10 +3,10 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mtf/common.h>
-
 #include <hse/util/data_tree.h>
+
+#include <hse/test/mtf/common.h>
+#include <hse/test/mtf/framework.h>
 
 #include "multithreaded_tester.h"
 
@@ -74,8 +74,8 @@ struct dt_element_ops test_element_alt_ops = {
 
 MTF_DEFINE_UTEST(data_tree, tree_create_and_add)
 {
-    int                  rc;
-    struct dt_element *  element;
+    int rc;
+    struct dt_element *element;
     struct test_element *te;
 
     /* Now add a test_element */
@@ -104,7 +104,7 @@ MTF_DEFINE_UTEST(data_tree, tree_create_and_add)
 static struct dt_element *
 add_test_element(char *path, int num)
 {
-    struct dt_element *  element;
+    struct dt_element *element;
     struct test_element *te;
 
     element = calloc(1, sizeof(*element));
@@ -216,7 +216,7 @@ MTF_DEFINE_UTEST(data_tree, test_find)
 MTF_DEFINE_UTEST(data_tree, test_iterate_with_command)
 {
     struct dt_element *element0, *element1, *element2, *element4;
-    int                ret;
+    int ret;
 
     clear_handler_counts();
 
@@ -248,21 +248,21 @@ MTF_DEFINE_UTEST(data_tree, test_iterate_with_command)
 /* Start Test: multi-writer, no reader */
 struct mtest *mtest;
 
-#define WORK_TYPE_ADD 0x1
-#define WORK_TYPE_DEL 0x2
+#define WORK_TYPE_ADD  0x1
+#define WORK_TYPE_DEL  0x2
 #define WORK_TYPE_FIND 0x4
 #define WORK_TYPE_ITER 0x8
 
 struct test_worker {
-    uint32_t        work_type;
-    int             count_per_loop;
-    int             loop_count;
+    uint32_t work_type;
+    int count_per_loop;
+    int loop_count;
 };
 
 struct test {
-    int                   worker_count;
+    int worker_count;
     struct mtf_test_info *lcl_ti;
-    struct test_worker *  worker;
+    struct test_worker *worker;
 };
 
 MTF_DEFINE_UTEST(data_tree, remove_recursive)
@@ -345,7 +345,7 @@ worker(void *context, int id)
         }
         if (work->work_type & WORK_TYPE_ITER) {
             size_t iter_count = 0;
-            char   path[DT_PATH_MAX];
+            char path[DT_PATH_MAX];
 
             snprintf(path, sizeof(path), "%s/worker%d", DT_PATH_TEST, id);
 
@@ -371,7 +371,7 @@ static void
 report(void *context, double elapsed_time)
 {
     struct test *test = (struct test *)context;
-    int          count = 0;
+    int count = 0;
 
     /* Count up how many to expect */
     for (int i = 0; i < test->worker_count; i++) {
@@ -383,10 +383,10 @@ report(void *context, double elapsed_time)
 
 MTF_DEFINE_UTEST(data_tree, multithreaded_stress)
 {
-    struct test     test;
-    int             worker_count = 5;
-    int             per_worker_count = 1000;
-    int             i;
+    struct test test;
+    int worker_count = 5;
+    int per_worker_count = 1000;
+    int i;
 
     clear_handler_counts();
 

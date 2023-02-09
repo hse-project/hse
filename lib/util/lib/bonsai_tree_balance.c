@@ -4,13 +4,11 @@
  */
 
 #include <hse/util/event_counter.h>
+
 #include "bonsai_tree_pvt.h"
 
 static struct bonsai_node *
-bn_right_rotate(
-    struct bonsai_root *tree,
-    struct bonsai_node *node,
-    struct bonsai_node *newleft)
+bn_right_rotate(struct bonsai_root *tree, struct bonsai_node *node, struct bonsai_node *newleft)
 {
     struct bonsai_node *left = newleft;
 
@@ -35,10 +33,7 @@ bn_right_rotate(
 }
 
 static struct bonsai_node *
-bn_left_rotate(
-    struct bonsai_root *tree,
-    struct bonsai_node *node,
-    struct bonsai_node *newright)
+bn_left_rotate(struct bonsai_root *tree, struct bonsai_node *node, struct bonsai_node *newright)
 {
     struct bonsai_node *right = newright;
 
@@ -136,8 +131,7 @@ bn_update_path(
     if (parent->bn_left != left) {
         assert(parent->bn_right == right);
         rcu_assign_pointer(parent->bn_left, left);
-    }
-    else if (parent->bn_right != right) {
+    } else if (parent->bn_right != right) {
         assert(parent->bn_left == left);
         rcu_assign_pointer(parent->bn_right, right);
     }

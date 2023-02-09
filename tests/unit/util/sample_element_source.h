@@ -8,8 +8,8 @@
 
 #include <stdint.h>
 
-#include <hse/util/element_source.h>
 #include <hse/error/merr.h>
+#include <hse/util/element_source.h>
 
 enum sample_es_mode {
     SES_LINEAR = 0,    /* linear sequence of u32 0 to N-1 */
@@ -28,10 +28,10 @@ sample_es_set_elt(struct sample_es *es, uint32_t elt);
 
 merr_t
 sample_es_create_srcid(
-    struct sample_es ** es_out,
-    uint32_t            elt_cnt,
-    uint32_t            start,
-    uint32_t            srcid,
+    struct sample_es **es_out,
+    uint32_t elt_cnt,
+    uint32_t start,
+    uint32_t srcid,
     enum sample_es_mode mode);
 
 struct element_source *

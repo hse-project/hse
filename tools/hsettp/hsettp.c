@@ -8,18 +8,18 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <getopt.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <sysexits.h>
-#include <sys/stat.h>
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
 #include <curl/curl.h>
+#include <sys/stat.h>
 
 #include <hse/cli/program.h>
 #include <hse/cli/rest/client.h>
@@ -35,7 +35,7 @@
 #include "options_map.h"
 #include "utils.h"
 
-#define OPERATIONS_MAX 64U
+#define OPERATIONS_MAX           64U
 #define QUERY_VALUE_FROM_BOOL(b) ((b) ? "true" : "false")
 
 typedef void (*free_values_t)(int, char **);
@@ -76,7 +76,7 @@ struct {
 } output_format = { .type = FORMAT_JSON };
 
 static enum tablular_type
-tabular_type_from_string(const char *const type)
+tabular_type_from_string(const char * const type)
 {
     if (strcmp(type, "array") == 0) {
         return TABULAR_ARRAY;
@@ -92,11 +92,11 @@ tabular_type_from_string(const char *const type)
 static merr_t
 handle_error(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     int err;
     int lineno;
@@ -144,8 +144,9 @@ handle_error(
     assert(cJSON_IsNumber(entry));
     err = cJSON_GetNumberValue(entry);
 
-    fprintf(stderr, "%s: %s:%d: %s (%ld): %s (%d)\n",
-        progname, file, lineno, title, status, detail, err);
+    fprintf(
+        stderr, "%s: %s:%d: %s (%ld): %s (%d)\n", progname, file, lineno, title, status, detail,
+        err);
 
     *(bool *)arg = true;
 
@@ -155,11 +156,11 @@ handle_error(
 static void
 handle_json(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     INVARIANT(headers);
     INVARIANT(output);
@@ -170,11 +171,11 @@ handle_json(
 static merr_t
 handle_tabular(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     cJSON *body;
     int len = 0;
@@ -264,8 +265,8 @@ handle_tabular(
                 cJSON *item = cJSON_GetArrayItem(body, r);
 
                 for (size_t c = 0; c < output_format.config.tab.columnc; c++) {
-                    cJSON *value = cJSONUtils_GetPointerCaseSensitive(item,
-                        output_format.config.tab.ext.array.pointers[c]);
+                    cJSON *value = cJSONUtils_GetPointerCaseSensitive(
+                        item, output_format.config.tab.ext.array.pointers[c]);
                     assert(value);
 
                     values[r * output_format.config.tab.columnc + c] = rawify(value);
@@ -281,7 +282,8 @@ handle_tabular(
         }
     }
 
-    err = tprint(stdout, len, output_format.config.tab.columnc,
+    err = tprint(
+        stdout, len, output_format.config.tab.columnc,
         (const char **)output_format.config.tab.headers, (const char **)values,
         output_format.config.tab.justify, output_format.config.tab.enabled);
 
@@ -310,11 +312,11 @@ out:
 static merr_t
 handle_plain(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     cJSON *body;
     merr_t err = 0;
@@ -364,11 +366,11 @@ out:
 static merr_t
 rest_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err = 0;
 
@@ -396,7 +398,7 @@ rest_cb(
 }
 
 static const char *
-capitalized_method(const char *const method)
+capitalized_method(const char * const method)
 {
     INVARIANT(method);
 
@@ -416,7 +418,7 @@ capitalized_method(const char *const method)
 }
 
 static cJSON *
-follow_ref(cJSON *const obj)
+follow_ref(cJSON * const obj)
 {
     cJSON *ref;
 
@@ -435,12 +437,13 @@ follow_ref(cJSON *const obj)
     return obj;
 }
 
-typedef bool foreach_operation_fn(cJSON *path, cJSON *method, void *user_data);
+typedef bool
+foreach_operation_fn(cJSON *path, cJSON *method, void *user_data);
 
 static void
-foreach_operation(foreach_operation_fn *fn, void *const user_data)
+foreach_operation(foreach_operation_fn *fn, void * const user_data)
 {
-    static const char *const methodsv[] = { "get", "put", "post", "delete" };
+    static const char * const methodsv[] = { "get", "put", "post", "delete" };
     static const size_t methodsc = sizeof(methodsv) / sizeof(methodsv[0]);
 
     cJSON *paths;
@@ -471,7 +474,7 @@ struct search_args {
 };
 
 static bool
-search(cJSON *const path, cJSON *const method, void *const user_data)
+search(cJSON * const path, cJSON * const method, void * const user_data)
 {
     cJSON *operation_id;
     struct search_args *args;
@@ -504,7 +507,10 @@ search(cJSON *const path, cJSON *const method, void *const user_data)
 }
 
 static bool
-find_operation(const char *const requested_operation_id, cJSON **const path, cJSON **const method)
+find_operation(
+    const char * const requested_operation_id,
+    cJSON ** const path,
+    cJSON ** const method)
 {
     struct search_args args = {
         .requested_operation_id = requested_operation_id,
@@ -531,7 +537,7 @@ struct collect_args {
 };
 
 static bool
-collect(cJSON *const path, cJSON *const method, void *const user_data)
+collect(cJSON * const path, cJSON * const method, void * const user_data)
 {
     cJSON *operation_id;
     struct collect_args *args;
@@ -560,7 +566,7 @@ collect(cJSON *const path, cJSON *const method, void *const user_data)
 }
 
 static void
-print_operations(FILE *const output)
+print_operations(FILE * const output)
 {
     struct collect_args args = { .offset = 0 };
     int widthmax = 0, width;
@@ -586,25 +592,25 @@ print_operations(FILE *const output)
                     ((uintptr_t)args.operations[i].operation_id ^
                         (uintptr_t)args.operations[j].operation_id);
 
-                args.operations[i].path = (cJSON *)
-                    ((uintptr_t)args.operations[i].path ^
-                        (uintptr_t)args.operations[j].path);
-                args.operations[j].path = (cJSON *)
-                    ((uintptr_t)args.operations[i].path ^
-                        (uintptr_t)args.operations[j].path);
-                args.operations[i].path = (cJSON *)
-                    ((uintptr_t)args.operations[i].path ^
-                        (uintptr_t)args.operations[j].path);
+                args.operations[i].path =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
+                args.operations[j].path =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
+                args.operations[i].path =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
 
-                args.operations[i].method = (cJSON *)
-                    ((uintptr_t)args.operations[i].method ^
-                        (uintptr_t)args.operations[j].method);
-                args.operations[j].method = (cJSON *)
-                    ((uintptr_t)args.operations[i].method ^
-                        (uintptr_t)args.operations[j].method);
-                args.operations[i].method = (cJSON *)
-                    ((uintptr_t)args.operations[i].method ^
-                        (uintptr_t)args.operations[j].method);
+                args.operations[i].method =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
+                args.operations[j].method =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
+                args.operations[i].method =
+                    (cJSON
+                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
             }
         }
     }
@@ -620,9 +626,9 @@ print_operations(FILE *const output)
         if (strlen(args.operations[i].operation_id) > width)
             continue;
 
-        fprintf(output, "  %-*s  %s\n",
-                width, args.operations[i].operation_id,
-                cJSON_GetStringValue(description));
+        fprintf(
+            output, "  %-*s  %s\n", width, args.operations[i].operation_id,
+            cJSON_GetStringValue(description));
     }
 }
 
@@ -639,10 +645,7 @@ tprint_justify_from_string(const char *str)
 }
 
 static int
-setup_tabular_array(
-    cJSON *const path,
-    cJSON *const method,
-    cJSON *const config)
+setup_tabular_array(cJSON * const path, cJSON * const method, cJSON * const config)
 {
     cJSON *columns;
 
@@ -654,14 +657,15 @@ setup_tabular_array(
     assert(cJSON_IsObject(columns));
 
     output_format.config.tab.columnc = cJSON_GetArraySize(columns);
-    output_format.config.tab.headers = malloc(
-        output_format.config.tab.columnc * sizeof(*output_format.config.tab.headers));
-    output_format.config.tab.justify = malloc(
-        output_format.config.tab.columnc * sizeof(*output_format.config.tab.justify));
+    output_format.config.tab.headers =
+        malloc(output_format.config.tab.columnc * sizeof(*output_format.config.tab.headers));
+    output_format.config.tab.justify =
+        malloc(output_format.config.tab.columnc * sizeof(*output_format.config.tab.justify));
     output_format.config.tab.ext.array.pointers = malloc(
         output_format.config.tab.columnc * sizeof(*output_format.config.tab.ext.array.pointers));
     if (!output_format.config.tab.headers || !output_format.config.tab.justify ||
-            !output_format.config.tab.ext.array.pointers) {
+        !output_format.config.tab.ext.array.pointers)
+    {
         free(output_format.config.tab.headers);
         free(output_format.config.tab.justify);
         free(output_format.config.tab.ext.array.pointers);
@@ -682,8 +686,8 @@ setup_tabular_array(
         assert(cJSON_IsString(justify));
 
         output_format.config.tab.headers[i] = column->string;
-        output_format.config.tab.justify[i] = tprint_justify_from_string(
-            cJSON_GetStringValue(justify));
+        output_format.config.tab.justify[i] =
+            tprint_justify_from_string(cJSON_GetStringValue(justify));
         output_format.config.tab.ext.array.pointers[i] = cJSON_GetStringValue(pointer);
     }
 
@@ -691,10 +695,7 @@ setup_tabular_array(
 }
 
 static int
-setup_tabular_flattened(
-    cJSON *const path,
-    cJSON *const method,
-    cJSON *const config)
+setup_tabular_flattened(cJSON * const path, cJSON * const method, cJSON * const config)
 {
     cJSON *columns, *first, *second;
 
@@ -707,10 +708,10 @@ setup_tabular_flattened(
 
     output_format.config.tab.columnc = cJSON_GetArraySize(columns);
     assert(output_format.config.tab.columnc == 2);
-    output_format.config.tab.headers = malloc(
-        output_format.config.tab.columnc * sizeof(*output_format.config.tab.headers));
-    output_format.config.tab.justify = malloc(
-        output_format.config.tab.columnc * sizeof(*output_format.config.tab.justify));
+    output_format.config.tab.headers =
+        malloc(output_format.config.tab.columnc * sizeof(*output_format.config.tab.headers));
+    output_format.config.tab.justify =
+        malloc(output_format.config.tab.columnc * sizeof(*output_format.config.tab.justify));
     if (!output_format.config.tab.headers || !output_format.config.tab.justify) {
         free(output_format.config.tab.headers);
         free(output_format.config.tab.justify);
@@ -732,10 +733,7 @@ setup_tabular_flattened(
 }
 
 static int
-setup_tabular_custom(
-    cJSON *const path,
-    cJSON *const method,
-    cJSON *const config)
+setup_tabular_custom(cJSON * const path, cJSON * const method, cJSON * const config)
 {
     void *handle;
     char **headers;
@@ -809,10 +807,7 @@ setup_tabular_custom(
 }
 
 static int
-evaluate_format_option(
-    cJSON *const path,
-    cJSON *const method,
-    const char *const str)
+evaluate_format_option(cJSON * const path, cJSON * const method, const char * const str)
 {
     int rc = 0;
     cJSON *x_formats, *format, *config;
@@ -824,11 +819,11 @@ evaluate_format_option(
     x_formats = cJSON_GetObjectItemCaseSensitive(method, "x-formats");
     assert(cJSON_IsObject(x_formats));
 
-    format = cJSON_GetObjectItemCaseSensitive(x_formats,
-        format_to_string(output_format.type));
+    format = cJSON_GetObjectItemCaseSensitive(x_formats, format_to_string(output_format.type));
     if (!format) {
-        fprintf(stderr, "%s: Invalid output format: %s\n",
-                progname, format_to_string(output_format.type));
+        fprintf(
+            stderr, "%s: Invalid output format: %s\n", progname,
+            format_to_string(output_format.type));
         return EX_USAGE;
     }
 
@@ -857,19 +852,21 @@ evaluate_format_option(
         if (rc)
             break;
 
-        output_format.config.tab.enabled = malloc(
-            output_format.config.tab.columnc * sizeof(*output_format.config.tab.enabled));
+        output_format.config.tab.enabled =
+            malloc(output_format.config.tab.columnc * sizeof(*output_format.config.tab.enabled));
         if (!output_format.config.tab.headers || !output_format.config.tab.enabled) {
             fprintf(stderr, "%s: Failed to allocate memory\n", progname);
             return EX_OSERR;
         }
 
         /* Default to viewing all columns */
-        memset(output_format.config.tab.enabled, 1,
+        memset(
+            output_format.config.tab.enabled, 1,
             output_format.config.tab.columnc * sizeof(*output_format.config.tab.enabled));
 
-        rc = format_parse_tabular(str, output_format.config.tab.columnc,
-            (const char **)output_format.config.tab.headers, output_format.config.tab.enabled);
+        rc = format_parse_tabular(
+            str, output_format.config.tab.columnc, (const char **)output_format.config.tab.headers,
+            output_format.config.tab.enabled);
         if (rc) {
             fprintf(stderr, "%s: Invalid format string: %s\n", progname, str);
             return EX_USAGE;
@@ -894,7 +891,7 @@ enum request_body {
 };
 
 static unsigned int
-count_operation_arguments(cJSON *const path, cJSON *method, enum request_body *state)
+count_operation_arguments(cJSON * const path, cJSON *method, enum request_body *state)
 {
     unsigned int count = 0;
     cJSON *parameters, *request_body;
@@ -940,10 +937,7 @@ count_operation_arguments(cJSON *const path, cJSON *method, enum request_body *s
 }
 
 static void
-operation_usage(
-    FILE *const output,
-    cJSON *const path,
-    cJSON *const method)
+operation_usage(FILE * const output, cJSON * const path, cJSON * const method)
 {
     int widthmax = 0;
     size_t columnc = 0;
@@ -1054,11 +1048,10 @@ operation_usage(
 
         len = strlen(cJSON_GetStringValue(longopt));
 
-        fprintf(output, "  -%s, --%s%*s  %s\n",
-                cJSON_GetStringValue(shortopt),
-                cJSON_GetStringValue(longopt),
-                widthmax - len, cJSON_IsTrue(requires_argument) ? " arg" : "",
-                cJSON_GetStringValue(description));
+        fprintf(
+            output, "  -%s, --%s%*s  %s\n", cJSON_GetStringValue(shortopt),
+            cJSON_GetStringValue(longopt), widthmax - len,
+            cJSON_IsTrue(requires_argument) ? " arg" : "", cJSON_GetStringValue(description));
     }
 
     if (operation_arguments > 0) {
@@ -1109,9 +1102,9 @@ operation_usage(
             description = cJSON_GetObjectItemCaseSensitive(parameter, "description");
             assert(cJSON_IsString(description));
 
-            fprintf(output, "  %*s  %s\n",
-                    widthmax, cJSON_GetStringValue(name),
-                    cJSON_GetStringValue(description));
+            fprintf(
+                output, "  %*s  %s\n", widthmax, cJSON_GetStringValue(name),
+                cJSON_GetStringValue(description));
         }
     }
 
@@ -1249,11 +1242,11 @@ operation_usage(
 
 static int
 evaluate_options(
-    cJSON *const path,
-    cJSON *const method,
+    cJSON * const path,
+    cJSON * const method,
     const int argc,
-    char **const argv,
-    bool *const head_to_exit)
+    char ** const argv,
+    bool * const head_to_exit)
 {
     void *buf;
     int rc = 0;
@@ -1333,8 +1326,8 @@ evaluate_options(
         case 'f':
             output_format.type = format_from_string(optarg);
             if (output_format.type == FORMAT_INVALID) {
-                fprintf(stderr, "%s: Invalid format string '%s', use -h for help\n",
-                        progname, optarg);
+                fprintf(
+                    stderr, "%s: Invalid format string '%s', use -h for help\n", progname, optarg);
                 rc = EX_USAGE;
                 goto out;
             }
@@ -1345,8 +1338,9 @@ evaluate_options(
 
             break;
         case ':':
-            fprintf(stderr, "%s: Invalid argument for option '-%c', use -h for help\n",
-                    progname, optopt);
+            fprintf(
+                stderr, "%s: Invalid argument for option '-%c', use -h for help\n", progname,
+                optopt);
             rc = EX_USAGE;
             goto out;
         default:
@@ -1365,18 +1359,17 @@ evaluate_options(
                     if (!parameter)
                         continue;
                     assert(cJSON_IsString(parameter));
-                    parameter = cJSONUtils_GetPointerCaseSensitive(openapi,
-                        cJSON_GetStringValue(parameter) + 1); /* Move past octothorpe */
+                    parameter = cJSONUtils_GetPointerCaseSensitive(
+                        openapi, cJSON_GetStringValue(parameter) + 1); /* Move past octothorpe */
                     assert(cJSON_IsObject(parameter));
 
-                    schema_type = cJSONUtils_GetPointerCaseSensitive(parameter,
-                        "/schema/type");
+                    schema_type = cJSONUtils_GetPointerCaseSensitive(parameter, "/schema/type");
                     assert(cJSON_IsString(schema_type));
                     type = cJSON_GetStringValue(schema_type);
                     if (strcmp(type, "boolean") == 0) {
                         if (optarg) {
-                            fprintf(stderr, "%s: Option '-%c' does not require a value\n",
-                                    progname, c);
+                            fprintf(
+                                stderr, "%s: Option '-%c' does not require a value\n", progname, c);
                             rc = EX_USAGE;
                             goto out;
                         }
@@ -1397,8 +1390,9 @@ evaluate_options(
             }
 
             if (!found) {
-                fprintf(stderr, "%s: Invalid option '-%c', use -h for help\n",
-                        progname, c == '?' ? optopt : c);
+                fprintf(
+                    stderr, "%s: Invalid option '-%c', use -h for help\n", progname,
+                    c == '?' ? optopt : c);
                 rc = EX_USAGE;
                 goto out;
             }
@@ -1417,10 +1411,10 @@ out:
 
 static int
 realize_path(
-    const char *const template,
-    struct buffer *const endpoint,
+    const char * const template,
+    struct buffer * const endpoint,
     const int argc,
-    char **const argv)
+    char ** const argv)
 {
     INVARIANT(template);
     INVARIANT(endpoint);
@@ -1458,7 +1452,7 @@ realize_path(
 }
 
 static int
-append_query_parameters(cJSON *const method, struct buffer *const endpoint)
+append_query_parameters(cJSON * const method, struct buffer * const endpoint)
 {
     merr_t err;
     cJSON *parameters;
@@ -1524,10 +1518,10 @@ append_query_parameters(cJSON *const method, struct buffer *const endpoint)
 
 static int
 parse_body(
-    cJSON *const method,
+    cJSON * const method,
     const int argc,
-    char **const argv,
-    struct curl_slist **const headers,
+    char ** const argv,
+    struct curl_slist ** const headers,
     char **data,
     size_t *data_len)
 {
@@ -1562,8 +1556,7 @@ parse_body(
         snprintf(tmp, len + 3, "\"%s\"", argv[optind]);
         body = cJSON_Parse(tmp);
         if (!body) {
-            fprintf(stderr, "%s: Body argument '%s' is not valid JSON\n",
-                    progname, tmp);
+            fprintf(stderr, "%s: Body argument '%s' is not valid JSON\n", progname, tmp);
             free(tmp);
             rc = EX_DATAERR;
             goto out;
@@ -1596,13 +1589,14 @@ out:
 }
 
 static void
-root_usage(FILE *const output)
+root_usage(FILE * const output)
 {
     INVARIANT(openapi);
     INVARIANT(output);
 
-    fprintf(output,
-        "Usage: %s [OPTION ...] <operation> [OPTION ...] <home/socket> [ARG ...]\n", progname);
+    fprintf(
+        output, "Usage: %s [OPTION ...] <operation> [OPTION ...] <home/socket> [ARG ...]\n",
+        progname);
     fprintf(output, "\nOptions:\n");
     fprintf(output, "  -h, --help       Show this help output.\n");
     fprintf(output, "  -v, --verbosity  Increase verbosity.\n");
@@ -1628,7 +1622,7 @@ syntax(const char *fmt, ...)
 }
 
 int
-main(const int argc, char **const argv)
+main(const int argc, char ** const argv)
 {
     const struct option program_opts[] = {
         { "help", no_argument, NULL, 'h' },
@@ -1784,8 +1778,7 @@ main(const int argc, char **const argv)
 
     rc = stat(fspath, &sb);
     if (-1 == rc) {
-        fprintf(stderr, "%s: Unable to stat '%s': %s\n",
-                progname, fspath, strerror(errno));
+        fprintf(stderr, "%s: Unable to stat '%s': %s\n", progname, fspath, strerror(errno));
         rc = EX_OSERR;
         goto out;
     }
@@ -1796,8 +1789,9 @@ main(const int argc, char **const argv)
         err = pidfile_deserialize(fspath, &content);
         if (err) {
             merr_strinfo(err, errbuf, sizeof(errbuf), 0, NULL);
-            fprintf(stderr, "%s: Unable to deserialize pidfile '%s/%s': %s\n",
-                    progname, fspath, PIDFILE_NAME, errbuf);
+            fprintf(
+                stderr, "%s: Unable to deserialize pidfile '%s/%s': %s\n", progname, fspath,
+                PIDFILE_NAME, errbuf);
             rc = EX_OSERR;
             goto out;
         }
@@ -1820,8 +1814,9 @@ main(const int argc, char **const argv)
     /* Since endpoint is generated using user data, use the safe variant of the
      * fetch function.
      */
-    err = rest_client_fetch_s(capitalized_method(method->string), headers, data, data_len, rest_cb,
-        &handled_error, endpoint.data);
+    err = rest_client_fetch_s(
+        capitalized_method(method->string), headers, data, data_len, rest_cb, &handled_error,
+        endpoint.data);
     if (err) {
         if (!handled_error) {
             merr_strinfo(err, errbuf, sizeof(errbuf), (merr_stringify *)curl_easy_strerror, NULL);
