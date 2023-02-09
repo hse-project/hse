@@ -6,8 +6,8 @@
 
 CMD=${0##*/}
 
-CLANG_FORMAT_VERSION=13
-CLANG_FORMAT_REGEX='(1[3-9]|[2-9][0-9])'
+CLANG_FORMAT_VERSION=15
+CLANG_FORMAT_REGEX='(1[5-9]|[2-9][0-9])'
 
 set -u
 
@@ -44,8 +44,8 @@ EOF
 
     cat <<EOF
 
-$CMD works recursively on all '*.c' and '*.h' files under each given path.  If
-no path is given, the current working directory is used.
+$CMD works recursively on all '*.c', '*.h', and '*.h.in' files under each given
+path.  If no path is given, the current working directory is used.
 
 Notes:
 - $CMD must be executed from the root of the HSE source tree.
@@ -81,7 +81,7 @@ if ! clang-format --version 2>&1 | grep -qPi "^clang-format version $CLANG_FORMA
     err "Need clang-format version $CLANG_FORMAT_VERSION or higher"
 fi
 
-if [[ ! -f lib/kvdb/meson.build ]]; then
+if [[ ! -f meson_options.txt ]]; then
     err "Running from a directory that doesn't seem to be the top of an HSE source tree"
 fi
 
@@ -93,10 +93,10 @@ for p in "$@"; do
     if [[ -d "$p" ]]; then
         :
     elif [[ -f "$p" ]]; then
-        if [[ "$p" =~ .*\.[ch] ]]; then
+        if [[ "$p" =~ .*\.(c|h|h\.in)$ ]]; then
             :
         else
-            err "File '$p' is not a C source file"
+            err "File '$p' is not a C file"
         fi
     else
         err "Path '$p' is neither a directory or a file"
@@ -114,8 +114,8 @@ fi
 # need pipefail in unexpected case that find errors out
 set -o pipefail
 find "$@" -name .git -prune -o -name subprojects -prune -o \
-     -type f \( -name '*.[ch]' -o -name '*..h.in' \) -print0 \
+    -type f \( -name '*.[ch]' -o -name '*.h.in' \) -print0 \
     | xargs -r0 clang-format "${clang_format_extra_flags[@]}" \
-            --Werror -style=file -i -fallback-style=none
+        --Werror -style=file -i -fallback-style=none
 
 exit $?
