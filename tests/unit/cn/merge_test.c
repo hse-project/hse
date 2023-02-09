@@ -3,42 +3,40 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
+#include <dirent.h>
 #include <stdint.h>
 
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-#include <hse/test/mock/mock_kvset_builder.h>
+#include <hse/limits.h>
 
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/logging/logging.h>
 #include <hse/util/parse_num.h>
 
-#include <hse/limits.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset_builder.h>
+#include <hse/test/mtf/framework.h>
 
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cndb.h>
-
-#include "cn/cn_tree.h"
-#include "cn/cn_tree_create.h"
-#include "cn/cn_tree_compact.h"
-#include "cn/cn_tree_internal.h"
-#include "cn/spill.h"
-#include "cn/kcompact.h"
 #include "cn/cn_metrics.h"
-#include "cn/kvs_mblk_desc.h"
+#include "cn/cn_tree.h"
+#include "cn/cn_tree_compact.h"
+#include "cn/cn_tree_create.h"
+#include "cn/cn_tree_internal.h"
+#include "cn/kcompact.h"
 #include "cn/kv_iterator.h"
+#include "cn/kvs_mblk_desc.h"
 #include "cn/kvset.h"
-#include "cn/route.h"
 #include "cn/omf.h"
+#include "cn/route.h"
+#include "cn/spill.h"
 #include "cn/vgmap.h"
-
-#include <dirent.h>
 
 #define my_assert(condition)                                                                  \
     do {                                                                                      \
@@ -51,17 +49,17 @@
 
 #define VERBOSE_PER_FILE1 1
 #define VERBOSE_PER_FILE2 2
-#define VERBOSE_PER_KEY1 3
-#define VERBOSE_PER_KEY2 4
-#define VERBOSE_MAX 5
+#define VERBOSE_PER_KEY1  3
+#define VERBOSE_PER_KEY2  4
+#define VERBOSE_MAX       5
 
 #define MAX_TEST_FILES 256
 
 static struct test_params {
     /* Intialized once at start of program */
     char *test_filev[MAX_TEST_FILES];
-    int   test_filec;
-    int   verbose;
+    int test_filec;
+    int verbose;
 
     /* Initialized with each new JSON file */
     cJSON *doc;
@@ -81,19 +79,19 @@ static struct test_params {
     int next_output_val;
 
     /* Initialized when a new ptomb is encountered (spread mode only) */
-    int  last_pt_key;
-    uint64_t  last_pt_seq;
-    int  pt_count;
+    int last_pt_key;
+    uint64_t last_pt_seq;
+    int pt_count;
 } tp;
 
 static void
 search_dir(const char *path)
 {
     struct dirent *ent;
-    char *         dir_path;
-    size_t         len;
-    DIR *          dir;
-    int            rc;
+    char *dir_path;
+    size_t len;
+    DIR *dir;
+    int rc;
 
     dir = opendir(path);
     if (!dir) {
@@ -194,11 +192,7 @@ ydoc_node_as_vtype(cJSON *node)
 }
 
 static bool
-ydoc_kvset_get_nth(
-    cJSON *kvset_node,
-    int nth,
-    cJSON **key,
-    cJSON **vec)
+ydoc_kvset_get_nth(cJSON *kvset_node, int nth, cJSON **key, cJSON **vec)
 {
     cJSON *entry_node;
 
@@ -292,11 +286,7 @@ load_json(struct mtf_test_info *lcl_ti)
 }
 
 static bool
-kvset_get_nth_key(
-    cJSON *kvset_node,
-    int nth,
-    cJSON **key,
-    uint *nvals_out)
+kvset_get_nth_key(cJSON *kvset_node, int nth, cJSON **key, uint *nvals_out)
 {
     bool eof;
     cJSON *vec;
@@ -340,18 +330,18 @@ kvset_get_nth_val(
     *vtype_out = ydoc_node_as_vtype(cJSON_GetArrayItem(entry, 1));
 
     switch (*vtype_out) {
-        case VTYPE_UCVAL: {
-            cJSON *value = cJSON_GetArrayItem(entry, 2);
-            my_assert(cJSON_IsString(value));
-            *vdata_out = cJSON_GetStringValue(value);
-            *vlen_out = strlen(*vdata_out);
-            if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
-                *vtype_out = VTYPE_IVAL;
-            break;
-        }
-        default:
-            *vdata_out = 0;
-            *vlen_out = 0;
+    case VTYPE_UCVAL: {
+        cJSON *value = cJSON_GetArrayItem(entry, 2);
+        my_assert(cJSON_IsString(value));
+        *vdata_out = cJSON_GetStringValue(value);
+        *vlen_out = strlen(*vdata_out);
+        if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
+            *vtype_out = VTYPE_IVAL;
+        break;
+    }
+    default:
+        *vdata_out = 0;
+        *vlen_out = 0;
     }
 
     return eof;
@@ -410,8 +400,7 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
     /* Get the next reference and compare */
     VERIFY_TRUE_RET(tp.next_output_key < tp.out_kvset_nkeys, __LINE__);
 
-    eof = kvset_get_nth_key(
-        tp.out_kvset_node, tp.next_output_key, &key, &ref_nvals);
+    eof = kvset_get_nth_key(tp.out_kvset_node, tp.next_output_key, &key, &ref_nvals);
     VERIFY_TRUE_RET(!eof, __LINE__);
 
     /* check for same number of values */
@@ -431,56 +420,48 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 static void
 _kvset_builder_add_val_internal(
     struct kvset_builder *self,
-    uint64_t              seq,
-    enum kmd_vtype        vtype,
-    const void *          vdata,
-    uint                  vlen)
+    uint64_t seq,
+    enum kmd_vtype vtype,
+    const void *vdata,
+    uint vlen)
 {
-    bool           ref_eof;
-    uint64_t       ref_seq = 0;
+    bool ref_eof;
+    uint64_t ref_seq = 0;
     enum kmd_vtype ref_vtype = VTYPE_UCVAL;
-    const void *   ref_vdata = NULL;
-    uint           ref_vlen = 0;
+    const void *ref_vdata = NULL;
+    uint ref_vlen = 0;
 
     ref_eof = kvset_get_nth_val(
-        tp.out_kvset_node,
-        tp.next_output_key,
-        tp.next_output_val,
-        &ref_seq,
-        &ref_vtype,
-        &ref_vdata,
+        tp.out_kvset_node, tp.next_output_key, tp.next_output_val, &ref_seq, &ref_vtype, &ref_vdata,
         &ref_vlen);
 
     if (tp.verbose >= VERBOSE_PER_KEY1)
         printf(
-            "add_val, expect key#%u val#%d:%s",
-            tp.next_output_key,
-            tp.next_output_val,
+            "add_val, expect key#%u val#%d:%s", tp.next_output_key, tp.next_output_val,
             ref_eof ? "\n" : " ");
     if (tp.verbose >= VERBOSE_PER_KEY1) {
         char *tag = "?";
         switch (ref_vtype) {
-            case VTYPE_UCVAL:
-                tag = "v";
-                break;
-            case VTYPE_CVAL:
-                tag = "c";
-                break;
-            case VTYPE_ZVAL:
-                tag = "z";
-                break;
-            case VTYPE_IVAL:
-                tag = "i";
-                break;
-            case VTYPE_TOMB:
-                tag = "t";
-                break;
-            case VTYPE_PTOMB:
-                tag = "pt";
-                break;
+        case VTYPE_UCVAL:
+            tag = "v";
+            break;
+        case VTYPE_CVAL:
+            tag = "c";
+            break;
+        case VTYPE_ZVAL:
+            tag = "z";
+            break;
+        case VTYPE_IVAL:
+            tag = "i";
+            break;
+        case VTYPE_TOMB:
+            tag = "t";
+            break;
+        case VTYPE_PTOMB:
+            tag = "pt";
+            break;
         }
-        printf( "%lu %s %.*s\n", (ulong)ref_seq, tag, ref_vlen,
-            ref_vdata ? (char *)ref_vdata : "");
+        printf("%lu %s %.*s\n", (ulong)ref_seq, tag, ref_vlen, ref_vdata ? (char *)ref_vdata : "");
     }
 
     if (vtype != VTYPE_PTOMB) {
@@ -507,11 +488,11 @@ _kvset_builder_add_val_internal(
 static merr_t
 _kvset_builder_add_vref(
     struct kvset_builder *self,
-    uint64_t              seq,
-    uint                  vbidx_kvset_node,
-    uint                  vboff_nth_key,
-    uint                  vlen_nth_val,
-    uint                  complen)
+    uint64_t seq,
+    uint vbidx_kvset_node,
+    uint vboff_nth_key,
+    uint vlen_nth_val,
+    uint complen)
 {
     uint64_t tmp_seq;
     enum kmd_vtype vtype;
@@ -541,12 +522,12 @@ _kvset_builder_add_vref(
 
 merr_t
 _kvset_builder_add_val(
-    struct kvset_builder *  self,
-    const struct key_obj   *kobj,
-    const void *            vdata,
-    uint                    vlen,
-    uint64_t                seq,
-    uint                    complen)
+    struct kvset_builder *self,
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen,
+    uint64_t seq,
+    uint complen)
 {
     enum kmd_vtype vtype;
 
@@ -576,7 +557,7 @@ _kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vty
  * Iterator
  */
 struct kv_spill_test_kvi {
-    struct kv_iterator  kvi;
+    struct kv_iterator kvi;
     struct test_params *test;
     cJSON *kvset_node;
     uint32_t src;
@@ -595,13 +576,13 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
     struct kv_spill_test_kvi *iter = container_of(kvi, typeof(*iter), kvi);
 
     void *vdata;
-    uint  vlen;
-    uint  nth_key = iter->cursor;
+    uint vlen;
+    uint nth_key = iter->cursor;
 
     kobj->ko_pfx = 0;
     kobj->ko_pfx_len = 0;
-    kvi->kvi_eof = kvset_get_nth(iter->kvset_node, nth_key, &kobj->ko_sfx, &kobj->ko_sfx_len,
-        &vdata, &vlen);
+    kvi->kvi_eof =
+        kvset_get_nth(iter->kvset_node, nth_key, &kobj->ko_sfx, &kobj->ko_sfx_len, &vdata, &vlen);
     if (kvi->kvi_eof) {
         if (tp.verbose >= VERBOSE_PER_KEY2)
             printf("iter_next_key src %d ent %d EOF\n", iter->src, nth_key);
@@ -611,10 +592,7 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
 
     if (tp.verbose >= VERBOSE_PER_KEY2)
         printf(
-            "iter_next_key src %d ent %d kdata %.*s\n",
-            iter->src,
-            nth_key,
-            (int)kobj->ko_sfx_len,
+            "iter_next_key src %d ent %d kdata %.*s\n", iter->src, nth_key, (int)kobj->ko_sfx_len,
             (char *)kobj->ko_sfx);
 
     /* Pack data into kvset_iter_vctx:
@@ -637,15 +615,15 @@ _kvset_iter_next_key(struct kv_iterator *kvi, struct key_obj *kobj, struct kvset
 
 static bool
 _kvset_iter_next_vref(
-    struct kv_iterator *    kvi,
+    struct kv_iterator *kvi,
     struct kvset_iter_vctx *vc,
-    uint64_t *              seq,
-    enum kmd_vtype *        vtype,
-    uint *                  vbidx,
-    uint *                  vboff,
-    const void **           vdata,
-    uint *                  vlen_out,
-    uint *                  clen_out)
+    uint64_t *seq,
+    enum kmd_vtype *vtype,
+    uint *vbidx,
+    uint *vboff,
+    const void **vdata,
+    uint *vlen_out,
+    uint *clen_out)
 {
     /* Unpack data from kvset_iter_vctx:
      *   vc->kmd   == kvset node
@@ -659,43 +637,43 @@ _kvset_iter_next_vref(
     int nth_key = vc->off;
     int nth_val = vc->next;
 
-    bool        eof;
+    bool eof;
     const void *lvdata;
-    uint        vlen;
+    uint vlen;
 
     eof = kvset_get_nth_val(kvset_node, nth_key, nth_val, seq, vtype, &lvdata, &vlen);
     if (eof)
         return false;
 
     switch (*vtype) {
-        case VTYPE_UCVAL:
-            /* Pack data into vref:
+    case VTYPE_UCVAL:
+        /* Pack data into vref:
              *   vbidx == kvset node
              *   vboff == nth_key
              *   vlen_out == nth_val
              * See also _kvset_builder_add_vref(), which unpacks this data.
              */
-            for (int i = 0; i < cJSON_GetArraySize(tp.inp_kvset_nodev); i++) {
-                if (cJSON_GetArrayItem(tp.inp_kvset_nodev, i) == kvset_node) {
-                    *vbidx = i;
-                    break;
-                }
+        for (int i = 0; i < cJSON_GetArraySize(tp.inp_kvset_nodev); i++) {
+            if (cJSON_GetArrayItem(tp.inp_kvset_nodev, i) == kvset_node) {
+                *vbidx = i;
+                break;
             }
+        }
 
-            *vboff = nth_key;
-            *vlen_out = nth_val;
-            break;
-        case VTYPE_IVAL:
-        case VTYPE_ZVAL:
-        case VTYPE_TOMB:
-        case VTYPE_PTOMB:
-            *vdata = (void *)lvdata;
-            *vlen_out = vlen;
-            break;
-        case VTYPE_CVAL:
-            /* not used by this test */
-            assert(0);
-            break;
+        *vboff = nth_key;
+        *vlen_out = nth_val;
+        break;
+    case VTYPE_IVAL:
+    case VTYPE_ZVAL:
+    case VTYPE_TOMB:
+    case VTYPE_PTOMB:
+        *vdata = (void *)lvdata;
+        *vlen_out = vlen;
+        break;
+    case VTYPE_CVAL:
+        /* not used by this test */
+        assert(0);
+        break;
     }
 
     /* bump value index for next call */
@@ -705,14 +683,14 @@ _kvset_iter_next_vref(
 
 static merr_t
 _kvset_iter_val_get(
-    struct kv_iterator *    kvi,
+    struct kv_iterator *kvi,
     struct kvset_iter_vctx *vc,
-    enum kmd_vtype          vtype,
-    uint                    vbidx,
-    uint                    vboff,
-    const void **           vdata_out,
-    uint *                  vlen_out,
-    uint *                  clen_out)
+    enum kmd_vtype vtype,
+    uint vbidx,
+    uint vboff,
+    const void **vdata_out,
+    uint *vlen_out,
+    uint *clen_out)
 {
     /*
      * Unpack data from kvset_iter_vctx:
@@ -722,13 +700,13 @@ _kvset_iter_val_get(
      * See _kvset_iter_val_get() which supplies the location of value
      * See also _kvset_iter_next_key(), which packs this data.
      */
-    cJSON* kvset_node;
+    cJSON *kvset_node;
     int nth_key;
     int nth_val;
     uint64_t seq;
 
     const void *vdata;
-    bool        end;
+    bool end;
 
     /* Need to handle VTYPE_UCVAL case. The rest are already provided by
      * _kvset_iter_next_vref.
@@ -745,27 +723,27 @@ _kvset_iter_val_get(
     }
 
     switch (vtype) {
-        case VTYPE_CVAL:
-            /* not used by this test */
-            assert(0);
-            break;
-        case VTYPE_UCVAL:
-            *vdata_out = (void *)vdata;
-            return 0;
-        case VTYPE_IVAL:
-            return 0;
-        case VTYPE_ZVAL:
-            *vdata_out = 0;
-            *vlen_out = 0;
-            return 0;
-        case VTYPE_TOMB:
-            *vdata_out = HSE_CORE_TOMB_REG;
-            *vlen_out = 0;
-            return 0;
-        case VTYPE_PTOMB:
-            *vdata_out = HSE_CORE_TOMB_PFX;
-            *vlen_out = 0;
-            return 0;
+    case VTYPE_CVAL:
+        /* not used by this test */
+        assert(0);
+        break;
+    case VTYPE_UCVAL:
+        *vdata_out = (void *)vdata;
+        return 0;
+    case VTYPE_IVAL:
+        return 0;
+    case VTYPE_ZVAL:
+        *vdata_out = 0;
+        *vlen_out = 0;
+        return 0;
+    case VTYPE_TOMB:
+        *vdata_out = HSE_CORE_TOMB_REG;
+        *vlen_out = 0;
+        return 0;
+    case VTYPE_PTOMB:
+        *vdata_out = HSE_CORE_TOMB_PFX;
+        *vlen_out = 0;
+        return 0;
     }
 
     my_assert(false);
@@ -793,7 +771,7 @@ static bool
 _kvset_cursor_next(struct element_source *es, void **element)
 {
     struct kv_iterator *kvi = kvset_cursor_es_h2r(es);
-    struct cn_kv_item * kv = &kvi->kvi_kv;
+    struct cn_kv_item *kv = &kvi->kvi_kv;
 
     *element = 0;
 
@@ -809,9 +787,9 @@ _kvset_cursor_next(struct element_source *es, void **element)
 
 static merr_t
 kv_spill_test_kvi_create(
-    struct kv_iterator ** kvi_out,
-    struct test_params *  tp,
-    uint32_t              src,
+    struct kv_iterator **kvi_out,
+    struct test_params *tp,
+    uint32_t src,
     struct mtf_test_info *lcl_ti)
 {
     struct kv_spill_test_kvi *iter =
@@ -834,29 +812,29 @@ kv_spill_test_kvi_create(
     return 0;
 }
 
-#define MODE_SPILL 0
+#define MODE_SPILL    0
 #define MODE_KCOMPACT 1
 
 static struct cn_compaction_work *
 init_work(
     struct cn_compaction_work *w,
-    struct mpool *             ds,
-    struct kvs_rparams *       rp,
-    struct cn_tree *           tree,
-    uint64_t                   horizon,
-    uint                       num_sources,
-    struct kv_iterator **      sources,
-    uint                       shift,
-    uint                       pfx_len,
-    struct perfc_set *         pc,
-    atomic_int                *cancel,
-    uint                       num_outputs,
-    bool                       drop_tombs,
-    struct kvset_mblocks *     outputs,
-    struct cn_tree_node **     output_nodev,
-    uint64_t                  *kvsetidv,
-    struct kvset_vblk_map *    vbmap,
-    struct vgmap             **vgmap)
+    struct mpool *ds,
+    struct kvs_rparams *rp,
+    struct cn_tree *tree,
+    uint64_t horizon,
+    uint num_sources,
+    struct kv_iterator **sources,
+    uint shift,
+    uint pfx_len,
+    struct perfc_set *pc,
+    atomic_int *cancel,
+    uint num_outputs,
+    bool drop_tombs,
+    struct kvset_mblocks *outputs,
+    struct cn_tree_node **output_nodev,
+    uint64_t *kvsetidv,
+    struct kvset_vblk_map *vbmap,
+    struct vgmap **vgmap)
 {
     memset(w, 0, sizeof(*w));
 
@@ -906,7 +884,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
     unsigned char ekey[HSE_KVS_KEY_LEN_MAX];
     struct mpool *ds = (struct mpool *)lcl_ti;
     struct cn_tree_node *output_nodev[tp.fanout];
-    struct kvs_rparams   rp = kvs_rparams_defaults();
+    struct kvs_rparams rp = kvs_rparams_defaults();
 
     if (tp.verbose >= VERBOSE_PER_FILE2)
         printf("Mode: %s\n", info);
@@ -932,7 +910,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     if (mode == MODE_SPILL) {
         struct cn_tree *tree;
-        struct kvdb_health    health;
+        struct kvdb_health health;
 
         struct kvs_cparams cp = {
             .pfx_len = tp.pfx_len,
@@ -963,24 +941,8 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         }
 
         init_work(
-            &w,
-            ds,
-            &rp,
-            tree,
-            tp.horizon,
-            iterc,
-            iterv,
-            shift,
-            pfx_len,
-            0,
-            &cancel,
-            tp.fanout,
-            tp.drop_tombs,
-            outputs,
-            output_nodev,
-            kvsetidv,
-            NULL,
-            NULL);
+            &w, ds, &rp, tree, tp.horizon, iterc, iterv, shift, pfx_len, 0, &cancel, tp.fanout,
+            tp.drop_tombs, outputs, output_nodev, kvsetidv, NULL, NULL);
 
         w.cw_action = CN_ACTION_SPILL;
         w.cw_cp = &cp;
@@ -1030,24 +992,8 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         ASSERT_NE(vgmap, NULL);
 
         init_work(
-            &w,
-            ds,
-            &rp,
-            NULL,
-            tp.horizon,
-            iterc,
-            iterv,
-            0,
-            pfx_len,
-            0,
-            &cancel,
-            1,
-            tp.drop_tombs,
-            outputs,
-            output_nodev,
-            kvsetidv,
-            &vbmap,
-            &vgmap);
+            &w, ds, &rp, NULL, tp.horizon, iterc, iterv, 0, pfx_len, 0, &cancel, 1, tp.drop_tombs,
+            outputs, output_nodev, kvsetidv, &vbmap, &vgmap);
 
         w.cw_action = CN_ACTION_COMPACT_K;
 
@@ -1135,11 +1081,11 @@ help(FILE *fp, int code)
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    int    argc = info->ti_coll->tci_argc;
+    int argc = info->ti_coll->tci_argc;
     char **argv = info->ti_coll->tci_argv;
-    int    idx = info->ti_coll->tci_optind;
-    char * file_path = 0;
-    int    i;
+    int idx = info->ti_coll->tci_optind;
+    char *file_path = 0;
+    int i;
 
     tp.verbose = VERBOSE_PER_FILE1;
 

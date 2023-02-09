@@ -13,15 +13,14 @@
 
 #include <cjson/cJSON.h>
 
+#include <hse/error/merr.h>
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvdb_modes.h>
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/throttle.h>
-#include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse/util/compiler.h>
-
 #include <hse/mpool/mpool_structs.h>
+#include <hse/util/compiler.h>
 
 /*
  * Steps to add a new KVDB parameter:
@@ -46,10 +45,10 @@
  * fields towards the end.
  */
 struct kvdb_rparams {
-    bool    throttle_disable;
+    bool throttle_disable;
     uint8_t perfc_level;
     uint8_t perfc_enable;
-    bool    c0_diag_mode;
+    bool c0_diag_mode;
     uint8_t c0_debug;
 
     uint32_t c0_ingest_width;
@@ -60,30 +59,30 @@ struct kvdb_rparams {
     uint64_t csched_qthreads;
     uint64_t csched_samp_max;
     uint32_t csched_policy;
-    uint8_t  csched_lo_th_pct;
-    uint8_t  csched_hi_th_pct;
-    uint8_t  csched_leaf_pct;
-    uint8_t  csched_gc_pct;
+    uint8_t csched_lo_th_pct;
+    uint8_t csched_hi_th_pct;
+    uint8_t csched_leaf_pct;
+    uint8_t csched_gc_pct;
     uint16_t csched_lscat_hwm;
-    uint8_t  csched_lscat_runlen_max;
+    uint8_t csched_lscat_runlen_max;
     uint64_t csched_rspill_params;
     uint64_t csched_leaf_comp_params;
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
-    bool     csched_full_compact;
+    bool csched_full_compact;
 
     uint32_t dur_bufsz_mb;
     uint32_t dur_intvl_ms;
     uint32_t dur_size_bytes;
-    bool     dur_enable;
-    bool     dur_buf_managed;
-    bool     dur_replay_force;
-    uint8_t  dur_throttle_lo_th;
-    uint8_t  dur_throttle_hi_th;
-    uint8_t  dur_mclass;
+    bool dur_enable;
+    bool dur_buf_managed;
+    bool dur_replay_force;
+    uint8_t dur_throttle_lo_th;
+    uint8_t dur_throttle_hi_th;
+    uint8_t dur_mclass;
 
     uint64_t throttle_update_ns;
-    uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
+    uint throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
     uint64_t throttle_burst;
@@ -102,7 +101,7 @@ struct kvdb_rparams {
     uint32_t keylock_tables;
     enum kvdb_open_mode mode;
 
-    bool   dio_enable[HSE_MCLASS_COUNT];
+    bool dio_enable[HSE_MCLASS_COUNT];
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
 };
 
@@ -115,16 +114,13 @@ kvdb_rparams_defaults(void) HSE_CONST;
 merr_t
 kvdb_rparams_get(
     const struct kvdb_rparams *params,
-    const char *               param,
-    char *                     buf,
-    size_t                     buf_sz,
-    size_t *                   needed_sz);
+    const char *param,
+    char *buf,
+    size_t buf_sz,
+    size_t *needed_sz);
 
 merr_t
-kvdb_rparams_set(
-    struct kvdb_rparams *params,
-    const char *         param,
-    const char *         value);
+kvdb_rparams_set(struct kvdb_rparams *params, const char *param, const char *value);
 
 /**
  * Deserialize a config into KVDB rparams
@@ -147,10 +143,7 @@ kvdb_rparams_from_config(struct kvdb_rparams *params, cJSON *config);
  * @retval !0 failure
  */
 merr_t
-kvdb_rparams_from_paramv(
-    struct kvdb_rparams *params,
-    size_t               paramc,
-    const char *const *  paramv);
+kvdb_rparams_from_paramv(struct kvdb_rparams *params, size_t paramc, const char * const *paramv);
 
 cJSON *
 kvdb_rparams_to_json(const struct kvdb_rparams *params) HSE_WARN_UNUSED_RESULT;

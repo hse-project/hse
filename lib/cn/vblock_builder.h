@@ -9,7 +9,6 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-
 #include <hse/util/perfc.h>
 
 struct blk_list;
@@ -32,11 +31,7 @@ enum hse_mclass_policy_age;
  */
 /* MTF_MOCK */
 merr_t
-vbb_create(
-    struct vblock_builder **bld_out,
-    struct cn *             cn,
-    struct perfc_set *      pc,
-    uint64_t                vgroup);
+vbb_create(struct vblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint64_t vgroup);
 
 /**
  * vbb_destroy() - Destroy a vblock builder
@@ -60,12 +55,12 @@ vbb_destroy(struct vblock_builder *bld);
 merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
-    const struct key_obj  *kobj,
-    const void *           vdata,
-    uint                   vlen,
-    uint64_t *             vbidout,
-    uint *                 vbidxout,
-    uint *                 vboffout);
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen,
+    uint64_t *vbidout,
+    uint *vbidxout,
+    uint *vboffout);
 
 /* MTF_MOCK */
 merr_t
@@ -96,13 +91,13 @@ vbb_get_vblocks(struct vblock_builder *bld, struct blk_list *vblks);
 merr_t
 vbb_add_entry_ext(
     struct vblock_builder *bld,
-    const void *           vdata,
-    uint                   vlen,
-    bool                   wait,
-    uint8_t                index,
-    uint64_t *             vbidout,
-    uint *                 vbidxout,
-    uint *                 vboffout);
+    const void *vdata,
+    uint vlen,
+    bool wait,
+    uint8_t index,
+    uint64_t *vbidout,
+    uint *vbidxout,
+    uint *vboffout);
 
 merr_t
 vbb_finish_entry(struct vblock_builder *bld, uint8_t index);

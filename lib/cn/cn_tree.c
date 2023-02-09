@@ -10,75 +10,69 @@
 #define MTF_MOCK_IMPL_cn_tree_iter
 #define MTF_MOCK_IMPL_ct_view
 
-#include <sys/mman.h>
-#include <bsd/string.h>
-
 #include <bsd/stdlib.h>
+#include <bsd/string.h>
 #include <cjson/cJSON.h>
 #include <cjson/cJSON_Utils.h>
+#include <sys/mman.h>
 
-#include <hse/util/alloc.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/page.h>
-#include <hse/util/slab.h>
-#include <hse/util/list.h>
-#include <hse/util/mutex.h>
-#include <hse/logging/logging.h>
-#include <hse/util/assert.h>
-#include <hse/util/parse_num.h>
-#include <hse/util/atomic.h>
-#include <hse/util/hlog.h>
-#include <hse/util/table.h>
-#include <hse/util/keycmp.h>
-#include <hse/util/bin_heap.h>
-#include <hse/util/log2.h>
-#include <hse/util/fmt.h>
-#include <hse/util/printbuf.h>
-#include <hse/util/workqueue.h>
-#include <hse/util/compression_lz4.h>
 #include <hse/experimental.h>
-
-#include <hse/mpool/mpool.h>
-
 #include <hse/limits.h>
 
-#include <hse/ikvdb/key_hash.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/kvdb_health.h>
-#include <hse/ikvdb/cn_tree_view.h>
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cn_kvdb.h>
-#include <hse/ikvdb/cursor.h>
-#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/cn_tree_view.h>
+#include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/atomic.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
+#include <hse/util/hlog.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/list.h>
+#include <hse/util/log2.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
+#include <hse/util/parse_num.h>
+#include <hse/util/printbuf.h>
+#include <hse/util/slab.h>
+#include <hse/util/table.h>
+#include <hse/util/workqueue.h>
 
+#include "blk_list.h"
 #include "cn/cn_cursor.h"
-
+#include "cn_mblocks.h"
+#include "cn_metrics.h"
+#include "cn_perfc.h"
 #include "cn_tree.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_create.h"
-#include "cn_tree_iter.h"
 #include "cn_tree_internal.h"
-
-#include "cn_mblocks.h"
-#include "cn_metrics.h"
-#include "kvset.h"
-#include "cn_perfc.h"
-#include "kcompact.h"
-#include "blk_list.h"
-#include "kv_iterator.h"
-#include "wbt_reader.h"
-#include "spill.h"
-#include "kcompact.h"
-#include "kvcompact.h"
+#include "cn_tree_iter.h"
 #include "kblock_builder.h"
-#include "vblock_builder.h"
-#include "route.h"
+#include "kcompact.h"
+#include "kv_iterator.h"
+#include "kvcompact.h"
+#include "kvset.h"
 #include "kvset_internal.h"
-#include "node_split.h"
 #include "move.h"
+#include "node_split.h"
+#include "route.h"
+#include "spill.h"
+#include "vblock_builder.h"
+#include "wbt_reader.h"
 
 static struct kmem_cache *cn_node_cache HSE_READ_MOSTLY;
 
@@ -181,8 +175,8 @@ cn_subspill_pop(struct cn_tree_node *tn)
  */
 merr_t
 cn_tree_create(
-    struct cn_tree **   handle,
-    uint32_t                 cn_cflags,
+    struct cn_tree **handle,
+    uint32_t cn_cflags,
     struct kvs_cparams *cp,
     struct kvdb_health *health,
     struct kvs_rparams *rp)
@@ -283,13 +277,13 @@ cn_tree_destroy(struct cn_tree *tree)
 
 void
 cn_tree_setup(
-    struct cn_tree *    tree,
-    struct mpool *      mp,
-    struct cn *         cn,
+    struct cn_tree *tree,
+    struct mpool *mp,
+    struct cn *cn,
     struct kvs_rparams *rp,
-    struct cndb *       cndb,
-    uint64_t            cnid,
-    struct cn_kvdb *    cn_kvdb)
+    struct cndb *cndb,
+    uint64_t cnid,
+    struct cn_kvdb *cn_kvdb)
 {
     tree->mp = mp;
     tree->cn = cn;
@@ -400,8 +394,8 @@ static void
 tn_samp_update_finish(struct cn_tree_node *tn)
 {
     struct cn_node_stats *s = &tn->tn_ns;
-    const uint            pct_scale = 1024;
-    uint                  pct;
+    const uint pct_scale = 1024;
+    uint pct;
     const uint64_t num_keys = cn_ns_keys(s);
 
     /* Use hlog to estimate number of unique keys, but protect
@@ -616,7 +610,7 @@ u64_to_human(char *buf, size_t bufsz, uint64_t val, uint64_t thresh)
 
 static bool HSE_NONNULL(1, 2)
 cn_tree_common_to_json(
-    cJSON *const object,
+    cJSON * const object,
     const struct kvset_stats *stats,
     const uint64_t dgen,
     const uint32_t compc,
@@ -675,11 +669,7 @@ cn_tree_common_to_json(
 }
 
 merr_t
-cn_tree_to_json(
-    struct cn_tree *tree,
-    const bool human,
-    const bool kvsets,
-    cJSON **const root_out)
+cn_tree_to_json(struct cn_tree *tree, const bool human, const bool kvsets, cJSON ** const root_out)
 {
     void *lock;
     cJSON *root;
@@ -742,8 +732,8 @@ cn_tree_to_json(
         if (eklen > 0) {
             char kbuf[sizeof(ekbuf) * 3 + 1];
 
-            fmt_hexp(kbuf, sizeof(kbuf), ekbuf,
-                     min_t(size_t, eklen, sizeof(ekbuf)), "", 2, ".", "");
+            fmt_hexp(
+                kbuf, sizeof(kbuf), ekbuf, min_t(size_t, eklen, sizeof(ekbuf)), "", 2, ".", "");
             bad |= !cJSON_AddStringToObject(node, "edge_key", kbuf);
         } else {
             bad |= !cJSON_AddNullToObject(node, "edge_key");
@@ -779,8 +769,8 @@ cn_tree_to_json(
                 break;
             }
 
-            bad |= cn_tree_common_to_json(kvset, kvset_statsp(le->le_kvset), dgen, compc,
-                vgroups, human);
+            bad |= cn_tree_common_to_json(
+                kvset, kvset_statsp(le->le_kvset), dgen, compc, vgroups, human);
             bad |= !cJSON_AddStringToObject(kvset, "rule", cn_rule2str(le->le_kvset->ks_rule));
 
             w = kvset_get_work(le->le_kvset);
@@ -812,8 +802,8 @@ cn_tree_to_json(
         if (!kvsets)
             bad |= !cJSON_AddNumberToObject(node, "kvsets", node_kvsets);
 
-        bad |= cn_tree_common_to_json(node, &tn->tn_ns.ns_kst, node_dgen, node_compc,
-            node_vgroups, human);
+        bad |= cn_tree_common_to_json(
+            node, &tn->tn_ns.ns_kst, node_dgen, node_compc, node_vgroups, human);
 
         kvset_stats_add(&tn->tn_ns.ns_kst, &tree_stats);
 
@@ -853,15 +843,15 @@ out:
 
 void
 cn_tree_preorder_walk(
-    struct cn_tree *          tree,
-    enum kvset_order          kvset_order,
+    struct cn_tree *tree,
+    enum kvset_order kvset_order,
     cn_tree_walk_callback_fn *callback,
-    void *                    callback_rock)
+    void *callback_rock)
 {
-    struct cn_tree_node *    node;
+    struct cn_tree_node *node;
     struct kvset_list_entry *le;
-    void *                   lock;
-    bool                     stop;
+    void *lock;
+    bool stop;
 
     rmlock_rlock(&tree->ct_lock, &lock);
     stop = false;
@@ -872,7 +862,7 @@ cn_tree_preorder_walk(
         if (kvset_order == KVSET_ORDER_NEWEST_FIRST) {
 
             /* newest first ==> head to tail */
-            list_for_each_entry (le, &node->tn_kvset_list, le_link) {
+            list_for_each_entry(le, &node->tn_kvset_list, le_link) {
                 empty_node = false;
                 stop = callback(callback_rock, tree, node, le->le_kvset);
                 if (stop)
@@ -880,7 +870,7 @@ cn_tree_preorder_walk(
             }
         } else {
             /* oldest first ==> tail to head */
-            list_for_each_entry_reverse (le, &node->tn_kvset_list, le_link) {
+            list_for_each_entry_reverse(le, &node->tn_kvset_list, le_link) {
                 empty_node = false;
                 stop = callback(callback_rock, tree, node, le->le_kvset);
                 if (stop)
@@ -938,14 +928,14 @@ cn_tree_route_get(struct cn_tree *tree, const void *key, uint keylen)
 
 merr_t
 cn_tree_prefix_probe(
-    struct cn_tree *     tree,
-    struct perfc_set *   pc,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn_tree *tree,
+    struct perfc_set *pc,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct query_ctx *   qctx,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf)
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf)
 {
     struct cn_tree_node *node;
     struct key_disc kdisc;
@@ -1009,7 +999,7 @@ cn_tree_prefix_probe(
         }
     }
 
-  done:
+done:
     rmlock_runlock(lock);
 
     perfc_lat_record(pc, PERFC_LT_CNGET_PROBE_PFX, pc_start);
@@ -1033,13 +1023,13 @@ cn_tree_prefix_probe(
  */
 merr_t
 cn_tree_lookup(
-    struct cn_tree *     tree,
-    struct perfc_set *   pc,
-    struct kvs_ktuple *  kt,
-    uint64_t             seq,
+    struct cn_tree *tree,
+    struct perfc_set *pc,
+    struct kvs_ktuple *kt,
+    uint64_t seq,
     enum key_lookup_res *res,
-    struct kvs_buf *     kbuf,
-    struct kvs_buf *     vbuf)
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf)
 {
     enum kvdb_perfc_sidx_cnget pc_cidx;
     struct cn_tree_node *node;
@@ -1092,7 +1082,7 @@ cn_tree_lookup(
         node = cn_tree_node_lookup(tree, kt->kt_data, kt->kt_len);
     }
 
-  done:
+done:
     rmlock_runlock(lock);
 
     if (pc_start > 0) {
@@ -1151,15 +1141,15 @@ cn_node_comp_token_put(struct cn_tree_node *tn)
  */
 static void
 cn_tree_capped_evict(
-    struct cn_tree *         tree,
+    struct cn_tree *tree,
     struct kvset_list_entry *first,
     struct kvset_list_entry *last)
 {
     struct kvset_list_entry *prev;
-    struct kvset *           kvset;
-    uint64_t                 now;
-    uint64_t                 ttl;
-    uint64_t                 ctime;
+    struct kvset *kvset;
+    uint64_t now;
+    uint64_t ttl;
+    uint64_t ctime;
 
     now = get_time_ns();
 
@@ -1199,17 +1189,17 @@ cn_tree_capped_compact(struct cn_tree *tree)
 {
     struct kvset_list_entry *le, *next, *mark;
     struct kvset_list_entry *first, *last;
-    struct cn_tree_node *    node;
-    struct list_head *       head, retired;
-    struct cndb_txn         *cndb_txn;
+    struct cn_tree_node *node;
+    struct list_head *head, retired;
+    struct cndb_txn *cndb_txn;
 
-    uint8_t  pt_key[sizeof(tree->ct_last_ptomb)];
-    void    *lock;
-    merr_t   err;
+    uint8_t pt_key[sizeof(tree->ct_last_ptomb)];
+    void *lock;
+    merr_t err;
     uint64_t horizon;
     uint64_t pt_seq;
-    uint     pt_len;
-    uint     kvset_cnt;
+    uint pt_len;
+    uint kvset_cnt;
 
     node = tree->ct_root;
     head = &node->tn_kvset_list;
@@ -1242,14 +1232,15 @@ cn_tree_capped_compact(struct cn_tree *tree)
      */
     for (le = last; le != first; le = list_prev_entry(le, le_link)) {
         const void *max_key = NULL;
-        uint  max_klen;
+        uint max_klen;
 
         /* [HSE_REVISIT] mapi breaks initialization of max_key.
          */
         kvset_get_max_nonpt_key(le->le_kvset, &max_key, &max_klen);
 
-        if (max_key && (!pt_len || kvset_get_seqno_max(le->le_kvset) >= horizon ||
-                        keycmp_prefix(pt_key, pt_len, max_key, max_klen) < 0))
+        if (max_key &&
+            (!pt_len || kvset_get_seqno_max(le->le_kvset) >= horizon ||
+             keycmp_prefix(pt_key, pt_len, max_key, max_klen) < 0))
             break;
 
         ++kvset_cnt;
@@ -1261,8 +1252,8 @@ cn_tree_capped_compact(struct cn_tree *tree)
     if (!mark)
         goto err_out;
 
-    err = cndb_record_txstart(tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 0,
-                              kvset_cnt, &cndb_txn);
+    err = cndb_record_txstart(
+        tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 0, kvset_cnt, &cndb_txn);
     if (ev(err))
         goto err_out;
 
@@ -1309,12 +1300,12 @@ err_out:
 static merr_t
 cn_tree_prepare_compaction(struct cn_compaction_work *w)
 {
-    struct kvset_mblocks    *outs = 0;
-    struct kvset_vblk_map    vbm = {};
+    struct kvset_mblocks *outs = 0;
+    struct kvset_vblk_map vbm = {};
     struct workqueue_struct *vra_wq;
-    struct cn_tree_node     *node = w->cw_node;
+    struct cn_tree_node *node = w->cw_node;
     struct kvset_list_entry *le;
-    struct kv_iterator     **ins = NULL;
+    struct kv_iterator **ins = NULL;
     merr_t err = 0;
     size_t outsz = 0;
     uint32_t n_outs = 1;
@@ -1367,9 +1358,9 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
 
         if (split) {
             const size_t sz = HSE_KVS_KEY_LEN_MAX +
-                n_outs * (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen_hi)) +
-                          sizeof(*(w->cw_split.dgen_lo)) +
-                          sizeof(*(w->cw_split.compc))) +
+                n_outs *
+                    (sizeof(*(w->cw_split.commit)) + sizeof(*(w->cw_split.dgen_hi)) +
+                     sizeof(*(w->cw_split.dgen_lo)) + sizeof(*(w->cw_split.compc))) +
                 w->cw_kvset_cnt * sizeof(*(w->cw_split.purge));
 
             w->cw_split.key = calloc(1, sz);
@@ -1402,7 +1393,8 @@ cn_tree_prepare_compaction(struct cn_compaction_work *w)
      * Node splits do not need input iterators because there's no merge loop.
      */
     for (i = 0, le = w->cw_mark; !split && i < w->cw_kvset_cnt;
-         i++, le = list_prev_entry(le, le_link)) {
+         i++, le = list_prev_entry(le, le_link))
+    {
 
         struct kv_iterator **iter = &ins[w->cw_kvset_cnt - 1 - i];
 
@@ -1472,10 +1464,10 @@ err_exit:
 static void
 cn_comp_update_kvcompact(struct cn_compaction_work *work, struct kvset *new_kvset)
 {
-    struct cn_tree *         tree = work->cw_tree;
+    struct cn_tree *tree = work->cw_tree;
     struct kvset_list_entry *le, *tmp;
-    struct list_head         retired_kvsets;
-    uint                     i;
+    struct list_head retired_kvsets;
+    uint i;
 
     if (ev(work->cw_err))
         return;
@@ -1548,20 +1540,20 @@ cn_node_spill_wait(struct cn_compaction_work *w)
 static void
 cn_spill_delete_kvsets(struct cn_compaction_work *work)
 {
-    struct list_head         retired_kvsets;
-    struct cn_tree          *tree = work->cw_tree;
-    struct cn_tree_node     *pnode = work->cw_node;
+    struct list_head retired_kvsets;
+    struct cn_tree *tree = work->cw_tree;
+    struct cn_tree_node *pnode = work->cw_node;
     struct kvset_list_entry *le, *tmp;
-    struct cn_samp_stats     pre, post;
-    struct cndb_txn         *tx;
+    struct cn_samp_stats pre, post;
+    struct cndb_txn *tx;
 
     assert(!work->cw_err);
 
     INIT_LIST_HEAD(&retired_kvsets);
 
-    work->cw_err = cndb_record_txstart(work->cw_tree->cndb, 0,
-                                       CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
-                                       0, work->cw_kvset_cnt, &tx);
+    work->cw_err = cndb_record_txstart(
+        work->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 0, work->cw_kvset_cnt,
+        &tx);
     if (work->cw_err)
         goto done;
 
@@ -1629,8 +1621,8 @@ done:
 static void
 cn_comp_update_split(
     struct cn_compaction_work *w,
-    struct kvset *const       *kvsets,
-    struct cn_tree_node       *nodev[static 2])
+    struct kvset * const *kvsets,
+    struct cn_tree_node *nodev[static 2])
 {
     struct cn_tree *tree = w->cw_tree;
     struct kvset_list_entry *le, *tmp;
@@ -1738,8 +1730,8 @@ cn_comp_update_split(
 static void
 cn_comp_update_subspill(
     struct cn_compaction_work *work,
-    struct cn_tree_node       *node,
-    struct kvset              *kvset)
+    struct cn_tree_node *node,
+    struct kvset *kvset)
 {
     struct cn_tree *tree = work->cw_tree;
     struct cn_samp_stats pre, post;
@@ -1773,21 +1765,21 @@ cn_comp_update_subspill(
 static void
 cn_comp_commit(struct cn_compaction_work *w)
 {
-    struct kvset  **kvsets = 0;
+    struct kvset **kvsets = 0;
     struct mbset ***vecs = 0;
-    uint           *cnts = 0;
-    void          **cookiev = 0;
-    uint            alloc_len;
-    const bool      is_kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
-    const bool      is_split = (w->cw_action == CN_ACTION_SPLIT);
-    bool            use_mbsets = is_kcompact;
-    bool            txn_nak = false;
-    merr_t          err = 0;
-    uint            i;
+    uint *cnts = 0;
+    void **cookiev = 0;
+    uint alloc_len;
+    const bool is_kcompact = (w->cw_action == CN_ACTION_COMPACT_K);
+    const bool is_split = (w->cw_action == CN_ACTION_SPLIT);
+    bool use_mbsets = is_kcompact;
+    bool txn_nak = false;
+    merr_t err = 0;
+    uint i;
 
     struct cn_tree_node *split_nodev[2] = { 0 };
-    uint64_t             split_nodeidv[2];
-    struct cndb_txn     *tx;
+    uint64_t split_nodeidv[2];
+    struct cndb_txn *tx;
 
     struct kvdb_health *hp = w->cw_tree->ct_kvdb_health;
 
@@ -1842,8 +1834,9 @@ cn_comp_commit(struct cn_compaction_work *w)
         }
     }
 
-    err = cndb_record_txstart(w->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON,
-                                    w->cw_outc, w->cw_kvset_cnt, &tx);
+    err = cndb_record_txstart(
+        w->cw_tree->cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, w->cw_outc, w->cw_kvset_cnt,
+        &tx);
     if (err) {
         kvdb_health_error(hp, err);
         goto done;
@@ -1903,25 +1896,22 @@ cn_comp_commit(struct cn_compaction_work *w)
         /* CNDB: Log kvset add records.
          */
         err = cndb_record_kvset_add(
-                        w->cw_tree->cndb, tx, w->cw_tree->cnid,
-                        km.km_nodeid, &km, w->cw_kvsetidv[i], km.km_hblk_id,
-                        w->cw_outv[i].kblks.idc, w->cw_outv[i].kblks.idv,
-                        w->cw_outv[i].vblks.idc, w->cw_outv[i].vblks.idv,
-                        &cookiev[i]);
+            w->cw_tree->cndb, tx, w->cw_tree->cnid, km.km_nodeid, &km, w->cw_kvsetidv[i],
+            km.km_hblk_id, w->cw_outv[i].kblks.idc, w->cw_outv[i].kblks.idv,
+            w->cw_outv[i].vblks.idc, w->cw_outv[i].vblks.idv, &cookiev[i]);
 
         if (err) {
             kvdb_health_error(hp, err);
             goto done;
         }
 
-
         if (is_split) {
             err = commit_mblocks(w->cw_mp, &w->cw_split.commit[i]);
             if (!err)
                 blk_list_free(&w->cw_split.commit[i]);
         } else {
-            err = cn_mblocks_commit(w->cw_mp, 1, &w->cw_outv[i],
-                                          is_kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER);
+            err = cn_mblocks_commit(
+                w->cw_mp, 1, &w->cw_outv[i], is_kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER);
         }
 
         if (err) {
@@ -1930,8 +1920,9 @@ cn_comp_commit(struct cn_compaction_work *w)
         }
 
         if (use_mbsets) {
-            err = kvset_open2(w->cw_tree, w->cw_kvsetidv[i], &km,
-                              w->cw_keep_vblks ? w->cw_kvset_cnt : 0, cnts, vecs, &kvsets[i]);
+            err = kvset_open2(
+                w->cw_tree, w->cw_kvsetidv[i], &km, w->cw_keep_vblks ? w->cw_kvset_cnt : 0, cnts,
+                vecs, &kvsets[i]);
         } else {
             err = kvset_open(w->cw_tree, w->cw_kvsetidv[i], &km, &kvsets[i]);
         }
@@ -2072,8 +2063,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
             /* Failed spills cause node to become "wedged"  */
             if (spill && !tree->ct_rspills_wedged) {
                 if (merr_errno(w->cw_err) != ESHUTDOWN)
-                    log_errx("root node wedged, spills disabled (cnid %lu)",
-                             w->cw_err, tree->cnid);
+                    log_errx("root node wedged, spills disabled (cnid %lu)", w->cw_err, tree->cnid);
                 tree->ct_rspills_wedged = true;
             }
             rmlock_wunlock(&tree->ct_lock);
@@ -2175,10 +2165,9 @@ cn_subspill_commit(struct subspill *ss)
 
     /* CNDB: Log kvset add records.
      */
-    err = cndb_record_kvset_add(cndb, tx, w->cw_tree->cnid, km.km_nodeid,
-                                &km, ss->ss_kvsetid, km.km_hblk_id,
-                                mblks->kblks.idc, mblks->kblks.idv,
-                                mblks->vblks.idc, mblks->vblks.idv, &cookie);
+    err = cndb_record_kvset_add(
+        cndb, tx, w->cw_tree->cnid, km.km_nodeid, &km, ss->ss_kvsetid, km.km_hblk_id,
+        mblks->kblks.idc, mblks->kblks.idv, mblks->vblks.idc, mblks->vblks.idv, &cookie);
     if (err)
         goto done;
 
@@ -2224,8 +2213,8 @@ cn_subspill_apply(struct subspill *ss)
         return 0;
 
     if (ss->ss_is_zspill) {
-        err = cn_move(w, w->cw_node, ss->ss_zspill.zsp_src_list,
-                      w->cw_kvset_cnt, delete_node, ss->ss_node);
+        err = cn_move(
+            w, w->cw_node, ss->ss_zspill.zsp_src_list, w->cw_kvset_cnt, delete_node, ss->ss_node);
 
         w->cw_output_nodev = &outnode;
 
@@ -2300,8 +2289,8 @@ cn_kvset_can_zspill(struct kvset *ks, struct route_map *map)
 static bool
 cn_node_can_zspill(
     struct cn_compaction_work *w,
-    struct kvset_list_entry  **kvset_list,
-    struct cn_tree_node      **znode_out)
+    struct kvset_list_entry **kvset_list,
+    struct cn_tree_node **znode_out)
 {
     struct cn_tree_node *znode = NULL;
     struct kvset_list_entry *first, *le;
@@ -2545,7 +2534,7 @@ cn_comp_spill(struct cn_compaction_work *w)
 
     w->cw_t3_build = get_time_ns();
 
-  errout:
+errout:
     if (ss_saved != ss)
         free(ss_saved);
     ss_saved = ss;
@@ -2737,9 +2726,9 @@ cn_compact(struct cn_compaction_work *w)
      * For a spill operation, each subspill to a child was committed as the spill progressed.
      * For a join operation, cn_move() commits the operation.
      */
-    if (w->cw_action != CN_ACTION_SPILL &&
-        w->cw_action != CN_ACTION_ZSPILL &&
-        w->cw_action != CN_ACTION_JOIN) {
+    if (w->cw_action != CN_ACTION_SPILL && w->cw_action != CN_ACTION_ZSPILL &&
+        w->cw_action != CN_ACTION_JOIN)
+    {
 
         cn_comp_commit(w);
     }
@@ -2798,19 +2787,15 @@ cn_tree_ingest_update(
 
     rmlock_wunlock(&tree->ct_lock);
 
-    csched_notify_ingest(cn_get_sched(tree->cn), tree,
-                         post.r_alen - pre.r_alen, kwlen, vwlen);
+    csched_notify_ingest(cn_get_sched(tree->cn), tree, post.r_alen - pre.r_alen, kwlen, vwlen);
 }
 
 void
-cn_tree_perfc_shape_report(
-    struct cn_tree *  tree,
-    struct perfc_set *rnode,
-    struct perfc_set *lnode)
+cn_tree_perfc_shape_report(struct cn_tree *tree, struct perfc_set *rnode, struct perfc_set *lnode)
 {
     struct cn_tree_node *tn;
-    struct perfc_set *   pcv[2];
-    void *               lock;
+    struct perfc_set *pcv[2];
+    void *lock;
 
     struct {
         uint64_t nodec;
@@ -2903,7 +2888,7 @@ cn_tree_node_get_max_key(struct cn_tree_node *tn, void *kbuf, size_t kbuf_sz, ui
     *max_klen = 0;
 
     rmlock_rlock(&tn->tn_tree->ct_lock, &lock);
-    list_for_each_entry (le, &tn->tn_kvset_list, le_link) {
+    list_for_each_entry(le, &tn->tn_kvset_list, le_link) {
         struct kvset *kvset = le->le_kvset;
         const void *key;
         uint klen = 0;
@@ -2946,9 +2931,9 @@ cn_tree_fini(void)
 }
 
 #if HSE_MOCKING
-#include "cn_tree_ut_impl.i"
 #include "cn_tree_compact_ut_impl.i"
 #include "cn_tree_create_ut_impl.i"
 #include "cn_tree_internal_ut_impl.i"
 #include "cn_tree_iter_ut_impl.i"
+#include "cn_tree_ut_impl.i"
 #endif /* HSE_MOCKING */

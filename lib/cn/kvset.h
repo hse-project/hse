@@ -9,16 +9,15 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/list.h>
-#include <hse/util/perfc.h>
-
 #include <hse/ikvdb/blk_list.h>
-#include <hse/ikvdb/kvs_cparams.h>
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/omf_kmd.h>
-#include <hse/ikvdb/kvset_view.h>
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvset_view.h>
+#include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/util/list.h>
+#include <hse/util/perfc.h>
 
 #include "blk_list.h"
 #include "kv_iterator.h"
@@ -41,7 +40,7 @@ struct vgmap;
 
 struct kvset_list_entry {
     struct list_head le_link;
-    struct kvset *   le_kvset;
+    struct kvset *le_kvset;
 };
 
 enum kvset_iter_flags {
@@ -68,18 +67,18 @@ enum kvset_iter_flags {
  * This structure is passed between the MDC and kvset_open().
  */
 struct kvset_meta {
-    uint64_t        km_hblk_id;
+    uint64_t km_hblk_id;
     struct blk_list km_kblk_list;
     struct blk_list km_vblk_list;
-    uint64_t        km_dgen_hi;
-    uint64_t        km_dgen_lo;
-    uint64_t        km_vused;
-    uint64_t        km_vgarb;
-    uint64_t        km_nodeid;
-    uint16_t        km_compc;
-    uint16_t        km_rule;
-    bool            km_capped;
-    bool            km_restored;
+    uint64_t km_dgen_hi;
+    uint64_t km_dgen_lo;
+    uint64_t km_vused;
+    uint64_t km_vgarb;
+    uint64_t km_nodeid;
+    uint16_t km_compc;
+    uint16_t km_rule;
+    bool km_capped;
+    bool km_restored;
 };
 
 enum {
@@ -206,13 +205,13 @@ kvset_madvise_vmaps(struct kvset *kvset, int advice);
 /* MTF_MOCK */
 merr_t
 kvset_open2(
-    struct cn_tree *   tree,
-    uint64_t           kvsetid,
+    struct cn_tree *tree,
+    uint64_t kvsetid,
     struct kvset_meta *meta,
-    uint               vbset_cnt_len,
-    uint *             vbset_cnts,
-    struct mbset ***   vbset_vecs,
-    struct kvset **    kvset);
+    uint vbset_cnt_len,
+    uint *vbset_cnts,
+    struct mbset ***vbset_vecs,
+    struct kvset **kvset);
 
 /* MTF_MOCK */
 merr_t
@@ -290,12 +289,12 @@ kvset_kblk_start(struct kvset *kvset, const void *key, int len, bool reverse);
  */
 merr_t
 kvset_lookup(
-    struct kvset *         kvset,
-    struct kvs_ktuple *    kt,
+    struct kvset *kvset,
+    struct kvs_ktuple *kt,
     const struct key_disc *kdisc,
-    uint64_t               seq,
-    enum key_lookup_res *  res,
-    struct kvs_buf *       vbuf);
+    uint64_t seq,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf);
 
 struct query_ctx;
 
@@ -307,15 +306,15 @@ kvset_wbti_free(void *wbti);
 
 merr_t
 kvset_pfx_lookup(
-    struct kvset *         km,
-    struct kvs_ktuple *    kt,
+    struct kvset *km,
+    struct kvs_ktuple *kt,
     const struct key_disc *kdisc,
-    uint64_t               seq,
-    enum key_lookup_res *  res,
-    void *                 wbti,
-    struct kvs_buf *       kbuf,
-    struct kvs_buf *       vbuf,
-    struct query_ctx *     qctx);
+    uint64_t seq,
+    enum key_lookup_res *res,
+    void *wbti,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf,
+    struct query_ctx *qctx);
 
 /*
  * kvset_younger() - returns true if ks1 is younger than ks2
@@ -448,12 +447,12 @@ kvset_get_dgen_lo(const struct kvset *kvset);
 /* MTF_MOCK */
 merr_t
 kvset_iter_create(
-    struct kvset *           kvset,
+    struct kvset *kvset,
     struct workqueue_struct *io_workq,
     struct workqueue_struct *vra_wq,
-    struct perfc_set *       pc,
-    enum kvset_iter_flags    flags,
-    struct kv_iterator **    kv_iter);
+    struct perfc_set *pc,
+    enum kvset_iter_flags flags,
+    struct kv_iterator **kv_iter);
 
 /* MTF_MOCK */
 void
@@ -504,27 +503,27 @@ kvset_iter_es_get(struct kv_iterator *handle);
 /* MTF_MOCK */
 merr_t
 kvset_iter_val_get(
-    struct kv_iterator *    handle,
+    struct kv_iterator *handle,
     struct kvset_iter_vctx *vc,
-    enum kmd_vtype          vtype,
-    uint                    vbidx,
-    uint                    vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen);
+    enum kmd_vtype vtype,
+    uint vbidx,
+    uint vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen);
 
 /* MTF_MOCK */
 bool
 kvset_iter_next_vref(
-    struct kv_iterator *    handle,
+    struct kv_iterator *handle,
     struct kvset_iter_vctx *vc,
-    uint64_t *              seq,
-    enum kmd_vtype *        vtype,
-    uint *                  vbidx,
-    uint *                  vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen);
+    uint64_t *seq,
+    enum kmd_vtype *vtype,
+    uint *vbidx,
+    uint *vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen);
 
 /**
  * kvset_keep_vblocks - populate a vblock map from many-to-one
@@ -543,10 +542,10 @@ kvset_iter_next_vref(
  */
 merr_t
 kvset_keep_vblocks(
-    struct kvset_vblk_map  *out,
-    struct vgmap          **vgmap,
-    struct kv_iterator    **iv,
-    int                     niv);
+    struct kvset_vblk_map *out,
+    struct vgmap **vgmap,
+    struct kv_iterator **iv,
+    int niv);
 
 /* MTF_MOCK */
 void
@@ -568,12 +567,12 @@ kvset_max_ptkey(const struct kvset *ks, const void **max, uint16_t *maxlen);
 merr_t
 kvset_iter_next_val_direct(
     struct kv_iterator *handle,
-    enum kmd_vtype      vtype,
-    uint                vbidx,
-    uint                vboff,
-    void *              vdata,
-    uint                vlen,
-    uint                bufsz);
+    enum kmd_vtype vtype,
+    uint vbidx,
+    uint vboff,
+    void *vdata,
+    uint vlen,
+    uint bufsz);
 
 /**
  * vgmap_alloc() - Allocates a vgroup map
@@ -626,10 +625,10 @@ vgmap_vbidx_out_end(struct kvset *ks, uint32_t vgidx);
 merr_t
 vgmap_vbidx_set(
     struct vgmap *vgmap_src,
-    uint16_t      vbidx_src_out,
+    uint16_t vbidx_src_out,
     struct vgmap *vgmap_tgt,
-    uint16_t      vbidx_tgt_out,
-    uint32_t      vgidx);
+    uint16_t vbidx_tgt_out,
+    uint32_t vgidx);
 
 #if HSE_MOCKING
 #include "kvset_ut.h"

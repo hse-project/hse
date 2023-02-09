@@ -26,14 +26,15 @@
 
 #include <bsd/string.h>
 
+#include <hse/hse.h>
+
 #include <hse/cli/program.h>
 #include <hse/error/merr.h>
-#include <hse/hse.h>
 #include <hse/mpool/mpool.h>
 #include <hse/util/atomic.h>
 #include <hse/util/err_ctx.h>
-#include <hse/util/platform.h>
 #include <hse/util/parse_num.h>
+#include <hse/util/platform.h>
 
 struct oid_pair {
     uint64_t oid[2];
@@ -44,9 +45,9 @@ static struct options {
     uint64_t cap;
     uint16_t threads;
     uint16_t mode;
-    bool     verify;
-    bool     sync;
-    bool     help;
+    bool verify;
+    bool sync;
+    bool help;
 } opt;
 
 uint8_t *pattern;
@@ -144,17 +145,17 @@ enum thread_state { NOT_STARTED, STARTED };
 typedef void *(thread_func_t)(void *arg);
 
 struct thread_args {
-    int              instance;
+    int instance;
     pthread_mutex_t *start_mutex;
-    pthread_cond_t  *start_line;
-    atomic_int      *start_cnt;
-    void            *arg;
+    pthread_cond_t *start_line;
+    atomic_int *start_cnt;
+    void *arg;
 };
 
 struct thread_resp {
-    int    instance;
+    int instance;
     merr_t err;
-    void  *resp;
+    void *resp;
 };
 
 static uint32_t
@@ -197,18 +198,18 @@ thread_wait_for_start(struct thread_args *targs)
 
 static merr_t
 thread_create(
-    int                 thread_cnt,
-    thread_func_t       func,
+    int thread_cnt,
+    thread_func_t func,
     struct thread_args *targs,
     struct thread_resp *tresp)
 {
-    pthread_t      *thread;
+    pthread_t *thread;
     pthread_attr_t *attr;
-    pthread_cond_t  start_line = PTHREAD_COND_INITIALIZER;
+    pthread_cond_t start_line = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t start_mutex = PTHREAD_MUTEX_INITIALIZER;
-    atomic_int      start_cnt;
-    int             still_to_start;
-    int             i, rc;
+    atomic_int start_cnt;
+    int still_to_start;
+    int i, rc;
 
     if (!targs || !tresp) {
         fprintf(stderr, "%s: targs and/or tresp not passed in\n", __func__);
@@ -265,9 +266,9 @@ thread_create(
 static unsigned int mclass = HSE_MCLASS_CAPACITY;
 
 struct ml_writer_args {
-    struct mpool   *mp;
-    uint32_t        rs; /* write size in bytes */
-    uint32_t        wc; /* write count */
+    struct mpool *mp;
+    uint32_t rs; /* write size in bytes */
+    uint32_t wc; /* write count */
     struct oid_pair oid;
 };
 
@@ -287,26 +288,23 @@ ml_writer(void *arg)
     char err_str[256];
     long written = 0;
 
-    struct thread_args    *targs = (struct thread_args *)arg;
+    struct thread_args *targs = (struct thread_args *)arg;
     struct ml_writer_args *args = (struct ml_writer_args *)targs->arg;
     struct ml_writer_resp *resp;
-    struct mpool_mdc      *mdc;
-    struct timeval         start_tv, stop_tv;
-    int                    id = targs->instance;
-    size_t                 used, alloc, size;
-    uint64_t               oid1 = args->oid.oid[0];
-    uint64_t               oid2 = args->oid.oid[1];
-    uint32_t               write_cnt = args->wc;
-    uint32_t               write_sz = args->rs;
+    struct mpool_mdc *mdc;
+    struct timeval start_tv, stop_tv;
+    int id = targs->instance;
+    size_t used, alloc, size;
+    uint64_t oid1 = args->oid.oid[0];
+    uint64_t oid2 = args->oid.oid[1];
+    uint32_t write_cnt = args->wc;
+    uint32_t write_sz = args->rs;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
         err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate response struct:%s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate response struct:%s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
@@ -314,10 +312,7 @@ ml_writer(void *arg)
     err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to open mdc: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to open mdc: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
@@ -327,10 +322,7 @@ ml_writer(void *arg)
     if (!buf) {
         err = resp->err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate buf: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate buf: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         goto close_mdc;
     }
@@ -348,10 +340,7 @@ ml_writer(void *arg)
                 stderr,
                 "[%d]%s: error on async append #%d bytes "
                 "written %ld: %s\n",
-                id,
-                __func__,
-                i,
-                written,
+                id, __func__, i, written,
                 merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             goto free_buf;
@@ -362,10 +351,7 @@ ml_writer(void *arg)
     err = mpool_mdc_append(mdc, buf, write_sz, true); /*  sync */
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: error on append: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: error on append: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         goto free_buf;
@@ -374,10 +360,7 @@ ml_writer(void *arg)
     err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to get mdc usage: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to get mdc usage: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         goto free_buf;
@@ -403,9 +386,9 @@ close_mdc:
 }
 
 struct ml_reader_args {
-    struct mpool   *mp;
-    uint32_t        rs; /* read size in bytes */
-    uint32_t        rc; /* read count */
+    struct mpool *mp;
+    uint32_t rs; /* read size in bytes */
+    uint32_t rc; /* read count */
     struct oid_pair oid;
 };
 
@@ -425,25 +408,22 @@ ml_reader(void *arg)
     char err_str[256];
     size_t bytes_read = 0;
 
-    struct thread_args    *targs = (struct thread_args *)arg;
+    struct thread_args *targs = (struct thread_args *)arg;
     struct ml_reader_args *args = (struct ml_reader_args *)targs->arg;
     struct ml_reader_resp *resp;
-    struct mpool_mdc      *mdc;
-    struct timeval         start_tv, stop_tv;
-    int                    id = targs->instance;
-    size_t                 used, alloc, size;
-    uint64_t               oid1 = args->oid.oid[0];
-    uint64_t               oid2 = args->oid.oid[1];
-    uint32_t               read_cnt = args->rc;
+    struct mpool_mdc *mdc;
+    struct timeval start_tv, stop_tv;
+    int id = targs->instance;
+    size_t used, alloc, size;
+    uint64_t oid1 = args->oid.oid[0];
+    uint64_t oid2 = args->oid.oid[1];
+    uint32_t read_cnt = args->rc;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
         err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate response struct:%s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate response struct:%s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
@@ -451,10 +431,7 @@ ml_reader(void *arg)
     err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to open mdc: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to open mdc: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
@@ -470,10 +447,7 @@ ml_reader(void *arg)
     err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to get mdc usage: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to get mdc usage: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
@@ -483,10 +457,7 @@ ml_reader(void *arg)
     if (!buf) {
         err = resp->err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate buf: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate buf: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
@@ -500,10 +471,7 @@ ml_reader(void *arg)
         err = mpool_mdc_read(mdc, buf, args->rs, &bytes_read);
         if (err) {
             fprintf(
-                stderr,
-                "[%d]%s: error on read:%s\n",
-                i,
-                __func__,
+                stderr, "[%d]%s: error on read:%s\n", i, __func__,
                 merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             return resp;
@@ -529,9 +497,9 @@ ml_reader(void *arg)
 }
 
 struct ml_verify_args {
-    struct mpool   *mp;
-    uint32_t        rs; /* read size in bytes */
-    uint32_t        rc; /* read count */
+    struct mpool *mp;
+    uint32_t rs; /* read size in bytes */
+    uint32_t rc; /* read count */
     struct oid_pair oid;
 };
 
@@ -545,32 +513,29 @@ static void *
 ml_verify(void *arg)
 {
     merr_t err;
-    int    i;
-    char  *buf;
+    int i;
+    char *buf;
     uint32_t usec;
-    char   err_str[256];
+    char err_str[256];
     size_t bytes_read = 0;
-    int    ret;
+    int ret;
 
-    struct thread_args    *targs = (struct thread_args *)arg;
+    struct thread_args *targs = (struct thread_args *)arg;
     struct ml_verify_args *args = (struct ml_verify_args *)targs->arg;
     struct ml_verify_resp *resp;
-    struct mpool_mdc      *mdc;
-    struct timeval         start_tv, stop_tv;
-    int                    id = targs->instance;
-    size_t                 used, alloc, size;
-    uint64_t               oid1 = args->oid.oid[0];
-    uint64_t               oid2 = args->oid.oid[1];
-    uint32_t               read_cnt = args->rc;
+    struct mpool_mdc *mdc;
+    struct timeval start_tv, stop_tv;
+    int id = targs->instance;
+    size_t used, alloc, size;
+    uint64_t oid1 = args->oid.oid[0];
+    uint64_t oid2 = args->oid.oid[1];
+    uint32_t read_cnt = args->rc;
 
     resp = calloc(1, sizeof(*resp));
     if (!resp) {
         err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate response struct:%s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate response struct:%s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
@@ -578,10 +543,7 @@ ml_verify(void *arg)
     err = mpool_mdc_open(args->mp, oid1, oid2, false, &mdc);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to open mdc: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to open mdc: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
@@ -597,10 +559,7 @@ ml_verify(void *arg)
     err = mpool_mdc_usage(mdc, &size, &alloc, &used);
     if (err) {
         fprintf(
-            stderr,
-            "[%d]%s: Unable to get mdc usage: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to get mdc usage: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         resp->err = err;
         return resp;
@@ -610,10 +569,7 @@ ml_verify(void *arg)
     if (!buf) {
         err = resp->err = merr(ENOMEM);
         fprintf(
-            stderr,
-            "[%d]%s: Unable to allocate buf: %s\n",
-            id,
-            __func__,
+            stderr, "[%d]%s: Unable to allocate buf: %s\n", id, __func__,
             merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
         return resp;
     }
@@ -627,10 +583,7 @@ ml_verify(void *arg)
         err = mpool_mdc_read(mdc, buf, args->rs, &bytes_read);
         if (err) {
             fprintf(
-                stderr,
-                "[%d]%s: error on read:%s\n",
-                i,
-                __func__,
+                stderr, "[%d]%s: error on read:%s\n", i, __func__,
                 merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             resp->err = err;
             return resp;
@@ -678,18 +631,18 @@ perf_seq_writes(const char *path)
     double perf;
     int ret;
 
-    struct mpool_rparams params = {0};
+    struct mpool_rparams params = { 0 };
     struct ml_writer_resp *wr_resp;
     struct ml_writer_args *wr_arg;
     struct ml_reader_resp *rd_resp;
     struct ml_reader_args *rd_arg;
     struct ml_verify_resp *v_resp;
     struct ml_verify_args *v_arg;
-    struct thread_args    *targ;
-    struct thread_resp    *tresp;
-    struct mpool          *mp;
-    struct oid_pair       *oid;
-    uint64_t               capacity;
+    struct thread_args *targ;
+    struct thread_resp *tresp;
+    struct mpool *mp;
+    struct oid_pair *oid;
+    uint64_t capacity;
 
     mclass = HSE_MCLASS_CAPACITY;
     tc = opt.threads;
@@ -698,8 +651,9 @@ perf_seq_writes(const char *path)
     if (ret == -1)
         return merr(EINVAL);
 
-    strlcpy(params.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        params.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(params.mclass[HSE_MCLASS_CAPACITY].path));
     /* 2. Open the mpool */
     err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
@@ -745,22 +699,16 @@ perf_seq_writes(const char *path)
         err = mpool_mdc_alloc(mp, 0xaabbcc00 + i, capacity, mclass, &oid[i].oid[0], &oid[i].oid[1]);
         if (err) {
             fprintf(
-                stderr,
-                "[%d]: Unable to alloc mdc: %s\n",
-                i,
-                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror,
-                    NULL));
+                stderr, "[%d]: Unable to alloc mdc: %s\n", i,
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             goto free_oid;
         }
 
         err = mpool_mdc_commit(mp, oid[i].oid[0], oid[i].oid[1]);
         if (err) {
             fprintf(
-                stderr,
-                "[%d]: Unable to commit mdc: %s\n",
-                i,
-                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror,
-                    NULL));
+                stderr, "[%d]: Unable to commit mdc: %s\n", i,
+                merr_strinfo(err, err_str, sizeof(err_str), err_ctx_strerror, NULL));
             goto free_oid;
         }
 
@@ -800,10 +748,7 @@ perf_seq_writes(const char *path)
     }
     perf = bytes_written / usec;
     printf(
-        "%d threads wrote %ld bytes in %d usecs or %4.2f MB/s\n",
-        tc,
-        (long)bytes_written,
-        usec,
+        "%d threads wrote %ld bytes in %d usecs or %4.2f MB/s\n", tc, (long)bytes_written, usec,
         perf);
 
     /* Read */
@@ -856,12 +801,8 @@ perf_seq_writes(const char *path)
         }
         perf = bytes_read / usec;
         printf(
-            "%s: %d threads read %ld bytes in %d usecs or %4.2f MB/s\n",
-            __func__,
-            tc,
-            (long)bytes_read,
-            usec,
-            perf);
+            "%s: %d threads read %ld bytes in %d usecs or %4.2f MB/s\n", __func__, tc,
+            (long)bytes_read, usec, perf);
     }
 
     /* Verify */
@@ -915,12 +856,8 @@ perf_seq_writes(const char *path)
         }
         perf = bytes_verified / usec;
         printf(
-            "%s: %d threads verified %ld bytes in %d usecs or %4.2f MB/s\n",
-            __func__,
-            tc,
-            (long)bytes_verified,
-            usec,
-            perf);
+            "%s: %d threads verified %ld bytes in %d usecs or %4.2f MB/s\n", __func__, tc,
+            (long)bytes_verified, usec, perf);
 
         free(v_arg);
     }
@@ -1003,39 +940,39 @@ options_parse(int argc, char **argv, int *last_arg)
             break;
 
         switch (c) {
-            case 'r':
-                parse_u64(optarg, &opt.recsz);
-                break;
+        case 'r':
+            parse_u64(optarg, &opt.recsz);
+            break;
 
-            case 'c':
-                parse_u64(optarg, &opt.cap);
-                break;
+        case 'c':
+            parse_u64(optarg, &opt.cap);
+            break;
 
-            case 't':
-                parse_u16(optarg, &opt.threads);
-                break;
+        case 't':
+            parse_u16(optarg, &opt.threads);
+            break;
 
-            case 'm':
-                parse_u16(optarg, &opt.mode);
-                break;
+        case 'm':
+            parse_u16(optarg, &opt.mode);
+            break;
 
-            case 'v':
-                opt.verify = true;
-                break;
+        case 'v':
+            opt.verify = true;
+            break;
 
-            case 's':
-                opt.sync = true;
-                break;
+        case 's':
+            opt.sync = true;
+            break;
 
-            case 'h':
-                opt.help = true;
-                break;
+        case 'h':
+            opt.help = true;
+            break;
 
-            default:
-                if (c != 0)
-                    fprintf(stderr, "Unhandled option '%s'", argv[curind]);
-                usage();
-                break;
+        default:
+            if (c != 0)
+                fprintf(stderr, "Unhandled option '%s'", argv[curind]);
+            usage();
+            break;
         };
     } while (true);
 
@@ -1045,12 +982,12 @@ options_parse(int argc, char **argv, int *last_arg)
 int
 main(int argc, char **argv)
 {
-    struct mpool_cparams cparams = {0};
-    struct mpool_dparams dparams = {0};
-    uint64_t           herr;
-    int                last_arg;
-    merr_t             err;
-    const char        *path;
+    struct mpool_cparams cparams = { 0 };
+    struct mpool_dparams dparams = { 0 };
+    uint64_t herr;
+    int last_arg;
+    merr_t err;
+    const char *path;
 
     progname_set(argv[0]);
 
@@ -1080,8 +1017,9 @@ main(int argc, char **argv)
     }
 
     mpool_cparams_defaults(&cparams);
-    strlcpy(cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        cparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(cparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
@@ -1094,8 +1032,9 @@ main(int argc, char **argv)
     else
         perf_seq_reads(path);
 
-    strlcpy(dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
-            sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
+    strlcpy(
+        dparams.mclass[HSE_MCLASS_CAPACITY].path, path,
+        sizeof(dparams.mclass[HSE_MCLASS_CAPACITY].path));
     err = mpool_destroy(path, &dparams);
     if (err) {
         fprintf(stderr, "mpool destroy at path %s failed\n", path);

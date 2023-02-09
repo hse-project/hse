@@ -41,13 +41,13 @@ struct cn_compaction_work;
  * used 20M,  waste 300M, ratio: 300 / 320 = .94
  */
 struct kvset_vblk_map {
-    uint64_t         *vbm_blkv;  // vector of vblock ids
-    uint32_t         *vbm_map;   // map of offsets from src vr_index to new vr_index in target
-    uint32_t          vbm_blkc;  // number of entries in blkv
-    uint32_t          vbm_mapc;  // number of entries in map[]
-    uint64_t          vbm_used;  // total bytes of used vblock space
-    uint64_t          vbm_waste; // total bytes of un-used vblock space
-    uint64_t          vbm_tot;   // total bytes of all values in vblock space
+    uint64_t *vbm_blkv; // vector of vblock ids
+    uint32_t *vbm_map;  // map of offsets from src vr_index to new vr_index in target
+    uint32_t vbm_blkc;  // number of entries in blkv
+    uint32_t vbm_mapc;  // number of entries in map[]
+    uint64_t vbm_used;  // total bytes of used vblock space
+    uint64_t vbm_waste; // total bytes of un-used vblock space
+    uint64_t vbm_tot;   // total bytes of all values in vblock space
 };
 
 /* Perform a k-compact operation

@@ -7,6 +7,7 @@
 #define HSE_PLATFORM_HYPERLOGLOG_H
 
 #include <stdint.h>
+
 #include <sys/types.h>
 
 #include <hse/error/merr.h>
@@ -17,8 +18,8 @@ struct hlog;
 
 /* Defaults use by HSE */
 #define HLOG_PRECISION 14
-#define HLOG_SIZE hlog_size(HLOG_PRECISION)
-#define HLOG_PGC ((HLOG_SIZE + PAGE_SIZE - 1) / PAGE_SIZE)
+#define HLOG_SIZE      hlog_size(HLOG_PRECISION)
+#define HLOG_PGC       ((HLOG_SIZE + PAGE_SIZE - 1) / PAGE_SIZE)
 
 #define HLOG_PRECISION_MIN 4
 #define HLOG_PRECISION_MAX 18

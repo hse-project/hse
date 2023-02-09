@@ -5,15 +5,14 @@
 
 #include <stdint.h>
 
-#include <hse/util/page.h>
 #include <hse/util/cursor_heap.h>
+#include <hse/util/page.h>
 #include <hse/util/xrand.h>
 
 #include <hse/test/mtf/conditions.h>
+#include <hse/test/support/random_buffer.h>
 
 #include "cheap_testlib.h"
-
-#include <hse/test/support/random_buffer.h>
 
 /*
  * cheap_fill_test
@@ -24,7 +23,7 @@ int
 cheap_fill_test(struct cheap *h, size_t size)
 {
     void *ptr = 0;
-    int   i;
+    int i;
 
     i = 0;
     while (1) {
@@ -69,15 +68,15 @@ my_memcmp(char *s1, char *s2, size_t len)
 int
 cheap_verify_test1(struct cheap *h, uint32_t min_size, uint32_t max_size)
 {
-    int             rc = -1;
-    int             i = 0;
-    int             num_bufs;
-    char **         bufs = 0;
-    uint32_t *      buf_sizes = 0;
-    char *          zero_buffer = 0;
-    struct xrand    xr;
-    int64_t         max_bufs;
-    ssize_t         buf_ptr_array_size;
+    int rc = -1;
+    int i = 0;
+    int num_bufs;
+    char **bufs = 0;
+    uint32_t *buf_sizes = 0;
+    char *zero_buffer = 0;
+    struct xrand xr;
+    int64_t max_bufs;
+    ssize_t buf_ptr_array_size;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size */
@@ -155,12 +154,12 @@ cheap_verify_test1(struct cheap *h, uint32_t min_size, uint32_t max_size)
 int
 cheap_zero_test1(struct cheap *h, uint32_t min_size, uint32_t max_size)
 {
-    int             i = 0;
-    char **         bufs = 0;
-    uint32_t *      buf_sizes = 0;
-    char *          zero_buffer = 0;
+    int i = 0;
+    char **bufs = 0;
+    uint32_t *buf_sizes = 0;
+    char *zero_buffer = 0;
     struct xrand xr;
-    int             max_bufs;
+    int max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size */
@@ -220,11 +219,11 @@ cheap_strict_test1(
     uint32_t max_size,
     enum which_strict_test which)
 {
-    int             i = 0;
-    char **         bufs = 0;
-    uint32_t *      buf_sizes = 0;
-    struct xrand    xr;
-    int             max_bufs;
+    int i = 0;
+    char **bufs = 0;
+    uint32_t *buf_sizes = 0;
+    struct xrand xr;
+    int max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size.

@@ -3,14 +3,14 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/conditions.h>
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/ikvdb/cn.h>
 
-#include "cn/route.h"
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/conditions.h>
+#include <hse/test/mtf/framework.h>
+
 #include "cn/cn_tree_internal.h"
+#include "cn/route.h"
 
 MTF_BEGIN_UTEST_COLLECTION(route_test)
 

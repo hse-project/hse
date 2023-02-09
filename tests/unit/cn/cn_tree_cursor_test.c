@@ -5,17 +5,16 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/omf_kmd.h>
 #include <hse/util/base.h>
 #include <hse/util/keycmp.h>
 
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/omf_kmd.h>
+#include <hse/test/mtf/framework.h>
 
+#include "cn/cn_cursor.h"
 #include "cn/cn_tree_cursor.h"
 #include "cn/cn_tree_internal.h"
-#include "cn/cn_cursor.h"
 #include "cn/kvset.h"
 #include "cn/route.h"
 
@@ -38,12 +37,12 @@ cn_tree_kvset_refs(struct cn_tree_node *node, struct cn_level_cursor *lcur)
 
 struct kv {
     struct cn_kv_item item;
-    char              kdata[32];
-    uint              klen;
-    enum kmd_vtype    vtype;
-    uint64_t          seqno;
-    struct kv        *next;
-    struct kv        *prev;
+    char kdata[32];
+    uint klen;
+    enum kmd_vtype vtype;
+    uint64_t seqno;
+    struct kv *next;
+    struct kv *prev;
 } *head, *curr;
 
 void
@@ -116,15 +115,15 @@ _bin_heap_peek(struct bin_heap *bh, void **item)
 
 bool
 _kvset_iter_next_vref(
-    struct kv_iterator *    handle,
+    struct kv_iterator *handle,
     struct kvset_iter_vctx *vc,
-    uint64_t *              seq,
-    enum kmd_vtype *        vtype,
-    uint *                  vbidx,
-    uint *                  vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen)
+    uint64_t *seq,
+    enum kmd_vtype *vtype,
+    uint *vbidx,
+    uint *vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen)
 {
     struct kv *kv = (void *)vc->kmd;
 
@@ -141,14 +140,14 @@ _kvset_iter_next_vref(
 
 merr_t
 _kvset_iter_val_get(
-    struct kv_iterator *    handle,
+    struct kv_iterator *handle,
     struct kvset_iter_vctx *vc,
-    enum kmd_vtype          vtype,
-    uint                    vbidx,
-    uint                    vboff,
-    const void **           vdata,
-    uint *                  vlen,
-    uint *                  complen)
+    enum kmd_vtype vtype,
+    uint vbidx,
+    uint vboff,
+    const void **vdata,
+    uint *vlen,
+    uint *complen)
 {
     struct kv *kv = (void *)vc->kmd;
 
@@ -178,8 +177,7 @@ _kvset_iter_val_get(
 
 /* This is a mock */
 merr_t
-cn_lcur_init(
-    struct cn_level_cursor *lcur)
+cn_lcur_init(struct cn_level_cursor *lcur)
 {
     /* Set number of iterators to some non-zero value so the code doesn't skip seek.
      */
@@ -189,10 +187,7 @@ cn_lcur_init(
 
 /* This is a mock */
 merr_t
-cn_lcur_seek(
-    struct cn_level_cursor *lcur,
-    const void             *key,
-    uint32_t                len)
+cn_lcur_seek(struct cn_level_cursor *lcur, const void *key, uint32_t len)
 {
     curr = head;
     while (curr) {
@@ -450,16 +445,18 @@ MTF_DEFINE_UTEST_PREPOST(cn_tree_cursor_test, with_ptomb, pre_test, post_test)
      */
 
     kv_start();
-    kv_add(&kv[0], "ab",   4,  VTYPE_UCVAL);    /* Seen */
-    kv_add(&kv[1], "ab",   4,  VTYPE_PTOMB);  /* Hidden: Not passed up the stack, only affects future keys */
-    kv_add(&kv[2], "ab",   1,  VTYPE_PTOMB);  /* Hidden: dup pt, first pt takes precendence */
-    kv_add(&kv[3], "ab01", 3,  VTYPE_UCVAL);    /* Hidden */
-    kv_add(&kv[4], "ab02", 5,  VTYPE_UCVAL);    /* Seen:   seqno larger than ptomb seqno */
-    kv_add(&kv[5], "ab03", 11, VTYPE_UCVAL);    /* Hidden: seqno larger than cursor seqno */
-    kv_add(&kv[6], "ab03", 3,  VTYPE_UCVAL);    /* Hidden */
-    kv_add(&kv[7], "ab04", 4,  VTYPE_UCVAL);    /* Seen:   pt should NOT hide key */
-    kv_add(&kv[8], "ac01", 4,  VTYPE_UCVAL);    /* Seen:   Does not match ptomb's pfx */
-    kv_add(&kv[9], "bb01", 4,  VTYPE_UCVAL);    /* Hidden: Does not match cursor pfx */
+    kv_add(&kv[0], "ab", 4, VTYPE_UCVAL); /* Seen */
+    kv_add(
+        &kv[1], "ab", 4,
+        VTYPE_PTOMB); /* Hidden: Not passed up the stack, only affects future keys */
+    kv_add(&kv[2], "ab", 1, VTYPE_PTOMB);    /* Hidden: dup pt, first pt takes precendence */
+    kv_add(&kv[3], "ab01", 3, VTYPE_UCVAL);  /* Hidden */
+    kv_add(&kv[4], "ab02", 5, VTYPE_UCVAL);  /* Seen:   seqno larger than ptomb seqno */
+    kv_add(&kv[5], "ab03", 11, VTYPE_UCVAL); /* Hidden: seqno larger than cursor seqno */
+    kv_add(&kv[6], "ab03", 3, VTYPE_UCVAL);  /* Hidden */
+    kv_add(&kv[7], "ab04", 4, VTYPE_UCVAL);  /* Seen:   pt should NOT hide key */
+    kv_add(&kv[8], "ac01", 4, VTYPE_UCVAL);  /* Seen:   Does not match ptomb's pfx */
+    kv_add(&kv[9], "bb01", 4, VTYPE_UCVAL);  /* Hidden: Does not match cursor pfx */
     kv_end();
 
     tree.ct_route_map = route_map_create(CN_FANOUT_MAX);

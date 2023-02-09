@@ -7,28 +7,28 @@
 
 struct mtest_worker {
     struct mtest *mtest;
-    pthread_t     threadid;
-    int           wnum;
+    pthread_t threadid;
+    int wnum;
 };
 
 struct mtest {
-    int                  num_workers;
+    int num_workers;
     struct mtest_worker *workers;
-    pthread_barrier_t    worker_barrier;
-    pthread_barrier_t    global_barrier;
-    mtest_worker_fn *    worker_func;
-    mtest_report_fn *    report_func;
-    void *               user_context;
+    pthread_barrier_t worker_barrier;
+    pthread_barrier_t global_barrier;
+    mtest_worker_fn *worker_func;
+    mtest_report_fn *report_func;
+    void *user_context;
 };
 
 struct mtest *
 mtest_create(
-    int              num_workers,
+    int num_workers,
     mtest_worker_fn *worker_func,
     mtest_report_fn *report_func,
-    void *           user_context)
+    void *user_context)
 {
-    int           err;
+    int err;
     struct mtest *mtest = NULL;
 
     if (num_workers <= 0 || num_workers > 100)
@@ -109,7 +109,7 @@ static void *
 launch_thread(void *rock)
 {
     struct mtest_worker *w = (struct mtest_worker *)rock;
-    struct mtest *       mtest = w->mtest;
+    struct mtest *mtest = w->mtest;
 
     starting_gate(mtest);
     if (mtest->worker_func)
@@ -121,10 +121,10 @@ launch_thread(void *rock)
 void
 mtest_run(struct mtest *mtest)
 {
-    int             rc;
+    int rc;
     struct timespec tstart, tend;
-    double          elapsed_time;
-    int             i;
+    double elapsed_time;
+    int i;
 
     /* Instantiate workers */
     for (i = 0; i < mtest->num_workers; i++) {
@@ -162,7 +162,7 @@ mtest_run(struct mtest *mtest)
     /* Join workers */
     for (i = 0; i < mtest->num_workers; i++) {
         struct mtest_worker *w = &mtest->workers[i];
-        void *               result;
+        void *result;
 
         rc = pthread_join(w->threadid, &result);
         if (rc) {

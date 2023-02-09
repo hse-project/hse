@@ -3,24 +3,21 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
+#include <hse/ikvdb/omf_version.h>
 #include <hse/logging/logging.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 
-#include <hse/ikvdb/omf_version.h>
-
-#include <hse/mpool/mpool.h>
-
 #include "wal.h"
-#include "wal_omf.h"
 #include "wal_mdc.h"
+#include "wal_omf.h"
 
-
-#define WAL_BUF_SZ  (PAGE_SIZE)
+#define WAL_BUF_SZ (PAGE_SIZE)
 
 struct wal_mdc {
     struct mpool_mdc *mp_mdc;
-    char             *buf;
+    char *buf;
 };
 
 static inline void
@@ -71,8 +68,9 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
 
     version = omf_ver_version(vomf);
     if (version > WAL_VERSION) {
-        log_err("wal version (%d) cannot parse on-media version (%d), please upgrade HSE",
-                version, WAL_VERSION);
+        log_err(
+            "wal version (%d) cannot parse on-media version (%d), please upgrade HSE", version,
+            WAL_VERSION);
         return merr(EPROTO);
     }
     wal_version_set(wal, version);
@@ -110,11 +108,11 @@ wal_mdchdr_rtype_get(char *inbuf)
 
 merr_t
 wal_mdc_create(
-    struct mpool     *mp,
+    struct mpool *mp,
     enum hse_mclass mclass,
-    size_t            capacity,
-    uint64_t         *mdcid1,
-    uint64_t         *mdcid2)
+    size_t capacity,
+    uint64_t *mdcid1,
+    uint64_t *mdcid2)
 {
     merr_t err;
 
@@ -143,13 +141,13 @@ wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2)
 
 merr_t
 wal_mdc_open(
-    struct mpool    *mp,
-    uint64_t         mdcid1,
-    uint64_t         mdcid2,
-    bool             allow_writes,
+    struct mpool *mp,
+    uint64_t mdcid1,
+    uint64_t mdcid2,
+    bool allow_writes,
     struct wal_mdc **handle)
 {
-    struct wal_mdc   *mdc;
+    struct wal_mdc *mdc;
     struct mpool_mdc *mp_mdc;
     merr_t err;
     size_t sz;
@@ -264,21 +262,21 @@ wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal)
         first_rec = false;
 
         switch (rtype) {
-            case WAL_RT_VERSION:
-                err = wal_mdc_version_unpack(mdc->buf, wal);
-                break;
+        case WAL_RT_VERSION:
+            err = wal_mdc_version_unpack(mdc->buf, wal);
+            break;
 
-            case WAL_RT_CONFIG:
-                err = wal_mdc_config_unpack(mdc->buf, wal);
-                break;
+        case WAL_RT_CONFIG:
+            err = wal_mdc_config_unpack(mdc->buf, wal);
+            break;
 
-            case WAL_RT_CLOSE:
-                wal_clean_set(wal);
-                break;
+        case WAL_RT_CLOSE:
+            wal_clean_set(wal);
+            break;
 
-            default: /* Invalid record type */
-                err = merr(EBADMSG);
-                break;
+        default: /* Invalid record type */
+            err = merr(EBADMSG);
+            break;
         }
     };
 

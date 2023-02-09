@@ -6,8 +6,8 @@
 #ifndef CNDUMP_CNDB_READER_H
 #define CNDUMP_CNDB_READER_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 struct hse_kvdb;
 struct mpool_mdc;
@@ -15,7 +15,7 @@ struct cndb_rec;
 
 struct cndb_dump_reader {
     struct mpool_mdc *mdc;
-    bool              eof;
+    bool eof;
 };
 
 void

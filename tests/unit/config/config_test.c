@@ -11,11 +11,13 @@
 #include <bsd/string.h>
 
 #include <hse/limits.h>
-#include <hse/test/mtf/framework.h>
+
 #include <hse/config/config.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(config_test)
 

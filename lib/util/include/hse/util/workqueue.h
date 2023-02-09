@@ -13,9 +13,9 @@
  *   https://github.com/torvalds/linux/blob/master/Documentation/workqueue.txt
  */
 
+#include <hse/util/condvar.h>
 #include <hse/util/list.h>
 #include <hse/util/timer.h>
-#include <hse/util/condvar.h>
 
 #define WQ_MAX_ACTIVE (128)
 #define WQ_DFL_ACTIVE (WQ_MAX_ACTIVE / 8)
@@ -27,19 +27,19 @@ typedef void (*work_func_t)(struct work_struct *work);
 
 struct work_struct {
     struct list_head entry; /* linked list of pending work */
-    work_func_t      func;  /* function to be executed */
+    work_func_t func;       /* function to be executed */
 };
 
 struct delayed_work {
-    struct work_struct       work;
-    struct timer_list        timer;
+    struct work_struct work;
+    struct timer_list timer;
     struct workqueue_struct *wq;
 };
 
-#define INIT_WORK(_work, _func)                 \
-    do {                                        \
-        (_work)->func = (_func);                \
-        INIT_LIST_HEAD(&(_work)->entry);        \
+#define INIT_WORK(_work, _func)          \
+    do {                                 \
+        (_work)->func = (_func);         \
+        INIT_LIST_HEAD(&(_work)->entry); \
     } while (0)
 
 #define INIT_DELAYED_WORK(_dwork, _func)                                \
@@ -53,20 +53,16 @@ struct delayed_work {
  */
 struct workqueue_struct *
 alloc_workqueue(
-    const char * fmt,        /* fmt string for name workqueue */
-    unsigned int flags,      /* ignored */
-    int          min_active, /* min number of threads servicing queue */
-    int          max_active, /* max number of threads servicing queue */
-    ...                      /* fmt string arguments */
-) HSE_WARN_UNUSED_RESULT HSE_PRINTF(1, 5);
+    const char *fmt,    /* fmt string for name workqueue */
+    unsigned int flags, /* ignored */
+    int min_active,     /* min number of threads servicing queue */
+    int max_active,     /* max number of threads servicing queue */
+    ...                 /* fmt string arguments */
+    ) HSE_WARN_UNUSED_RESULT HSE_PRINTF(1, 5);
 
 struct workqueue_struct *
-valloc_workqueue(
-    const char *fmt,
-    unsigned int flags,
-    int min_active,
-    int max_active,
-    va_list ap) HSE_WARN_UNUSED_RESULT;
+valloc_workqueue(const char *fmt, unsigned int flags, int min_active, int max_active, va_list ap)
+    HSE_WARN_UNUSED_RESULT;
 
 /*
  * Destroy a workqueue.  Waits until all running work has finished and

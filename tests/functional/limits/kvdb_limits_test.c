@@ -3,20 +3,20 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
-#include <hse/hse.h>
-
-#include <hse/test/mtf/framework.h>
-#include <hse/test/fixtures/kvdb.h>
-#include <hse/test/fixtures/kvs.h>
-
-#include <hse/util/platform.h>
-#include <hse/util/base.h>
-
 #include <unistd.h>
 
+#include <hse/hse.h>
+
+#include <hse/util/base.h>
+#include <hse/util/platform.h>
+
+#include <hse/test/fixtures/kvdb.h>
+#include <hse/test/fixtures/kvs.h>
+#include <hse/test/mtf/framework.h>
+
 struct hse_kvdb *kvdb_handle = NULL;
-struct hse_kvs  *kvs_handle = NULL;
-const char      *kvs_name = "kvs";
+struct hse_kvs *kvs_handle = NULL;
+const char *kvs_name = "kvs";
 
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
@@ -56,7 +56,7 @@ kvs_setup(struct mtf_test_info *lcl_ti)
 int
 kvs_txn_setup(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t   err;
+    hse_err_t err;
     const char *rparamv[] = { "transactions.enabled=true" };
 
     err = fxt_kvs_setup(kvdb_handle, kvs_name, NELEM(rparamv), rparamv, 0, NULL, &kvs_handle);

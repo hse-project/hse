@@ -3,10 +3,10 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/util/base.h>
 #include <hse/util/fmt.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
@@ -25,7 +25,7 @@ const size_t input_len = (sizeof(input) - 1); /* do not want NULL byte */
 struct test_case_defn {
     const char *name;
     const char *full_out;
-    size_t      full_out_len;
+    size_t full_out_len;
 };
 
 struct test_case_defn test_cases[] = {
@@ -41,34 +41,34 @@ enum test_case { test_case_0, test_case_1, test_case_2, test_case_3 };
 size_t
 call_fmt_func(
     enum test_case tcx,
-    void *         out,
-    size_t         out_sz,
-    const void *   input,
-    const size_t   input_sz)
+    void *out,
+    size_t out_sz,
+    const void *input,
+    const size_t input_sz)
 {
     size_t n;
 
     switch (tcx) {
 
-        case test_case_0:
-            n = fmt_pe(out, out_sz, input, input_sz);
-            break;
+    case test_case_0:
+        n = fmt_pe(out, out_sz, input, input_sz);
+        break;
 
-        case test_case_1:
-            n = fmt_hex(out, out_sz, input, input_sz);
-            break;
+    case test_case_1:
+        n = fmt_hex(out, out_sz, input, input_sz);
+        break;
 
-        case test_case_2:
-            n = fmt_hexp(out, out_sz, input, input_sz, 0, 0, 0, 0);
-            break;
+    case test_case_2:
+        n = fmt_hexp(out, out_sz, input, input_sz, 0, 0, 0, 0);
+        break;
 
-        case test_case_3:
-            n = fmt_hexp(out, out_sz, input, input_sz, "<", 2, " ", ">");
-            break;
+    case test_case_3:
+        n = fmt_hexp(out, out_sz, input, input_sz, "<", 2, " ", ">");
+        break;
 
-        default:
-            n = (size_t)-1;
-            break;
+    default:
+        n = (size_t)-1;
+        break;
     }
 
     return n;
@@ -77,8 +77,8 @@ call_fmt_func(
 MTF_DEFINE_UTEST(fmt, fmt_test)
 {
     size_t alloc_len = 0;
-    char * buf;
-    int    tcx, tsx;
+    char *buf;
+    int tcx, tsx;
     size_t n;
 
     for (tcx = 0; tcx < NELEM(test_cases); tcx++) {
@@ -122,7 +122,7 @@ MTF_DEFINE_UTEST(fmt, fmt_test)
         for (tsx = 0; tsx < NELEM(test_sizes); tsx++) {
 
             size_t bufsz = test_sizes[tsx];
-            bool   too_small = bufsz <= strlen(tc->full_out);
+            bool too_small = bufsz <= strlen(tc->full_out);
 
             memset(buf, 0xff, alloc_len);
 

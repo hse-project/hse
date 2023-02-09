@@ -85,7 +85,7 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
 
     tree->br_gc_holdqc -= i;
 
-    while (( slab = next )) {
+    while ((slab = next)) {
         struct bonsai_slabinfo *slabinfo = slab->bs_slabinfo;
 
         next = slab->bs_next;
@@ -303,8 +303,7 @@ bn_node_alloc_impl(struct bonsai_root *tree, uint skidx)
                 assert(slabinfo->bsi_slab != tree->br_oomslab->bsi_slab);
                 abort();
             }
-        }
-        else {
+        } else {
             tree->br_oomslab = tree->br_rootslab + 1;
 
             /* Set bounds to prevent inserts into the tree after this one
@@ -406,13 +405,13 @@ bn_kv_free_vals(struct bonsai_kv *kv)
      */
     embedded = (void *)kv + kv->bkv_voffset;
 
-    while (( val = kv->bkv_values )) {
+    while ((val = kv->bkv_values)) {
         kv->bkv_values = val->bv_next;
         if (val != embedded)
             free(val);
     }
 
-    while (( val = kv->bkv_freevals )) {
+    while ((val = kv->bkv_freevals)) {
         kv->bkv_freevals = val->bv_free;
         if (val != embedded)
             free(val);
@@ -424,7 +423,7 @@ bn_kv_free(struct bonsai_kv *kvlist)
 {
     struct bonsai_kv *kv;
 
-    while (( kv = kvlist )) {
+    while ((kv = kvlist)) {
         kvlist = kv->bkv_free;
 
         /* Torch the key ptr in case someone tries to use it
@@ -438,10 +437,10 @@ bn_kv_free(struct bonsai_kv *kvlist)
 
 static merr_t
 bn_kv_alloc(
-    struct bonsai_root        *tree,
-    const struct bonsai_skey  *skey,
-    const struct bonsai_sval  *sval,
-    struct bonsai_kv         **kv_out)
+    struct bonsai_root *tree,
+    const struct bonsai_skey *skey,
+    const struct bonsai_sval *sval,
+    struct bonsai_kv **kv_out)
 {
     struct bonsai_val *v;
     struct bonsai_kv *kv;
@@ -486,11 +485,11 @@ bn_kv_alloc(
 
 static struct bonsai_node *
 bn_node_make(
-    struct bonsai_root *        tree,
-    struct bonsai_node *        left,
-    struct bonsai_node *        right,
-    int                         height,
-    struct bonsai_kv *          kv,
+    struct bonsai_root *tree,
+    struct bonsai_node *left,
+    struct bonsai_node *right,
+    int height,
+    struct bonsai_kv *kv,
     const struct key_immediate *ki)
 {
     struct bonsai_node *node;
@@ -511,7 +510,7 @@ bn_node_make(
 
 struct bonsai_node *
 bn_kvnode_alloc(
-    struct bonsai_root       *tree,
+    struct bonsai_root *tree,
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval)
 {
@@ -528,7 +527,8 @@ bn_kvnode_alloc(
 struct bonsai_node *
 bn_node_dup(struct bonsai_root *tree, struct bonsai_node *src)
 {
-    return bn_node_make(tree, src->bn_left, src->bn_right, src->bn_height, src->bn_kv, &src->bn_key_imm);
+    return bn_node_make(
+        tree, src->bn_left, src->bn_right, src->bn_height, src->bn_kv, &src->bn_key_imm);
 }
 
 struct bonsai_node *

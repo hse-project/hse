@@ -27,27 +27,24 @@
 
 #define MTF_MOCK_IMPL_hlog
 
+#include <hyperloglog_tables.h>
+#include <math.h>
 #include <stdint.h>
 
-#include <hse/util/platform.h>
 #include <hse/error/merr.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
 #include <hse/util/event_counter.h>
-
 #include <hse/util/hlog.h>
-
-#include <hyperloglog_tables.h>
-
-#include <math.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 struct hlog {
     uint64_t nkeys;
-    uint64_t  mask;
+    uint64_t mask;
     uint precision;
     uint regc;
-    uint8_t * regv;
+    uint8_t *regv;
 };
 
 #define HLOG_PRECISION_MIN 4
@@ -57,7 +54,7 @@ merr_t
 hlog_create(struct hlog **hlog_out, uint p)
 {
     struct hlog *hlog;
-    uint         regc, sz;
+    uint regc, sz;
 
     if (p < HLOG_PRECISION_MIN || p > HLOG_PRECISION_MAX)
         return merr(ev(EINVAL));
@@ -195,7 +192,7 @@ lookup1(double v, const double *xdata, int xlen)
 static int
 hlog_bias_adjust(double est, uint p, double *result)
 {
-    int    i;
+    int i;
     double x1, y1;
     double x2, y2;
     double m;
@@ -237,25 +234,25 @@ static uint64_t
 hlog_card_data(uint8_t *regv, uint p)
 {
     double est, h;
-    uint   i, v;
-    uint   m = 1 << p;
+    uint i, v;
+    uint m = 1 << p;
     double alpha, bias;
 
     /* opto: precompute, use table */
     assert(p >= 4);
     switch (p) {
-        case 4:
-            alpha = 0.673 * 16 * 16;
-            break;
-        case 5:
-            alpha = 0.697 * 32 * 32;
-            break;
-        case 6:
-            alpha = 0.709 * 64 * 64;
-            break;
-        default:
-            alpha = (0.7213 / (1.0 + 1.079 / m)) * m * m;
-            break;
+    case 4:
+        alpha = 0.673 * 16 * 16;
+        break;
+    case 5:
+        alpha = 0.697 * 32 * 32;
+        break;
+    case 6:
+        alpha = 0.709 * 64 * 64;
+        break;
+    default:
+        alpha = (0.7213 / (1.0 + 1.079 / m)) * m * m;
+        break;
     }
 
     v = 0;

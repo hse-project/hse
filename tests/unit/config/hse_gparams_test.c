@@ -3,16 +3,15 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
+#include <stdarg.h>
 
+#include <hse/config/params.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/util/perfc.h>
 #include <hse/util/vlb.h>
 
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/hse_gparams.h>
-#include <hse/config/params.h>
-#include <hse/util/perfc.h>
-
-#include <stdarg.h>
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(hse_gparams_test)
 
@@ -27,9 +26,9 @@ test_pre(struct mtf_test_info *ti)
 }
 
 const struct param_spec *
-ps_get(const char *const name)
+ps_get(const char * const name)
 {
-    size_t                   sz = 0;
+    size_t sz = 0;
     const struct param_spec *pspecs = hse_gparams_pspecs_get(&sz);
 
     assert(name);
@@ -46,19 +45,19 @@ ps_get(const char *const name)
  * Check the validity of various key=value combinations
  */
 merr_t HSE_SENTINEL
-check(const char *const arg, ...)
+check(const char * const arg, ...)
 {
-    merr_t      err;
-    bool        success;
+    merr_t err;
+    bool success;
     const char *a = arg;
-    va_list     ap;
+    va_list ap;
 
     assert(arg);
 
     va_start(ap, arg);
 
     do {
-        const char * paramv[] = { a };
+        const char *paramv[] = { a };
         const size_t paramc = NELEM(paramv);
 
         success = !!va_arg(ap, int);
@@ -242,8 +241,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
         dir = xdg_runtime_dir;
     }
 
-    snprintf(buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/",
-        getpid());
+    snprintf(
+        buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/", getpid());
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
@@ -270,8 +269,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
         unsetenv("XDG_RUNTIME_DIR");
     }
 
-    snprintf(buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/",
-        getpid());
+    snprintf(
+        buf, sizeof(buf), "%s%shse-%d.sock", dir, dir[strlen(dir) - 1] == '/' ? "" : "/", getpid());
 
     other = hse_gparams_defaults();
 
@@ -304,9 +303,9 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_enabled, test_pre)
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_destination, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
-    size_t                   needed_sz;
+    merr_t err;
+    char buf[128];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("logging.destination");
 
     ASSERT_NE(NULL, ps);
@@ -380,7 +379,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_squelch_ns, test_pre)
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_path, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
     const struct param_spec *ps = ps_get("logging.path");
 
     ASSERT_NE(NULL, ps);
@@ -403,7 +402,7 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_path, test_pre)
 MTF_DEFINE_UTEST(hse_gparams_test, get)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct hse_gparams p = hse_gparams_defaults();

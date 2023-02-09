@@ -30,7 +30,7 @@ keycmp(const void *key1, uint32_t len1, const void *key2, uint32_t len2)
      *   len1 >  len2 --> return pos (key1 > key2).
      */
     size_t len = len1 < len2 ? len1 : len2;
-    int    rc = memcmp(key1, key2, len);
+    int rc = memcmp(key1, key2, len);
     return rc == 0 ? (int)(len1 - len2) : rc;
 }
 

@@ -14,11 +14,7 @@
 struct cn;
 
 merr_t
-create_mock_cn(
-    struct cn **cn_out,
-    bool        delay_merge,
-    bool        random_release,
-    uint32_t    pfx_len);
+create_mock_cn(struct cn **cn_out, bool delay_merge, bool random_release, uint32_t pfx_len);
 
 void
 destroy_mock_cn(struct cn *cn);

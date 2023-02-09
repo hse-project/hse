@@ -12,8 +12,8 @@ struct rest_headers;
 
 #define REST_MAKE_STATIC_HEADER(_key, _value) (_key ": " _value)
 
-#define REST_HEADER_CONTENT_TYPE "Content-Type"
-#define REST_APPLICATION_JSON "application/json"
+#define REST_HEADER_CONTENT_TYPE      "Content-Type"
+#define REST_APPLICATION_JSON         "application/json"
 #define REST_APPLICATION_PROBLEM_JSON "application/problem+json"
 
 const char *

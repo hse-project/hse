@@ -6,26 +6,24 @@
 #define MTF_MOCK_IMPL_route
 
 #include <hse/ikvdb/kvs_cparams.h>
-
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
 #include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
 #include <hse/util/assert.h>
-#include <hse/util/keycmp.h>
-#include <hse/util/xrand.h>
-#include <hse/util/log2.h>
 #include <hse/util/byteorder.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/log2.h>
 #include <hse/util/minmax.h>
-#include <hse/util/assert.h>
+#include <hse/util/platform.h>
+#include <hse/util/xrand.h>
 
 #include "cn_tree_internal.h"
 #include "route.h"
 
 struct route_map {
-    struct rb_root        rtm_root;
-    uint                  rtm_nodec;
-    struct route_node    *rtm_free;
-    struct route_node     rtm_nodev[] HSE_L1D_ALIGNED;
+    struct rb_root rtm_root;
+    uint rtm_nodec;
+    struct route_node *rtm_free;
+    struct route_node rtm_nodev[] HSE_L1D_ALIGNED;
 };
 
 static merr_t
@@ -121,10 +119,10 @@ route_node_free(struct route_map *map, struct route_node *node)
 
 merr_t HSE_MAYBE_UNUSED
 route_node_key_modify(
-    struct route_map  *map,
+    struct route_map *map,
     struct route_node *node,
-    const void        *edge_key,
-    uint               edge_klen)
+    const void *edge_key,
+    uint edge_klen)
 {
     merr_t err;
 
@@ -211,8 +209,8 @@ route_map_insert(struct route_map *map, void *tnode, const void *edge_key, uint 
     dup = route_map_insert_by_node(map, node);
     if (dup) {
         route_node_free(map, node);
-        log_err("dup node detected (%u %p; %u %p)", edge_klen, tnode,
-                dup->rtn_keylen, dup->rtn_tnode);
+        log_err(
+            "dup node detected (%u %p; %u %p)", edge_klen, tnode, dup->rtn_keylen, dup->rtn_tnode);
         return NULL;
     }
 

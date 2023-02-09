@@ -6,15 +6,15 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/mpool/mpool.h>
-#include "mpool_internal.h"
-#include "mclass.h"
-#include "mblock_fset.h"
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 
 #include "common.h"
+#include "mblock_fset.h"
+#include "mclass.h"
+#include "mpool_internal.h"
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(mpool_test, mpool_collection_pre)
 
@@ -23,12 +23,12 @@ mpool_filecnt_test(uint8_t filecnt)
 {
     merr_t err;
 
-    setup_mclass_with_params(HSE_MCLASS_CAPACITY, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT,
-                             MPOOL_MCLASS_FILESZ_DEFAULT);
+    setup_mclass_with_params(
+        HSE_MCLASS_CAPACITY, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT, MPOOL_MCLASS_FILESZ_DEFAULT);
     make_capacity_path();
 
-    setup_mclass_with_params(HSE_MCLASS_STAGING, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT,
-                             MPOOL_MCLASS_FILESZ_DEFAULT);
+    setup_mclass_with_params(
+        HSE_MCLASS_STAGING, filecnt, MPOOL_MBLOCK_SIZE_DEFAULT, MPOOL_MCLASS_FILESZ_DEFAULT);
     make_staging_path();
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
@@ -58,15 +58,15 @@ mpool_filesz_test(uint32_t mblocksz, uint64_t fszmax)
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_post)
 {
-    struct mpool *      mp;
-    struct mpool_info  info = {};
+    struct mpool *mp;
+    struct mpool_info info = {};
     struct mpool_props mprops = {};
-    struct dirent *    d;
+    struct dirent *d;
 
     merr_t err;
-    int    rc, entry;
-    DIR *  dirp;
-    bool   exists;
+    int rc, entry;
+    DIR *dirp;
+    bool exists;
 
     err = mpool_open(mtf_kvdb_home, &trparams, 0, &mp);
     ASSERT_EQ(ENOENT, merr_errno(err));
@@ -181,7 +181,8 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     ASSERT_LT(used_bytes_summation(&info), (70ul << MB_SHIFT) * 2);
     ASSERT_EQ(
         0, strncmp(capacity_path, info.mclass[HSE_MCLASS_CAPACITY].mi_path, sizeof(capacity_path)));
-    ASSERT_EQ(0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
+    ASSERT_EQ(
+        0, strncmp(staging_path, info.mclass[HSE_MCLASS_STAGING].mi_path, sizeof(staging_path)));
 
     entry = 0;
     while ((d = readdir(dirp)) != NULL && entry < 3)
@@ -210,15 +211,15 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_post)
 {
-    struct mpool *            mp;
+    struct mpool *mp;
     struct mpool_mclass_props props = {};
-    struct hse_mclass_info    info = {};
-    struct media_class*       mc;
-    merr_t                    err;
-    int                       mcid, fd, i, rc;
-    const char *              pathp;
-    size_t                    mbsz;
-    struct mblock_fset *      fsetp;
+    struct hse_mclass_info info = {};
+    struct media_class *mc;
+    merr_t err;
+    int mcid, fd, i, rc;
+    const char *pathp;
+    size_t mbsz;
+    struct mblock_fset *fsetp;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);
     ASSERT_EQ(0, err);
@@ -324,7 +325,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, is_configured, mpool_test_pre, mpool_test_post)
 {
-    merr_t        err;
+    merr_t err;
     struct mpool *mp;
 
     err = mpool_create(mtf_kvdb_home, &tcparams);

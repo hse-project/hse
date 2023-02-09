@@ -3,37 +3,25 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
+#include <libpmem.h>
+
 #include <linux/mman.h>
 #include <sys/mman.h>
 
-#include <hse/util/base.h>
 #include <hse/util/assert.h>
+#include <hse/util/base.h>
 #include <hse/util/page.h>
 
 #include "io.h"
 
-#include <libpmem.h>
-
 merr_t
-io_pmem_read(
-    int                 src_fd,
-    off_t               off,
-    const struct iovec *iov,
-    int                 iovcnt,
-    int                 flags,
-    size_t             *rdlen)
+io_pmem_read(int src_fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen)
 {
     return io_sync_ops.read(src_fd, off, iov, iovcnt, flags, rdlen);
 }
 
 merr_t
-io_pmem_write(
-    int                 dst_fd,
-    off_t               off,
-    const struct iovec *iov,
-    int                 iovcnt,
-    int                 flags,
-    size_t             *wrlen)
+io_pmem_write(int dst_fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen)
 {
     return io_sync_ops.write(dst_fd, off, iov, iovcnt, flags, wrlen);
 }

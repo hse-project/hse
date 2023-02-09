@@ -3,17 +3,16 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <stdint.h>
-
 #include <rbtree.h>
-
-#include <hse/test/mtf/framework.h>
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse/util/parse_num.h>
 #include <hse/util/data_tree.h>
+#include <hse/util/parse_num.h>
 #include <hse/util/perfc.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
@@ -37,7 +36,8 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", REL_FILE(__FILE__), __LINE__, &set);
+    err =
+        perfc_alloc_impl(1, "villains", &ctrnames, 1, "joker", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     count = dt_count(PERFC_DT_PATH);
@@ -48,14 +48,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     /* 3, /data/perfc, /data/perfc/joker */
     ASSERT_EQ(before + 1, count);
 
-    n = snprintf(
-        path,
-        sizeof(path),
-        "%s/%s/%s/%s",
-        PERFC_DT_PATH,
-        "villains",
-        "FAM",
-        "joker");
+    n = snprintf(path, sizeof(path), "%s/%s/%s/%s", PERFC_DT_PATH, "villains", "FAM", "joker");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
     err = dt_access(path, NULL, NULL);
@@ -78,9 +71,9 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     char *output;
 
     struct perfc_name ctrnames = { 0 };
-    struct perfc_set  set = { 0 };
-    size_t            before;
-    merr_t            err;
+    struct perfc_set set = { 0 };
+    size_t before;
+    merr_t err;
 
     before = dt_count(PERFC_DT_PATH);
 
@@ -90,19 +83,13 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_alloc_impl(1, "villains", &ctrnames, 1, "poison_ivy", REL_FILE(__FILE__), __LINE__, &set);
+    err = perfc_alloc_impl(
+        1, "villains", &ctrnames, 1, "poison_ivy", REL_FILE(__FILE__), __LINE__, &set);
     ASSERT_EQ(0, err);
 
     perfc_set(&set, 0, new_value);
 
-    n = snprintf(
-        path,
-        sizeof(path),
-        "%s/%s/%s/%s",
-        PERFC_DT_PATH,
-        "villains",
-        "FAM",
-        "poison_ivy");
+    n = snprintf(path, sizeof(path), "%s/%s/%s/%s", PERFC_DT_PATH, "villains", "FAM", "poison_ivy");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
     count = dt_count(PERFC_DT_PATH);
@@ -158,7 +145,6 @@ MTF_DEFINE_UTEST(perfc, perfc_ctr_name2type_fail)
     struct perfc_set set;
     merr_t err;
 
-
     for (i = 0; i < NELEM(namev); ++i) {
         ctrv[0].pcn_name = namev[i];
 
@@ -170,8 +156,8 @@ MTF_DEFINE_UTEST(perfc, perfc_ctr_name2type_fail)
 MTF_DEFINE_UTEST(perfc, ctrset_path)
 {
     struct perfc_name ctrnames = { 0 };
-    struct perfc_set  set;
-    merr_t            err;
+    struct perfc_set set;
+    merr_t err;
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "mycounterhdr";
@@ -205,7 +191,8 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     merr_t err;
 
     err = perfc_alloc_impl(
-        1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", REL_FILE(__FILE__), __LINE__, &perfc_rollup_pc);
+        1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", REL_FILE(__FILE__), __LINE__,
+        &perfc_rollup_pc);
     ASSERT_EQ(err, 0);
 
     for (i = 0, sum = 0; i < 1024 * 1024; ++i, sum += i) {

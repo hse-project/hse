@@ -9,10 +9,9 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/table.h>
-
-#include <hse/ikvdb/kvs.h>
 #include <hse/ikvdb/cursor.h>
+#include <hse/ikvdb/kvs.h>
+#include <hse/util/table.h>
 
 /* MTF_MOCK_DECL(cn_tree_cursor) */
 
@@ -53,11 +52,7 @@ cn_tree_cursor_update(struct cn_cursor *cur);
  */
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_seek(
-    struct cn_cursor * cur,
-    const void *       key,
-    uint32_t           len,
-    struct kc_filter * filter);
+cn_tree_cursor_seek(struct cn_cursor *cur, const void *key, uint32_t len, struct kc_filter *filter);
 
 /**
  * cn_tree_cursor_read() - Read the next kv-pair according to the cursor's iteration order.

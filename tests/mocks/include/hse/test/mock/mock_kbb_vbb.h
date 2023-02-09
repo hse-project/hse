@@ -6,7 +6,9 @@
 #ifndef MOCKS_MOCK_KBB_VBB_H
 #define MOCKS_MOCK_KBB_VBB_H
 
-void mock_kbb_vbb_set(void);
-void mock_kbb_vbb_unset(void);
+void
+mock_kbb_vbb_set(void);
+void
+mock_kbb_vbb_unset(void);
 
 #endif

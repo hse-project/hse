@@ -3,17 +3,16 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/util/platform.h>
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset.h>
+#include <hse/test/mtf/framework.h>
 
 #include "cn/cn_tree_compact.h"
 #include "cn/cn_tree_internal.h"
 #include "cn/kvset.h"
 #include "cn/move.h"
-
-#include <hse/test/mock/mock_kvset.h>
 
 int
 pre(struct mtf_test_info *info)
@@ -41,13 +40,13 @@ init_node(struct cn_tree_node *tn, uint64_t nodeid)
 
 static merr_t
 create_kvset(
-    struct cn_tree      *tree,
+    struct cn_tree *tree,
     struct cn_tree_node *tn,
-    uint64_t             kvsetid,
-    uint64_t             dgen_hi,
-    uint64_t             dgen_lo,
-    uint32_t             compc,
-    struct kvset       **kvset)
+    uint64_t kvsetid,
+    uint64_t dgen_hi,
+    uint64_t dgen_lo,
+    uint32_t compc,
+    struct kvset **kvset)
 {
     struct kvset_meta km = { 0 };
 

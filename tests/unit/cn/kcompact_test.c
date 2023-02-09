@@ -5,24 +5,22 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/tuple.h>
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
 
-#include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/kvset_builder.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset.h>
+#include <hse/test/mock/mock_kvset_builder.h>
+#include <hse/test/mtf/framework.h>
 
+#include "cn/cn_metrics.h"
 #include "cn/cn_tree_compact.h"
 #include "cn/kcompact.h"
 #include "cn/kvset.h"
-#include "cn/cn_metrics.h"
 #include "cn/vgmap.h"
-
-#include <hse/test/mock/mock_kvset.h>
-#include <hse/test/mock/mock_kvset_builder.h>
 
 /*
  * The functions with leading underscores are the mocked variants.
@@ -67,16 +65,16 @@ mixed_post(struct mtf_test_info *info)
 static struct cn_compaction_work *
 init_work(
     struct cn_compaction_work *w,
-    struct mpool *             ds,
-    struct kvs_rparams *       rp,
-    uint                       kvset_cnt,
-    struct kv_iterator **      inputv,
-    atomic_int                *cancel,
-    struct kvset_mblocks *     outv,
-    struct cn_tree_node **     output_nodev,
-    uint64_t                  *kvsetidv,
-    struct kvset_vblk_map     *vbmap,
-    struct vgmap             **vgmap)
+    struct mpool *ds,
+    struct kvs_rparams *rp,
+    uint kvset_cnt,
+    struct kv_iterator **inputv,
+    atomic_int *cancel,
+    struct kvset_mblocks *outv,
+    struct cn_tree_node **output_nodev,
+    uint64_t *kvsetidv,
+    struct kvset_vblk_map *vbmap,
+    struct vgmap **vgmap)
 {
     w->cw_mp = ds;
     w->cw_rp = rp;
@@ -105,12 +103,12 @@ struct state {
     int src;
     struct {
         const struct key_obj *kobj;
-        uint                  nvals;
-        enum kmd_vtype        vtype;
-        uint                  vbidx;
-        uint                  vboff;
-        uint                  vlen;
-        int                   value;
+        uint nvals;
+        enum kmd_vtype vtype;
+        uint vbidx;
+        uint vboff;
+        uint vlen;
+        int value;
     } have;
 };
 
@@ -120,12 +118,12 @@ static int
 verify(struct kvset_builder *bld)
 {
     const struct key_obj *kobj = st.have.kobj;
-    int                   kdata;
-    uint                  klen;
+    int kdata;
+    uint klen;
 
-    uint           nvals = st.have.nvals;
+    uint nvals = st.have.nvals;
     enum kmd_vtype vtype = st.have.vtype;
-    uint           vlen = st.have.vlen;
+    uint vlen = st.have.vlen;
 
     VERIFY_TRUE_RET(kobj, __LINE__);
 
@@ -170,8 +168,13 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 }
 
 static merr_t
-_kvset_builder_add_vref(struct kvset_builder *self, uint64_t seq,
-    uint vbidx, uint vboff, uint vlen, uint complen)
+_kvset_builder_add_vref(
+    struct kvset_builder *self,
+    uint64_t seq,
+    uint vbidx,
+    uint vboff,
+    uint vlen,
+    uint complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
@@ -200,12 +203,12 @@ _kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vty
 
 static merr_t
 _kvset_builder_add_val(
-    struct kvset_builder *  self,
-    const struct key_obj   *kobj,
-    const void *            vdata,
-    uint                    vlen,
-    uint64_t                seq,
-    uint                    complen)
+    struct kvset_builder *self,
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen,
+    uint64_t seq,
+    uint complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
@@ -223,11 +226,11 @@ _kvset_builder_add_val(
 MTF_DEFINE_UTEST_PRE(kcompact_test, keep, pre)
 {
 #define NITER 32
-    struct kvs_rparams    rp = kvs_rparams_defaults();
+    struct kvs_rparams rp = kvs_rparams_defaults();
     struct kvset_vblk_map vbmap = { 0 };
     struct vgmap *vgmap;
-    int                   i, j;
-    merr_t                err;
+    int i, j;
+    merr_t err;
 
     memset(itv, 0, sizeof(itv));
 
@@ -259,17 +262,17 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
 {
 #define NITER 4
     struct cn_compaction_work w = { 0 };
-    struct kvset_vblk_map     vbmap = { 0 };
-    struct vgmap  *vgmap, *vgmap2;
-    struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_mblocks      output = {};
-    struct cn_tree_node      *output_node = NULL;
-    uint64_t                  kvsetidv = 1;
-    struct nkv_tab            nkv;
-    atomic_int                c;
-    uint64_t                  dgen = 0;
-    int                       i;
-    merr_t                    err;
+    struct kvset_vblk_map vbmap = { 0 };
+    struct vgmap *vgmap, *vgmap2;
+    struct kvs_rparams rp = kvs_rparams_defaults();
+    struct kvset_mblocks output = {};
+    struct cn_tree_node *output_node = NULL;
+    uint64_t kvsetidv = 1;
+    struct nkv_tab nkv;
+    atomic_int c;
+    uint64_t dgen = 0;
+    int i;
+    merr_t err;
 
     memset(itv, 0, sizeof(itv));
     atomic_set(&c, 0);
@@ -295,8 +298,9 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, four_into_one, pre)
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, &vgmap);
+    init_work(
+        &w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv, &vbmap,
+        &vgmap);
 
     vgmap2 = vgmap;
     err = cn_kcompact(&w);
@@ -328,16 +332,16 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
     struct vgmap *vgmap, *vgmap2;
-    struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_mblocks      output = {};
-    struct cn_tree_node      *output_node = NULL;
-    uint64_t                  kvsetidv = 1;
-    struct kv_iterator *      itv[5] = { 0 };
-    struct nkv_tab            nkv;
-    atomic_int                c;
-    uint64_t                  dgen = 0;
-    int                       i;
-    merr_t                    err;
+    struct kvs_rparams rp = kvs_rparams_defaults();
+    struct kvset_mblocks output = {};
+    struct cn_tree_node *output_node = NULL;
+    uint64_t kvsetidv = 1;
+    struct kv_iterator *itv[5] = { 0 };
+    struct nkv_tab nkv;
+    atomic_int c;
+    uint64_t dgen = 0;
+    int i;
+    merr_t err;
 
     atomic_set(&c, 0);
 
@@ -368,8 +372,8 @@ MTF_DEFINE_UTEST_PRE(kcompact_test, all_gone, pre)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, &vgmap);
+    init_work(
+        &w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbmap, &vgmap);
 
     vgmap2 = vgmap;
     err = cn_kcompact(&w);
@@ -400,16 +404,16 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
     struct vgmap *vgmap, *vgmap2;
-    struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_mblocks      output = {};
-    struct cn_tree_node      *output_node = NULL;
-    uint64_t                  kvsetidv = 1;
-    struct kv_iterator *      itv[5] = { 0 };
-    struct nkv_tab            nkv;
-    atomic_int                c;
-    uint64_t                  dgen = 0;
-    int                       i;
-    merr_t                    err;
+    struct kvs_rparams rp = kvs_rparams_defaults();
+    struct kvset_mblocks output = {};
+    struct cn_tree_node *output_node = NULL;
+    uint64_t kvsetidv = 1;
+    struct kv_iterator *itv[5] = { 0 };
+    struct nkv_tab nkv;
+    atomic_int c;
+    uint64_t dgen = 0;
+    int i;
+    merr_t err;
 
     atomic_set(&c, 0);
 
@@ -440,8 +444,8 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, all_gone_mixed, mixed_pre, mixed_post)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, &vgmap);
+    init_work(
+        &w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbmap, &vgmap);
 
     vgmap2 = vgmap;
     err = cn_kcompact(&w);
@@ -473,15 +477,15 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
     struct vgmap *vgmap, *vgmap2;
-    struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_mblocks      output = {};
-    struct cn_tree_node      *output_node = NULL;
-    uint64_t                  kvsetidv = 1;
-    struct nkv_tab            nkv;
-    atomic_int                c;
-    uint64_t                  dgen = 0;
-    int                       i;
-    merr_t                    err;
+    struct kvs_rparams rp = kvs_rparams_defaults();
+    struct kvset_mblocks output = {};
+    struct cn_tree_node *output_node = NULL;
+    uint64_t kvsetidv = 1;
+    struct nkv_tab nkv;
+    atomic_int c;
+    uint64_t dgen = 0;
+    int i;
+    merr_t err;
 
     memset(itv, 0, sizeof(itv));
     atomic_set(&c, 0);
@@ -507,8 +511,9 @@ MTF_DEFINE_UTEST_PREPOST(kcompact_test, four_into_one_mixed, mixed_pre, mixed_po
     st.vwant = 0;
     st.src = 0; /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, &vgmap);
+    init_work(
+        &w, (struct mpool *)1, &rp, NITER, itv, &c, &output, &output_node, &kvsetidv, &vbmap,
+        &vgmap);
 
     vgmap2 = vgmap;
     err = cn_kcompact(&w);
@@ -537,16 +542,16 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     struct cn_compaction_work w = { 0 };
     struct kvset_vblk_map vbmap = { 0 };
     struct vgmap *vgmap, *vgmap2;
-    struct kvs_rparams        rp = kvs_rparams_defaults();
-    struct kvset_mblocks      output = {};
-    struct cn_tree_node      *output_node = NULL;
-    uint64_t                  kvsetidv = 1;
-    struct kv_iterator *      itv[5] = { 0 };
-    struct nkv_tab            nkv;
-    atomic_int                c;
-    uint64_t                  dgen = 0;
-    int                       i;
-    merr_t                    err;
+    struct kvs_rparams rp = kvs_rparams_defaults();
+    struct kvset_mblocks output = {};
+    struct cn_tree_node *output_node = NULL;
+    uint64_t kvsetidv = 1;
+    struct kv_iterator *itv[5] = { 0 };
+    struct nkv_tab nkv;
+    atomic_int c;
+    uint64_t dgen = 0;
+    int i;
+    merr_t err;
 
     atomic_set(&c, 0);
 
@@ -577,8 +582,8 @@ run_kcompact(struct mtf_test_info *lcl_ti, int expect)
     st.vwant = -1; /* -1 == tombstones */
     st.src = 0;    /* the lowest should always be the src */
 
-    init_work(&w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv,
-              &vbmap, &vgmap);
+    init_work(
+        &w, (struct mpool *)1, &rp, 5, itv, &c, &output, &output_node, &kvsetidv, &vbmap, &vgmap);
 
     vgmap2 = vgmap;
     err = cn_kcompact(&w);

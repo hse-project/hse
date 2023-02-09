@@ -5,12 +5,12 @@
 
 #include <stdarg.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvs_rparams.h>
 #include <hse/config/params.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/perfc.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvs_rparams_test)
 
@@ -25,9 +25,9 @@ test_pre(struct mtf_test_info *ti)
 }
 
 const struct param_spec *
-ps_get(const char *const name)
+ps_get(const char * const name)
 {
-    size_t                   sz = 0;
+    size_t sz = 0;
     const struct param_spec *pspecs = kvs_rparams_pspecs_get(&sz);
 
     assert(name);
@@ -44,19 +44,19 @@ ps_get(const char *const name)
  * Check the validity of various key=value combinations
  */
 merr_t HSE_SENTINEL
-check(const char *const arg, ...)
+check(const char * const arg, ...)
 {
-    merr_t      err;
-    bool        success;
+    merr_t err;
+    bool success;
     const char *a = arg;
-    va_list     ap;
+    va_list ap;
 
     assert(arg);
 
     va_start(ap, arg);
 
     do {
-        const char * paramv[] = { a };
+        const char *paramv[] = { a };
         const size_t paramc = NELEM(paramv);
 
         success = !!va_arg(ap, int);
@@ -151,7 +151,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, perfc_level, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
     const struct param_spec *ps = ps_get("cn_split_size");
 
     ASSERT_NE(NULL, ps);
@@ -184,7 +184,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_split_size, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_dsplit_size, test_pre)
 {
-    merr_t                   err;
+    merr_t err;
     const struct param_spec *ps = ps_get("cn_dsplit_size");
 
     ASSERT_NE(NULL, ps);
@@ -643,9 +643,9 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, mclass_policy, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, value_compression_default, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
-    size_t                   needed_sz;
+    merr_t err;
+    char buf[128];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("value.compression.default");
 
     ASSERT_NE(NULL, ps);
@@ -681,7 +681,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, value_compression_default, test_pre)
 MTF_DEFINE_UTEST(kvs_rparams_test, get)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct kvs_rparams p = kvs_rparams_defaults();

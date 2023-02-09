@@ -5,21 +5,20 @@
 
 #define MTF_MOCK_IMPL_csched
 
-#include <hse/util/platform.h>
-
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/sched_sts.h>
-#include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/util/platform.h>
 
 #include "csched_sp3.h"
 
 merr_t
 csched_create(
     struct kvdb_rparams *rp,
-    const char *         kvdb_alias,
-    struct kvdb_health * health,
-    struct csched **     handle)
+    const char *kvdb_alias,
+    struct kvdb_health *health,
+    struct csched **handle)
 {
     assert(rp && kvdb_alias && handle);
 

@@ -7,6 +7,7 @@
 #define HSE_KVS_INTERN_BUILDER_H
 
 #include <stdbool.h>
+
 #include <sys/types.h>
 
 #include <hse/error/merr.h>

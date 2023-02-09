@@ -11,23 +11,21 @@
 
 #include <cjson/cJSON.h>
 
+#include <hse/experimental.h>
 #include <hse/hse.h>
+
 #include <hse/cli/rest/api.h>
 #include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
-#include <hse/experimental.h>
 #include <hse/pidfile/pidfile.h>
 #include <hse/util/arch.h>
-#include <hse/util/parse_num.h>
 #include <hse/util/base.h>
+#include <hse/util/parse_num.h>
 
 #include "cli_util.h"
 
 static hse_err_t
-kvdb_info_props(
-    const char          *kvdb_home,
-    const size_t         paramc,
-    const char *const   *paramv)
+kvdb_info_props(const char *kvdb_home, const size_t paramc, const char * const *paramv)
 {
     size_t namec;
     char **namev;
@@ -90,10 +88,7 @@ out:
 }
 
 hse_err_t
-kvdb_info_print(
-    const char *         kvdb_home,
-    const size_t         paramc,
-    const char *const *  paramv)
+kvdb_info_print(const char *kvdb_home, const size_t paramc, const char * const *paramv)
 {
     hse_err_t err;
 
@@ -108,15 +103,12 @@ kvdb_info_print(
 }
 
 int
-kvdb_compact_request(
-    const char                 *kvdb_home,
-    enum kvdb_compact_request   request,
-    uint32_t                    timeout_sec)
+kvdb_compact_request(const char *kvdb_home, enum kvdb_compact_request request, uint32_t timeout_sec)
 {
-    hse_err_t                      err;
-    struct hse_kvdb *              handle = 0;
+    hse_err_t err;
+    struct hse_kvdb *handle = 0;
     struct hse_kvdb_compact_status status;
-    struct pidfile                 content;
+    struct pidfile content;
 
     uint64_t stop_ts;
     uint sleep_secs = 2;
@@ -162,8 +154,8 @@ kvdb_compact_request(
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "Failed to retrieve the KVS names of the KVDB (%s): %s\n",
-                kvdb_home, buf);
+            fprintf(
+                stderr, "Failed to retrieve the KVS names of the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
@@ -174,7 +166,8 @@ kvdb_compact_request(
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "Failed to open the KVS (%s) within the KVDB (%s): %s\n", namev[i],
+                fprintf(
+                    stderr, "Failed to open the KVS (%s) within the KVDB (%s): %s\n", namev[i],
                     kvdb_home, buf);
                 goto err_out;
             }
@@ -235,8 +228,8 @@ kvdb_compact_request(
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n",
-                    kvdb_home, buf);
+                fprintf(
+                    stderr, "Compaction request failed for the KVDB (%s): %s\n", kvdb_home, buf);
                 goto err_out;
             }
 
@@ -250,8 +243,9 @@ kvdb_compact_request(
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
-                    fprintf(stderr, "Failed to cancel compaction for the KVDB (%s): %s\n",
-                        kvdb_home, buf);
+                    fprintf(
+                        stderr, "Failed to cancel compaction for the KVDB (%s): %s\n", kvdb_home,
+                        buf);
                 } else {
                     err = ETIMEDOUT;
                 }
@@ -260,7 +254,8 @@ kvdb_compact_request(
             }
         }
 
-        printf("Compaction request was %s for KVDB (%s)\n",
+        printf(
+            "Compaction request was %s for KVDB (%s)\n",
             status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
         break;
 
@@ -281,7 +276,8 @@ kvdb_compact_request(
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n",
+            fprintf(
+                stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n",
                 kvdb_home, buf);
             goto err_out;
         }
@@ -292,10 +288,8 @@ kvdb_compact_request(
             "samp_curr: %.3lf\n"
             "active: %s\n"
             "canceled: %s\n",
-            status.kvcs_samp_lwm / 1000.0,
-            status.kvcs_samp_hwm / 1000.0,
-            status.kvcs_samp_curr / 1000.0,
-            status.kvcs_active ? "true" : "false",
+            status.kvcs_samp_lwm / 1000.0, status.kvcs_samp_hwm / 1000.0,
+            status.kvcs_samp_curr / 1000.0, status.kvcs_active ? "true" : "false",
             status.kvcs_canceled ? "true" : "false");
         break;
     }

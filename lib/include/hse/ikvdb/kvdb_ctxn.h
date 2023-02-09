@@ -9,9 +9,8 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/keylock.h>
-
 #include <hse/ikvdb/ikvdb.h>
+#include <hse/util/keylock.h>
 
 /* MTF_MOCK_DECL(kvdb_ctxn) */
 
@@ -47,21 +46,21 @@ struct kvdb_ctxn {
  */
 struct kvdb_ctxn_bind {
     struct kvdb_ctxn *b_ctxn;
-    atomic_ulong      b_gen;
-    atomic_int        b_ref;
+    atomic_ulong b_gen;
+    atomic_int b_ref;
 };
 
 /* MTF_MOCK */
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
-    struct kvdb_keylock  *kvdb_keylock,
-    struct kvdb_pfxlock  *kvdb_pfxlock,
-    atomic_ulong         *kvdb_seqno_addr,
+    struct kvdb_keylock *kvdb_keylock,
+    struct kvdb_pfxlock *kvdb_pfxlock,
+    atomic_ulong *kvdb_seqno_addr,
     struct kvdb_ctxn_set *kvdb_ctxn_set,
-    struct viewset       *active_txn_set,
-    struct c0snr_set     *c0snrset,
-    struct c0sk *         c0sk,
-    struct wal           *wal);
+    struct viewset *active_txn_set,
+    struct c0snr_set *c0snrset,
+    struct c0sk *c0sk,
+    struct wal *wal);
 
 /* MTF_MOCK */
 void
@@ -105,17 +104,16 @@ kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, uint64_t *vi
 merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
-    uintptr_t        *seqref,
-    uint64_t         *view_seqno,
-    int64_t          *cookie,
-    bool              is_ptomb,
-    uint64_t          pfxhash,
-    uint64_t          keyhash);
+    uintptr_t *seqref,
+    uint64_t *view_seqno,
+    int64_t *cookie,
+    bool is_ptomb,
+    uint64_t pfxhash,
+    uint64_t keyhash);
 
 /* MTF_MOCK */
 void
-kvdb_ctxn_unlock(
-    struct kvdb_ctxn *handle);
+kvdb_ctxn_unlock(struct kvdb_ctxn *handle);
 
 int64_t
 kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle);

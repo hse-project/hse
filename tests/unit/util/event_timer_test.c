@@ -3,8 +3,9 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
 #include <sys/poll.h>
+
+#include <hse/test/mtf/framework.h>
 
 #define USE_EVENT_TIMER
 #include <hse/util/event_timer.h>
@@ -35,7 +36,7 @@ MTF_DEFINE_UTEST(event_timer, once)
 MTF_DEFINE_UTEST(event_timer, many)
 {
     char *cp;
-    int   i;
+    int i;
 
     EVENT_TIMER(t);
     EVENT_INIT(t);
@@ -63,7 +64,7 @@ static void *
 event_helper(void *arg)
 {
     struct event_timer *t = arg;
-    int                 i;
+    int i;
 
     for (i = 0; i < 1000; ++i) {
         EVENT_WRAP_PTR(t, poll(0, 0, 1););
@@ -74,7 +75,7 @@ event_helper(void *arg)
 MTF_DEFINE_UTEST(event_timer, deadlock)
 {
     pthread_t tidv[16];
-    int       i, rc;
+    int i, rc;
 
     EVENT_TIMER(t);
     EVENT_INIT(t);

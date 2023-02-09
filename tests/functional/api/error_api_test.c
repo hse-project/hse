@@ -54,7 +54,7 @@ MTF_DEFINE_UTEST(error_api_test, to_ctx_no_err_is_0)
 
 MTF_DEFINE_UTEST(error_api_test, strerror_no_err_is_success)
 {
-    char   buf[256];
+    char buf[256];
     size_t n;
 
     n = hse_strerror(0, buf, sizeof(buf));
@@ -64,15 +64,15 @@ MTF_DEFINE_UTEST(error_api_test, strerror_no_err_is_success)
 
 MTF_DEFINE_UTEST(error_api_test, strerror_format)
 {
-    char        buf[256];
-    char        fmt[64];
-    char        file[512] = {};
-    char        found_reason[256] = {};
+    char buf[256];
+    char fmt[64];
+    char file[512] = {};
+    char found_reason[256] = {};
     const char *actual_reason;
-    size_t      actual_reason_len;
-    int         rc = -1, lineno = -1, num_parsed;
-    size_t      n;
-    hse_err_t   err;
+    size_t actual_reason_len;
+    int rc = -1, lineno = -1, num_parsed;
+    size_t n;
+    hse_err_t err;
 
     err = hse_kvdb_close(NULL);
     ASSERT_NE(0, hse_err_to_errno(err));

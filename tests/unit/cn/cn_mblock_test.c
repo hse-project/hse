@@ -3,13 +3,12 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/util/platform.h>
-#include <hse/util/log2.h>
-#include <hse/logging/logging.h>
-
 #include <hse/ikvdb/limits.h>
+#include <hse/logging/logging.h>
+#include <hse/util/log2.h>
+#include <hse/util/platform.h>
+
+#include <hse/test/mtf/framework.h>
 
 #include "cn/cn_mblocks.h"
 
@@ -53,11 +52,11 @@ post(struct mtf_test_info *info)
 bool
 runtest(
     struct mtf_test_info *lcl_ti,
-    size_t                max_size,
-    size_t                alloc_unit,
-    size_t                wlen,
-    uint                  flags,
-    size_t                expect)
+    size_t max_size,
+    size_t alloc_unit,
+    size_t wlen,
+    uint flags,
+    size_t expect)
 {
     size_t result;
 
@@ -66,13 +65,7 @@ runtest(
     log_info(
         "Test: (maxsz = %10zu, aunit = %10zu, wlen = %10zu,"
         " flags = 0x%02x) ==> (expect = %10zu, result = %10zu)%s",
-        max_size,
-        alloc_unit,
-        wlen,
-        flags,
-        expect,
-        result,
-        expect == result ? "" : " ***ERROR***");
+        max_size, alloc_unit, wlen, flags, expect, result, expect == result ? "" : " ***ERROR***");
 
     return result == expect;
 }
@@ -116,7 +109,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_typical_vblock, pre, post)
 {
     size_t msize = VBLOCK_MAX_SIZE;
     size_t aunit = VEB_SIZE;
-    uint   flags = CN_MB_EST_FLAGS_PREALLOC;
+    uint flags = CN_MB_EST_FLAGS_PREALLOC;
 
     size_t lo, hi, exp;
 
@@ -150,7 +143,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_bogus_input, pre, post)
     size_t msize = 32 * MiB;
     size_t aunit = 4 * MiB;
     size_t wlen = 1 * MiB;
-    uint   flags = CN_MB_EST_FLAGS_NONE;
+    uint flags = CN_MB_EST_FLAGS_NONE;
 
     log_info("Test group: "
              "bogus input, expect 0");
@@ -171,7 +164,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal, pre, post)
     uint i;
     struct {
         char *desc;
-        uint  flags;
+        uint flags;
     } test_cases[] = {
 
         { "no flags", CN_MB_EST_FLAGS_NONE },
@@ -183,7 +176,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal, pre, post)
 
     for (i = 0; i < NELEM(test_cases); i++) {
         char *desc = test_cases[i].desc;
-        uint  flags = test_cases[i].flags;
+        uint flags = test_cases[i].flags;
 
         log_info("Test group: %s, expect wlen rounded to alloc_unit", desc);
 
@@ -211,7 +204,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal_pow2, pre, post)
     uint i;
     struct {
         char *desc;
-        uint  flags;
+        uint flags;
     } test_cases[] = {
 
         { "pow2", CN_MB_EST_FLAGS_POW2 | CN_MB_EST_FLAGS_NONE },
@@ -224,7 +217,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_cn_mb_est_normal_pow2, pre, post)
 
     for (i = 0; i < NELEM(test_cases); i++) {
         char *desc = test_cases[i].desc;
-        uint  flags = test_cases[i].flags;
+        uint flags = test_cases[i].flags;
 
         log_info(
             "Test group: %s, expect wlen"

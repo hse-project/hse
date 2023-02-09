@@ -5,15 +5,14 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
+#include <hse/ikvdb/key_hash.h>
 #include <hse/util/xrand.h>
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 
 #include "kvdb/kvdb_pfxlock.h"
 #include "kvdb/viewset.h"
-
-#include <hse/ikvdb/key_hash.h>
 
 volatile uint64_t g_txn_horizon;
 

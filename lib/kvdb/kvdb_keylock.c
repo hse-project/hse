@@ -3,31 +3,28 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
+#include <rbtree.h>
 #include <stdint.h>
-
 #include <urcu-bp.h>
-
-#include <hse/util/platform.h>
-#include <hse/util/assert.h>
-#include <hse/util/alloc.h>
-#include <hse/util/atomic.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/mutex.h>
-#include <hse/util/compiler.h>
-#include <hse/util/slab.h>
-#include <hse/util/keylock.h>
-#include <hse/util/page.h>
-#include <hse/util/vlb.h>
-#include <hse/util/xrand.h>
-#include <hse/util/cursor_heap.h>
-#include <hse/util/event_counter.h>
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/kvdb_ctxn.h>
-
-#include <rbtree.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/util/alloc.h>
+#include <hse/util/assert.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
+#include <hse/util/cursor_heap.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/keylock.h>
+#include <hse/util/mutex.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
+#include <hse/util/spinlock.h>
+#include <hse/util/vlb.h>
+#include <hse/util/xrand.h>
 
 #define MTF_MOCK_IMPL_kvdb_keylock
 
@@ -158,10 +155,10 @@ merr_t
 kvdb_keylock_create(struct kvdb_keylock **handle_out, uint32_t num_tables)
 {
     struct kvdb_keylock_impl *klock;
-    merr_t                    err;
-    size_t                    sz;
-    uint                      num_entries;
-    int                       i;
+    merr_t err;
+    size_t sz;
+    uint num_entries;
+    int i;
 
     *handle_out = NULL;
 
@@ -205,10 +202,10 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, uint32_t num_tables)
 void
 kvdb_keylock_destroy(struct kvdb_keylock *handle)
 {
-    struct kvdb_keylock_impl *   klock;
+    struct kvdb_keylock_impl *klock;
     struct kvdb_ctxn_locks_impl *curr;
     struct kvdb_ctxn_locks_impl *tmp;
-    int                          i;
+    int i;
 
     if (ev(!handle))
         return;
@@ -217,7 +214,7 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
 
     for (i = 0; i < KVDB_DLOCK_MAX; ++i) {
         struct kvdb_dlock *dlock = klock->kl_dlockv + i;
-        struct list_head   expired;
+        struct list_head expired;
 
         INIT_LIST_HEAD(&expired);
 
@@ -255,7 +252,7 @@ void
 kvdb_keylock_list_lock(struct kvdb_keylock *handle, void **cookiep)
 {
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
-    struct kvdb_dlock *       dlock = klock->kl_dlockv;
+    struct kvdb_dlock *dlock = klock->kl_dlockv;
 
     dlock += hse_getcpu(NULL) % KVDB_DLOCK_MAX;
 
@@ -277,7 +274,7 @@ void
 kvdb_keylock_enqueue_locks(struct kvdb_ctxn_locks *handle, uint64_t end_seqno, void *cookie)
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(handle);
-    struct kvdb_dlock *          dlock = cookie;
+    struct kvdb_dlock *dlock = cookie;
     struct kvdb_ctxn_locks_impl *elem;
 
     assert(dlock && locks->ctxn_locks_cnt > 0);
@@ -317,7 +314,7 @@ kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lo
     cnt = locks->ctxn_locks_cnt;
     inherited = NULL;
 
-    while (( entry = locks->ctxn_locks_entries )) {
+    while ((entry = locks->ctxn_locks_entries)) {
         locks->ctxn_locks_entries = entry->lte_next;
 
         if (entry->lte_inherited) {
@@ -452,7 +449,7 @@ kvdb_keylock_release_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lock
         struct keylock **keylockv = kvdb_keylock_h2r(kl_handle)->kl_keylock;
         struct ctxn_locks_entry *entry;
 
-        while (( entry = locks->ctxn_locks_entries )) {
+        while ((entry = locks->ctxn_locks_entries)) {
             locks->ctxn_locks_entries = entry->lte_next;
 
             keylock_unlock(keylockv[entry->lte_tindex], entry->lte_hash, desc);
@@ -486,10 +483,10 @@ kvdb_keylock_release_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lock
  */
 merr_t
 kvdb_keylock_lock(
-    struct kvdb_keylock *   hklock,
+    struct kvdb_keylock *hklock,
     struct kvdb_ctxn_locks *hlocks,
-    uint64_t                hash,
-    uint64_t                start_seq)
+    uint64_t hash,
+    uint64_t start_seq)
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(hlocks);
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(hklock);
@@ -518,7 +515,7 @@ kvdb_keylock_lock(
         parent = *link;
         entry = rb_entry(parent, typeof(*entry), lte_node);
 
-        if (HSE_UNLIKELY( hash == entry->lte_hash ))
+        if (HSE_UNLIKELY(hash == entry->lte_hash))
             break;
 
         link = (hash < entry->lte_hash) ? &parent->rb_left : &parent->rb_right;

@@ -10,7 +10,8 @@
 
 #include <hse/error/merr.h>
 
-typedef merr_t config_validator_t(cJSON *config);
+typedef merr_t
+config_validator_t(cJSON *config);
 
 /**
  * Get a config object from a file path

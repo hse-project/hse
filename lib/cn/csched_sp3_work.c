@@ -5,27 +5,25 @@
 
 #define MTF_MOCK_IMPL_csched_sp3_work
 
-#include <hse/util/event_counter.h>
-#include <hse/util/platform.h>
-#include <hse/util/slab.h>
-#include <hse/logging/logging.h>
-
 #include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
-
-#include "csched_sp3_work.h"
+#include <hse/logging/logging.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #include "cn_internal.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
+#include "csched_sp3_work.h"
 #include "kvset.h"
 #include "kvset_internal.h"
 
 static bool
 sp3_node_is_idle(struct cn_tree_node *tn)
 {
-    struct list_head *       head;
+    struct list_head *head;
     struct kvset_list_entry *le;
 
     /* Node is idle IFF no kvsets are marked. */
@@ -141,11 +139,11 @@ sp3_work_estimate(struct cn_compaction_work *w)
  */
 static uint
 sp3_work_wtype_root(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct route_map *rmap = tn->tn_tree->ct_route_map;
@@ -259,7 +257,7 @@ sp3_work_wtype_root(
     if (wlen < VBLOCK_MAX_SIZE) {
         if (runlen < runlen_max) {
             *mark = NULL; /* prevent resched */
-            return 0; /* defer tiny spills */
+            return 0;     /* defer tiny spills */
         }
 
         *rule = CN_RULE_TSPILL; /* tiny root spill */
@@ -279,11 +277,11 @@ sp3_work_wtype_root(
 
 static uint
 sp3_work_wtype_idle(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct cn_node_stats *ns = &tn->tn_ns;
@@ -447,11 +445,11 @@ sp3_work_splittable(struct cn_tree_node *tn, const struct sp3_thresholds *thresh
  */
 static uint
 sp3_work_wtype_split(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct cn_tree *tree = tn->tn_tree;
@@ -480,7 +478,8 @@ sp3_work_wtype_split(
 
         if (!tn->tn_ss_splitting) {
             if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max ||
-                jclock_ns < tree->ct_split_dly) {
+                jclock_ns < tree->ct_split_dly)
+            {
 
                 tn->tn_ss_visits = 0;
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
@@ -573,11 +572,11 @@ sp3_work_joinable(struct cn_tree_node *right, const struct sp3_thresholds *thres
  */
 static uint
 sp3_work_wtype_join(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn), *left;
     struct cn_tree *tree = tn->tn_tree;
@@ -597,7 +596,8 @@ sp3_work_wtype_join(
 
         if (!tn->tn_ss_joining) {
             if (atomic_read(&tree->ct_split_cnt) >= thresh->split_cnt_max ||
-                jclock_ns < tree->ct_split_dly) {
+                jclock_ns < tree->ct_split_dly)
+            {
 
                 tn->tn_ss_visits = 0;
             } else if (spilling && tn->tn_ss_visits < thresh->split_cnt_max) {
@@ -657,11 +657,11 @@ sp3_work_wtype_join(
 
 static uint
 sp3_work_wtype_garbage(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -693,11 +693,11 @@ sp3_work_wtype_garbage(
 
 static uint
 sp3_work_wtype_scatter(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     struct kvset_list_entry *le;
@@ -747,11 +747,11 @@ sp3_work_wtype_scatter(
 
 static uint
 sp3_work_wtype_length(
-    struct sp3_node          *spn,
-    struct sp3_thresholds    *thresh,
+    struct sp3_node *spn,
+    struct sp3_thresholds *thresh,
     struct kvset_list_entry **mark,
-    enum cn_action           *action,
-    enum cn_rule             *rule)
+    enum cn_action *action,
+    enum cn_rule *rule)
 {
     struct cn_tree_node *tn = spn2tn(spn);
     uint keys_max = thresh->lcomp_split_keys / 2;
@@ -932,23 +932,23 @@ sp3_work_wtype_length(
  */
 merr_t
 sp3_work(
-    struct sp3_node            *spn,
-    enum sp3_work_type          wtype,
-    struct sp3_thresholds      *thresh,
-    uint                        debug,
+    struct sp3_node *spn,
+    enum sp3_work_type wtype,
+    struct sp3_thresholds *thresh,
+    uint debug,
     struct cn_compaction_work **wp)
 {
     struct cn_tree *tree;
-    struct cn_tree_node *      tn;
+    struct cn_tree_node *tn;
     struct cn_compaction_work *w;
-    struct kvset_list_entry *  le;
-    void *                     lock;
-    uint                       i;
-    bool                       have_token;
+    struct kvset_list_entry *le;
+    void *lock;
+    uint i;
+    bool have_token;
 
-    uint                     n_kvsets = 0;
-    enum cn_action           action = CN_ACTION_NONE;
-    enum cn_rule             rule = CN_RULE_NONE;
+    uint n_kvsets = 0;
+    enum cn_action action = CN_ACTION_NONE;
+    enum cn_rule rule = CN_RULE_NONE;
     struct kvset_list_entry *mark = NULL;
 
     if (!*wp) {

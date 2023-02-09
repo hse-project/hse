@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include <hse/cli/tprint.h>
 #include <hse/error/merr.h>
@@ -16,8 +15,14 @@
 #define COLUMN_SEP " "
 
 merr_t
-tprint(FILE *const fp, const size_t nrow, const size_t ncol, const char *const *const headers,
-    const char **const values, const enum tprint_justify *justify, const bool *const enabled)
+tprint(
+    FILE * const fp,
+    const size_t nrow,
+    const size_t ncol,
+    const char * const * const headers,
+    const char ** const values,
+    const enum tprint_justify *justify,
+    const bool * const enabled)
 {
     size_t *longest = malloc(ncol * sizeof(*longest));
     if (!longest)
@@ -68,7 +73,8 @@ tprint(FILE *const fp, const size_t nrow, const size_t ncol, const char *const *
                 fmt = "%*s%s";
             }
 
-            fprintf(fp, fmt, (int)longest[c], values[r * ncol + c], c == ncol - 1 ? "" : COLUMN_SEP);
+            fprintf(
+                fp, fmt, (int)longest[c], values[r * ncol + c], c == ncol - 1 ? "" : COLUMN_SEP);
         }
 
         fputc('\n', fp);

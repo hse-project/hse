@@ -5,21 +5,17 @@
 
 #include <stdint.h>
 
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/mclass_policy.h>
+#include <hse/mpool/mpool.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
 #include <hse/util/event_counter.h>
 
-#include <hse/mpool/mpool.h>
-
-#include <hse/ikvdb/mclass_policy.h>
-#include <hse/ikvdb/ikvdb.h>
-
-const char *mclass_policy_names[] = { "capacity_only",
-                                      "staging_only",
-                                      "staging_max_capacity",
-                                      "staging_min_capacity",
-                                      "pmem_only",
-                                      "pmem_max_capacity", };
+const char *mclass_policy_names[] = {
+    "capacity_only",        "staging_only", "staging_max_capacity",
+    "staging_min_capacity", "pmem_only",    "pmem_max_capacity",
+};
 
 /*
  * Expressed using 3 bits:
@@ -37,14 +33,10 @@ const char *mclass_policy_names[] = { "capacity_only",
  * [6] 110 - invalid (pmem + staging)
  * [7] 111 - capacity + staging + pmem
  */
-const char *mclass_policy_defaults[] = { NULL,
-                                         "capacity_only",
-                                         NULL,
-                                         "staging_max_capacity",
-                                         "pmem_only",
-                                         "pmem_max_capacity",
-                                         NULL,
-                                         "pmem_max_capacity", };
+const char *mclass_policy_defaults[] = {
+    NULL,        "capacity_only",     NULL, "staging_max_capacity",
+    "pmem_only", "pmem_max_capacity", NULL, "pmem_max_capacity",
+};
 
 const char **
 mclass_policy_names_get()
@@ -63,7 +55,7 @@ mclass_policy_default_get(struct ikvdb *handle)
 {
     struct mpool *mp;
     int i;
-    uint8_t  config = 0;
+    uint8_t config = 0;
 
     INVARIANT(handle);
 
@@ -94,7 +86,10 @@ static const struct mclass_policy_map dtypes[] = {
     { HSE_MPOLICY_DTYPE_VALUE, "values" },
 };
 
-static const struct mclass_policy_map *mclass_policy_fields[] = { agegroups, dtypes, };
+static const struct mclass_policy_map *mclass_policy_fields[] = {
+    agegroups,
+    dtypes,
+};
 
 static const unsigned int mclass_policy_nentries[] = {
     NELEM(agegroups),

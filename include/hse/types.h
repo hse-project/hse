@@ -54,7 +54,7 @@ typedef uint64_t hse_err_t;
 
 /** @brief Error context values */
 enum hse_err_ctx {
-    HSE_ERR_CTX_NONE, /**< No context. */
+    HSE_ERR_CTX_NONE,        /**< No context. */
     HSE_ERR_CTX_TXN_EXPIRED, /**< Transaction timed out. */
 };
 
@@ -100,7 +100,7 @@ struct hse_mclass_info {
     uint64_t mi_allocated_bytes; /**< Allocated storage space for the media class. */
     uint64_t mi_used_bytes;      /**< Used storage space for the media class. */
     uint64_t mi_reserved[8];     /**< Reserved space for future expansion. */
-    char     mi_path[PATH_MAX];  /**< Path to a media class. */
+    char mi_path[PATH_MAX];      /**< Path to a media class. */
 };
 
 /**@} KVDB */

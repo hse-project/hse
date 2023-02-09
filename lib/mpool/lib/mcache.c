@@ -6,14 +6,13 @@
 #include <sys/mman.h>
 
 #include <hse/logging/logging.h>
-
 #include <hse/util/event_counter.h>
 #include <hse/util/page.h>
 
-#include "mpool_internal.h"
-#include "mclass.h"
-#include "mblock_fset.h"
 #include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mclass.h"
+#include "mpool_internal.h"
 
 struct mpool;
 
@@ -28,20 +27,20 @@ struct mpool;
  */
 struct mpool_mcache_map {
     struct mpool *mp;
-    size_t        mbidc;
-    uint64_t     *mbidv;
-    void        **addrv;
-    uint32_t     *wlenv;
+    size_t mbidc;
+    uint64_t *mbidv;
+    void **addrv;
+    uint32_t *wlenv;
 };
 
 merr_t
 mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_mcache_map **mapp)
 {
     struct mpool_mcache_map *map;
-    struct media_class      *mc;
+    struct media_class *mc;
     size_t sz;
     merr_t err = 0;
-    int    i;
+    int i;
 
     if (!mp || !mbidv || !mapp)
         return merr(EINVAL);
@@ -60,8 +59,8 @@ mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_
 
     for (i = 0; i < mbidc; i++) {
         enum hse_mclass mclass;
-        char             *addr;
-        uint32_t          wlen;
+        char *addr;
+        uint32_t wlen;
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
@@ -94,15 +93,15 @@ void
 mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
     struct media_class *mc;
-    int                 i;
+    int i;
 
     if (!map)
         return;
 
     for (i = 0; i < map->mbidc; i++) {
         enum hse_mclass mclass;
-        uint64_t          mbid;
-        merr_t            err;
+        uint64_t mbid;
+        merr_t err;
 
         mbid = map->mbidv[i];
 
@@ -121,7 +120,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 merr_t
 mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t len, int advice)
 {
-    size_t   count;
+    size_t count;
     uint32_t wlen;
 
     if (!map || mbidx >= map->mbidc || off < 0)
@@ -142,7 +141,7 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
 
     do {
         char *addr;
-        int   rc;
+        int rc;
 
         addr = map->addrv[mbidx];
         if (!addr)
@@ -174,13 +173,13 @@ mpool_mcache_getbase(struct mpool_mcache_map *map, const uint mbidx)
 merr_t
 mpool_mcache_getpages(
     struct mpool_mcache_map *map,
-    const uint               pagec,
-    const uint               mbidx,
-    const off_t              pagenumv[],
-    void                    *addrv[])
+    const uint pagec,
+    const uint mbidx,
+    const off_t pagenumv[],
+    void *addrv[])
 {
     char *addr;
-    int   i;
+    int i;
 
     if (!map || mbidx >= map->mbidc || !addrv)
         return merr(EINVAL);
@@ -211,9 +210,9 @@ mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp)
 merr_t
 mpool_mcache_mincore(
     struct mpool_mcache_map *map,
-    const struct mpool      *mp,
-    size_t                  *rssp,
-    size_t                  *vssp)
+    const struct mpool *mp,
+    size_t *rssp,
+    size_t *vssp)
 {
     return merr(ENOTSUP);
 }

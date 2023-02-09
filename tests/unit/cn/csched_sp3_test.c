@@ -5,36 +5,34 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-#include <hse/test/mock/alloc_tester.h>
-
 #include <hse/error/merr.h>
-
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/blk_list.h>
-#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/cn.h>
 #include <hse/ikvdb/cn_kvdb.h>
 #include <hse/ikvdb/csched_rp.h>
-#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvdb_health.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 
-#include "cn/csched_sp3.h"
-#include "cn/csched_sp3_work.h"
+#include <hse/test/mock/alloc_tester.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mock/mock_kvset.h>
+#include <hse/test/mtf/framework.h>
+
+#include "cn/cn_tree_compact.h"
 #include "cn/cn_tree_create.h"
 #include "cn/cn_tree_internal.h"
-#include "cn/cn_tree_compact.h"
+#include "cn/csched_sp3.h"
+#include "cn/csched_sp3_work.h"
 #include "cn/kvset.h"
 
-#include <hse/test/mock/mock_kvset.h>
-
-struct kvdb_health   health;
-struct cn_kvdb       cn_kvdb;
+struct kvdb_health health;
+struct cn_kvdb cn_kvdb;
 struct kvdb_rparams *kvdb_rp, kvdb_rparams;
-struct kvs_rparams * kvs_rp, kvs_rparams;
-const char *         mp;
-struct mpool *       ds;
-struct cndb *        cndb;
+struct kvs_rparams *kvs_rp, kvs_rparams;
+const char *mp;
+struct mpool *ds;
+struct cndb *cndb;
 
 #define MiB(x) ((ulong)(x) << 20)
 #define GiB(x) ((ulong)(x) << 30)
@@ -50,9 +48,9 @@ struct cndb *        cndb;
  *   - Uses counter for mblock ids.
  */
 struct kvset_meta km;
-uint64_t          km_kblocks[4];
-uint64_t          km_vblocks[4];
-uint64_t          mbid = 123456;
+uint64_t km_kblocks[4];
+uint64_t km_vblocks[4];
+uint64_t mbid = 123456;
 
 static struct kvset_meta *
 init_kvset_meta(uint64_t dgen)
@@ -90,17 +88,17 @@ init_kvset_meta(uint64_t dgen)
  */
 struct test_tree {
     struct cn_tree *tree;
-    uint64_t        dgen;
-    uint            fbits;
-    uint            fout;
-    uint            pfx_len;
-    uint            cnid;
-    uint            tag;
+    uint64_t dgen;
+    uint fbits;
+    uint fout;
+    uint pfx_len;
+    uint cnid;
+    uint tag;
 };
 
 #define MAX_TREES 100
 struct test_tree ttv[MAX_TREES];
-uint             ttc;
+uint ttc;
 
 void
 init_trees(void)
@@ -125,10 +123,10 @@ struct kvs_cparams cp;
 struct test_tree *
 new_tree(uint fanout)
 {
-    uint              pfx_len = 0;
-    merr_t            err;
+    uint pfx_len = 0;
+    merr_t err;
     struct test_tree *tt;
-    uint              fbits;
+    uint fbits;
 
     fbits = 1;
     while (fbits < 10 && (1 << fbits) != fanout)
@@ -176,9 +174,9 @@ merr_t
 new_kvsets(struct test_tree *tt, int n_kvsets, int lvl, int off)
 {
     struct kvset *kvset;
-    merr_t        err = 0;
-    int           i;
-    int           start_off, end_off;
+    merr_t err = 0;
+    int i;
+    int start_off, end_off;
 
     if (off == -1) {
         start_off = 0;
@@ -216,9 +214,7 @@ void
 job_done(struct cn_compaction_work *w, int cancel)
 {
     log_info(
-        "job %s: cnid=%lu nodeid=%lu",
-        cancel ? "canceled" : "complete",
-        w->cw_tree->cnid,
+        "job %s: cnid=%lu nodeid=%lu", cancel ? "canceled" : "complete", w->cw_tree->cnid,
         w->cw_node->tn_nodeid);
 
     if (w->cw_have_token)
@@ -250,17 +246,17 @@ sts_job_submit_mock(struct sts *self, struct sts_job *job)
 
 merr_t
 sp3_work_mock(
-    struct sp3_node            *spn,
-    enum sp3_work_type          wtype,
-    struct sp3_thresholds      *thresh,
-    uint                        debug,
+    struct sp3_node *spn,
+    enum sp3_work_type wtype,
+    struct sp3_thresholds *thresh,
+    uint debug,
     struct cn_compaction_work **w_out)
 {
-    struct cn_tree_node *      tn;
+    struct cn_tree_node *tn;
     struct cn_compaction_work *w;
-    struct kvset_list_entry *  le;
-    uint                       i;
-    const char *               comptype = 0;
+    struct kvset_list_entry *le;
+    uint i;
+    const char *comptype = 0;
 
     *w_out = 0;
     tn = spn2tn(spn);
@@ -309,8 +305,7 @@ sp3_work_mock(
     w->cw_rp = tn->tn_tree->rp;
     w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 
-    log_debug("cnid=%lu nodeid=%lu, action=%s",
-              tn->tn_tree->cnid, tn->tn_nodeid, comptype);
+    log_debug("cnid=%lu nodeid=%lu, action=%s", tn->tn_tree->cnid, tn->tn_nodeid, comptype);
 
     *w_out = w;
     return 0;
@@ -500,9 +495,9 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_fail, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_empty_tree, pre_test)
 {
-    merr_t             err;
-    struct test_tree * tt;
-    struct csched     *cs;
+    merr_t err;
+    struct test_tree *tt;
+    struct csched *cs;
 
     err = sp3_create(kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
@@ -522,12 +517,12 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_empty_tree, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
 {
-    merr_t             err;
-    struct test_tree * tt;
-    struct csched     *cs;
-    uint               num_trees = 50;
-    uint               fanouts[] = { 2, 4, 8, 16 };
-    uint               i;
+    merr_t err;
+    struct test_tree *tt;
+    struct csched *cs;
+    uint num_trees = 50;
+    uint fanouts[] = { 2, 4, 8, 16 };
+    uint i;
 
     err = sp3_create(kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
@@ -554,10 +549,10 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
 {
-    merr_t             err;
-    struct test_tree * tt;
-    struct csched     *cs;
-    uint               i;
+    merr_t err;
+    struct test_tree *tt;
+    struct csched *cs;
+    uint i;
 
     err = sp3_create(kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
@@ -583,10 +578,10 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
 {
-    merr_t             err;
-    struct test_tree * tt;
-    struct csched     *cs;
-    uint               i;
+    merr_t err;
+    struct test_tree *tt;
+    struct csched *cs;
+    uint i;
 
     err = sp3_create(kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);
@@ -615,10 +610,10 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
 {
-    merr_t             err;
-    struct test_tree * tt;
-    struct csched     *cs;
-    uint               i;
+    merr_t err;
+    struct test_tree *tt;
+    struct csched *cs;
+    uint i;
 
     err = sp3_create(kvdb_rp, mp, &health, &cs);
     ASSERT_EQ(err, 0);

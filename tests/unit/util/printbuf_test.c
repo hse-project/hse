@@ -5,19 +5,19 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/util/slab.h>
 #include <hse/error/merr.h>
 #include <hse/util/printbuf.h>
+#include <hse/util/slab.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION(printbuf);
 
-#define DEFAULT_BUF_SZ 4096
-#define DEFAULT_STRING_SZ 50
-#define DEFAULT_BUF_VAL 1
+#define DEFAULT_BUF_SZ     4096
+#define DEFAULT_STRING_SZ  50
+#define DEFAULT_BUF_VAL    1
 #define DEFAULT_STRING_VAL 2
 
 /**
@@ -51,11 +51,11 @@ test_for(char *buf, unsigned char val, size_t offset, size_t len)
 /* 1. Test adding a single string with sprintbuf */
 MTF_DEFINE_UTEST(printbuf, sprintbuf_single)
 {
-    char * buf;
+    char *buf;
     size_t offset;
     size_t remaining;
-    char * string;
-    int    ret;
+    char *string;
+    int ret;
 
     string = calloc(1, DEFAULT_STRING_SZ + 1);
     ASSERT_NE(string, NULL);
@@ -91,10 +91,10 @@ MTF_DEFINE_UTEST(printbuf, sprintbuf_single)
 /* 2. Test adding a single entry with snprintf_append */
 MTF_DEFINE_UTEST(printbuf, snprintf_append_single)
 {
-    char * buf;
+    char *buf;
     size_t offset;
-    char * string;
-    int    ret;
+    char *string;
+    int ret;
 
     string = calloc(1, DEFAULT_STRING_SZ + 1);
     ASSERT_NE(string, NULL);
@@ -124,17 +124,17 @@ MTF_DEFINE_UTEST(printbuf, snprintf_append_single)
     free(string);
 }
 
-#define SHORT_BUF_SZ 20
+#define SHORT_BUF_SZ     20
 #define SHORT_BUF_OFFSET 100
 
 /* 3. Test overflow handling of sprintbuf */
 MTF_DEFINE_UTEST(printbuf, sprintbuf_overflow)
 {
-    char * buf, *short_buf;
+    char *buf, *short_buf;
     size_t offset;
     size_t remaining;
-    char * string;
-    int    ret;
+    char *string;
+    int ret;
 
     string = calloc(1, DEFAULT_STRING_SZ + 1);
     ASSERT_NE(string, NULL);
@@ -165,9 +165,7 @@ MTF_DEFINE_UTEST(printbuf, sprintbuf_overflow)
      * string when it is printed into the buffer.
      */
     ret = test_for(
-        buf,
-        DEFAULT_BUF_VAL,
-        SHORT_BUF_OFFSET + SHORT_BUF_SZ,
+        buf, DEFAULT_BUF_VAL, SHORT_BUF_OFFSET + SHORT_BUF_SZ,
         DEFAULT_BUF_SZ - SHORT_BUF_OFFSET - SHORT_BUF_SZ - 1);
     ASSERT_EQ(ret, -1);
 
@@ -178,10 +176,10 @@ MTF_DEFINE_UTEST(printbuf, sprintbuf_overflow)
 /* 4. Test overflow handling of snprintf_append */
 MTF_DEFINE_UTEST(printbuf, snprintf_append_overflow)
 {
-    char * buf, *short_buf;
+    char *buf, *short_buf;
     size_t offset;
-    char * string;
-    int    ret;
+    char *string;
+    int ret;
 
     string = calloc(1, DEFAULT_STRING_SZ + 1);
     ASSERT_NE(string, NULL);
@@ -209,9 +207,7 @@ MTF_DEFINE_UTEST(printbuf, snprintf_append_overflow)
      * string when it is printed into the buffer.
      */
     ret = test_for(
-        buf,
-        DEFAULT_BUF_VAL,
-        SHORT_BUF_OFFSET + SHORT_BUF_SZ,
+        buf, DEFAULT_BUF_VAL, SHORT_BUF_OFFSET + SHORT_BUF_SZ,
         DEFAULT_BUF_SZ - SHORT_BUF_OFFSET - SHORT_BUF_SZ - 1);
     ASSERT_EQ(ret, -1);
 
@@ -222,9 +218,9 @@ MTF_DEFINE_UTEST(printbuf, snprintf_append_overflow)
 MTF_DEFINE_UTEST(printbuf, strlcpy_append_test)
 {
     const char *src1 = "abc";
-    char        dst1[8];
-    size_t      offset;
-    int         cc;
+    char dst1[8];
+    size_t offset;
+    int cc;
 
     /* strlcpy_append() with overrun...
      */
@@ -246,10 +242,10 @@ MTF_DEFINE_UTEST(printbuf, strlcpy_append_test)
  */
 MTF_DEFINE_UTEST(printbuf, u64_append_test)
 {
-    char   dst2[64], dst3[64];
+    char dst2[64], dst3[64];
     size_t offset;
-    int    cc2, cc3;
-    int    i;
+    int cc2, cc3;
+    int i;
 
     offset = 0;
     cc2 = u64_append(dst2, 8, UINT64_MAX, 0, &offset);
@@ -292,8 +288,8 @@ MTF_DEFINE_UTEST(printbuf, u64_append_test)
 MTF_DEFINE_UTEST(printbuf, u64_to_string_test)
 {
     char dst2[64], dst3[64];
-    int  cc2, cc3;
-    int  i;
+    int cc2, cc3;
+    int i;
 
     cc2 = u64_to_string(dst2, 8, UINT64_MAX);
     ASSERT_EQ(cc2, 0);

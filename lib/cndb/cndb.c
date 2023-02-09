@@ -5,61 +5,59 @@
 
 #define MTF_MOCK_IMPL_cndb
 
+#include <bsd/string.h>
+
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/logging/logging.h>
 #include <hse/util/alloc.h>
 #include <hse/util/event_counter.h>
-#include <hse/util/platform.h>
 #include <hse/util/map.h>
-
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-
-#include <bsd/string.h>
+#include <hse/util/platform.h>
 
 #include "cn/kvset.h"
 #include "cn/kvset_internal.h"
-
-#include "txn.h"
-#include "omf.h"
 #include "common.h"
+#include "omf.h"
+#include "txn.h"
 
 struct cndb_cn {
-    uint64_t            cnid;
-    struct map         *kvset_map;
-    struct kvs_cparams  cp;
-    char                name[HSE_KVS_NAME_LEN_MAX];
+    uint64_t cnid;
+    struct map *kvset_map;
+    struct kvs_cparams cp;
+    char name[HSE_KVS_NAME_LEN_MAX];
 };
 
 struct cndb {
-    struct mutex         mutex;
-    uint16_t             cndb_version;
+    struct mutex mutex;
+    uint16_t cndb_version;
 
-    uint64_t             seqno_max;
-    uint64_t             ingestid_max;
-    uint64_t             txhorizon_max;
+    uint64_t seqno_max;
+    uint64_t ingestid_max;
+    uint64_t txhorizon_max;
 
     /* Tables */
-    struct map          *tx_map;
-    struct map          *cn_map;
+    struct map *tx_map;
+    struct map *cn_map;
 
-    bool                 replaying;
-    bool                 allow_writes;
+    bool replaying;
+    bool allow_writes;
 
     /* Mpool and mdc. */
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
-    uint64_t          cndb_captgt;
-    uint64_t          oid1;
-    uint64_t          oid2;
-    double            cndb_hwm;
+    uint64_t cndb_captgt;
+    uint64_t oid1;
+    uint64_t oid2;
+    double cndb_hwm;
 
     /* Current id values */
-    uint64_t         txid_curr;
-    uint64_t         kvsetid_curr;
-    uint64_t         nodeid_curr;
-    uint64_t         cnid_curr;
+    uint64_t txid_curr;
+    uint64_t kvsetid_curr;
+    uint64_t nodeid_curr;
+    uint64_t cnid_curr;
 };
 
 merr_t
@@ -129,11 +127,11 @@ cndb_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 
 merr_t
 cndb_open(
-    struct mpool        *mp,
-    uint64_t             oid1,
-    uint64_t             oid2,
+    struct mpool *mp,
+    uint64_t oid1,
+    uint64_t oid2,
     struct kvdb_rparams *rp,
-    struct cndb        **cndb_out)
+    struct cndb **cndb_out)
 {
     struct cndb *cndb;
     merr_t err;
@@ -247,10 +245,7 @@ cndb_kvs_count(struct cndb *cndb)
 }
 
 merr_t
-cndb_kvs_info(
-    struct cndb         *cndb,
-    void                *cb_ctx,
-    cndb_kvs_callback   *cb)
+cndb_kvs_info(struct cndb *cndb, void *cb_ctx, cndb_kvs_callback *cb)
 {
     struct cndb_cn *cn;
     struct map_iter cniter;
@@ -285,11 +280,11 @@ cndb_needs_compaction(struct cndb *cndb)
 
 static merr_t
 cndb_record_kvs_add_inner(
-    struct cndb              *cndb,
+    struct cndb *cndb,
     const struct kvs_cparams *cp,
-    uint64_t                 *cnid,
-    bool                      generate_cnid,
-    const char               *name)
+    uint64_t *cnid,
+    bool generate_cnid,
+    const char *name)
 {
     struct cndb_cn *cn;
     struct map_iter cniter;
@@ -359,10 +354,10 @@ out:
 
 merr_t
 cndb_record_kvs_add(
-    struct cndb              *cndb,
+    struct cndb *cndb,
     const struct kvs_cparams *cp,
-    uint64_t                 *cnid_out,
-    const char               *name)
+    uint64_t *cnid_out,
+    const char *name)
 {
     return cndb_record_kvs_add_inner(cndb, cp, cnid_out, true, name);
 }
@@ -404,14 +399,14 @@ out:
 
 static merr_t
 cndb_record_txstart_inner(
-    struct cndb       *cndb,
-    uint64_t           seqno,
-    uint64_t           ingestid,
-    uint64_t           txhorizon,
-    uint16_t           add_cnt,
-    uint16_t           del_cnt,
-    uint64_t           txid,
-    struct cndb_txn  **tx_out)
+    struct cndb *cndb,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint16_t add_cnt,
+    uint16_t del_cnt,
+    uint64_t txid,
+    struct cndb_txn **tx_out)
 {
     struct cndb_txn *tx = 0;
     merr_t err = 0;
@@ -467,19 +462,19 @@ out:
 
 merr_t
 cndb_record_txstart(
-    struct cndb      *cndb,
-    uint64_t          seqno,
-    uint64_t          ingestid,
-    uint64_t          txhorizon,
-    uint32_t          add_cnt,
-    uint32_t          del_cnt,
+    struct cndb *cndb,
+    uint64_t seqno,
+    uint64_t ingestid,
+    uint64_t txhorizon,
+    uint32_t add_cnt,
+    uint32_t del_cnt,
     struct cndb_txn **tx_out)
 {
     if (add_cnt > UINT16_MAX || del_cnt > UINT16_MAX)
         return merr(EINVAL);
 
-    return cndb_record_txstart_inner(cndb, seqno, ingestid, txhorizon,
-                                     (uint16_t)add_cnt, (uint16_t)del_cnt, 0, tx_out);
+    return cndb_record_txstart_inner(
+        cndb, seqno, ingestid, txhorizon, (uint16_t)add_cnt, (uint16_t)del_cnt, 0, tx_out);
 }
 
 /* [HSE_REVISIT] Do this inside cndb_record_kvset_add() and output the kvsetid to the caller.
@@ -510,18 +505,18 @@ cndb_nodeid_mint(struct cndb *cndb)
 
 merr_t
 cndb_record_kvset_add(
-    struct cndb       *cndb,
-    struct cndb_txn   *tx,
-    uint64_t           cnid,
-    uint64_t           nodeid,
+    struct cndb *cndb,
+    struct cndb_txn *tx,
+    uint64_t cnid,
+    uint64_t nodeid,
     struct kvset_meta *km,
-    uint64_t           kvsetid,
-    uint64_t           hblkid,
-    unsigned int       kblkc,
-    uint64_t          *kblkv,
-    unsigned int       vblkc,
-    uint64_t          *vblkv,
-    void             **cookie)
+    uint64_t kvsetid,
+    uint64_t hblkid,
+    unsigned int kblkc,
+    uint64_t *kblkv,
+    unsigned int vblkc,
+    uint64_t *vblkv,
+    void **cookie)
 {
     merr_t err = 0;
 
@@ -535,16 +530,16 @@ cndb_record_kvset_add(
         }
     }
 
-    err = cndb_txn_kvset_add(tx, cnid, kvsetid, nodeid, km, hblkid, kblkc, kblkv,
-                             vblkc, vblkv, cookie);
+    err = cndb_txn_kvset_add(
+        tx, cnid, kvsetid, nodeid, km, hblkid, kblkc, kblkv, vblkc, vblkv, cookie);
     if (ev(err))
         goto out;
 
     if (!cndb->replaying)
-        err = cndb_omf_kvset_add_write(cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid, nodeid,
-                                       km->km_dgen_hi, km->km_dgen_lo, km->km_vused, km->km_vgarb,
-                                       km->km_compc, km->km_rule,
-                                       hblkid, kblkc, kblkv, vblkc, vblkv);
+        err = cndb_omf_kvset_add_write(
+            cndb->mdc, cndb_txn_txid_get(tx), cnid, kvsetid, nodeid, km->km_dgen_hi, km->km_dgen_lo,
+            km->km_vused, km->km_vgarb, km->km_compc, km->km_rule, hblkid, kblkc, kblkv, vblkc,
+            vblkv);
 out:
     mutex_unlock(&cndb->mutex);
 
@@ -553,11 +548,11 @@ out:
 
 merr_t
 cndb_record_kvset_del(
-    struct cndb     *cndb,
+    struct cndb *cndb,
     struct cndb_txn *tx,
-    uint64_t         cnid,
-    uint64_t         kvsetid,
-    void           **cookie)
+    uint64_t cnid,
+    uint64_t kvsetid,
+    void **cookie)
 {
     merr_t err;
 
@@ -586,11 +581,11 @@ out:
 
 merr_t
 cndb_record_kvsetv_move(
-    struct cndb    *cndb,
-    uint64_t        cnid,
-    uint64_t        src_nodeid,
-    uint64_t        tgt_nodeid,
-    uint32_t        kvset_idc,
+    struct cndb *cndb,
+    uint64_t cnid,
+    uint64_t src_nodeid,
+    uint64_t tgt_nodeid,
+    uint32_t kvset_idc,
     const uint64_t *kvset_idv)
 {
     merr_t err = 0;
@@ -627,7 +622,7 @@ cndb_record_kvsetv_move(
             }
 
             err = cndb_omf_kvset_move_write(
-                    cndb->mdc, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
+                cndb->mdc, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
             if (err)
                 break;
         }
@@ -639,11 +634,11 @@ cndb_record_kvsetv_move(
 
 static merr_t
 process_finished_add_txn_cb(
-    struct cndb_txn   *tx,
+    struct cndb_txn *tx,
     struct cndb_kvset *kvset,
-    bool               isadd,
-    bool               isacked,
-    void              *ctx)
+    bool isadd,
+    bool isacked,
+    void *ctx)
 {
     struct cndb *cndb = ctx;
     struct cndb_cn *cn;
@@ -662,11 +657,11 @@ process_finished_add_txn_cb(
 
 static merr_t
 process_finished_del_txn_cb(
-    struct cndb_txn   *tx,
+    struct cndb_txn *tx,
     struct cndb_kvset *kvset,
-    bool               isadd,
-    bool               isacked,
-    void              *ctx)
+    bool isadd,
+    bool isacked,
+    void *ctx)
 {
     struct cndb *cndb = ctx;
     struct cndb_cn *cn;
@@ -716,8 +711,8 @@ cndb_record_kvset_ack_cmn(struct cndb *cndb, struct cndb_txn *tx, uint ack_type,
         }
     }
 
-    err = cndb->replaying ? cndb_txn_ack_by_kvsetid(tx, (uint64_t)cookie, &kvset) :
-                            cndb_txn_ack(tx, (void *)cookie, &kvset);
+    err = cndb->replaying ? cndb_txn_ack_by_kvsetid(tx, (uint64_t)cookie, &kvset)
+                          : cndb_txn_ack(tx, (void *)cookie, &kvset);
     if (ev(err))
         goto out;
 
@@ -784,11 +779,11 @@ out:
 
 static merr_t
 compact_incomplete_intents(
-    struct cndb_txn   *tx,
+    struct cndb_txn *tx,
     struct cndb_kvset *kvset,
-    bool               isadd,
-    bool               isacked,
-    void              *ctx)
+    bool isadd,
+    bool isacked,
+    void *ctx)
 {
     struct cndb *cndb = ctx;
     uint64_t txid = cndb_txn_txid_get(tx);
@@ -800,23 +795,21 @@ compact_incomplete_intents(
     if (cndb_txn_can_rollforward(tx))
         return 0;
 
-    err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
-                                   kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
-                                   kvset->ck_vused, kvset->ck_vgarb,
-                                   kvset->ck_compc, kvset->ck_rule,
-                                   kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
-                                   kvset->ck_vblkc, kvset->ck_vblkv);
+    err = cndb_omf_kvset_add_write(
+        cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid, kvset->ck_nodeid, kvset->ck_dgen_hi,
+        kvset->ck_dgen_lo, kvset->ck_vused, kvset->ck_vgarb, kvset->ck_compc, kvset->ck_rule,
+        kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv, kvset->ck_vblkc, kvset->ck_vblkv);
 
     return err;
 }
 
 static merr_t
 compact_incomplete_acks(
-    struct cndb_txn   *tx,
+    struct cndb_txn *tx,
     struct cndb_kvset *kvset,
-    bool               isadd,
-    bool               isacked,
-    void              *ctx)
+    bool isadd,
+    bool isacked,
+    void *ctx)
 {
     struct cndb *cndb = ctx;
     uint64_t txid = cndb_txn_txid_get(tx);
@@ -832,9 +825,7 @@ compact_incomplete_acks(
 }
 
 static merr_t
-log_full_rec(
-    struct cndb       *cndb,
-    struct cndb_kvset *kvset)
+log_full_rec(struct cndb *cndb, struct cndb_kvset *kvset)
 {
     merr_t err;
     uint64_t txid = 1;
@@ -845,17 +836,15 @@ log_full_rec(
      * The txid can be the same for all these transactions because these transactions will be
      * proceessed sequentially upon replay.
      */
-    err = cndb_omf_txstart_write(cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max,
-                                 cndb->txhorizon_max, 1, 0);
+    err = cndb_omf_txstart_write(
+        cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max, cndb->txhorizon_max, 1, 0);
     if (ev(err))
         return err;
 
-    err = cndb_omf_kvset_add_write(cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid,
-                                   kvset->ck_nodeid, kvset->ck_dgen_hi, kvset->ck_dgen_lo,
-                                   kvset->ck_vused, kvset->ck_vgarb,
-                                   kvset->ck_compc, kvset->ck_rule,
-                                   kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv,
-                                   kvset->ck_vblkc, kvset->ck_vblkv);
+    err = cndb_omf_kvset_add_write(
+        cndb->mdc, txid, kvset->ck_cnid, kvset->ck_kvsetid, kvset->ck_nodeid, kvset->ck_dgen_hi,
+        kvset->ck_dgen_lo, kvset->ck_vused, kvset->ck_vgarb, kvset->ck_compc, kvset->ck_rule,
+        kvset->ck_hblkid, kvset->ck_kblkc, kvset->ck_kblkv, kvset->ck_vblkc, kvset->ck_vblkv);
     if (ev(err))
         return err;
 
@@ -936,8 +925,9 @@ cndb_compact(struct cndb *cndb)
             assert(del_cnt);
         }
 
-        err = cndb_omf_txstart_write(cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max,
-                                     cndb->txhorizon_max, add_cnt, del_cnt);
+        err = cndb_omf_txstart_write(
+            cndb->mdc, txid, cndb->seqno_max, cndb->ingestid_max, cndb->txhorizon_max, add_cnt,
+            del_cnt);
         if (ev(err))
             return err;
 
@@ -957,9 +947,9 @@ cndb_compact(struct cndb *cndb)
 
 struct cndb_reader {
     struct mpool_mdc *mdc;
-    bool              eof;
-    size_t            recbufsz;
-    void             *recbuf;
+    bool eof;
+    size_t recbufsz;
+    void *recbuf;
 };
 
 static merr_t
@@ -1052,11 +1042,11 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         uint64_t txid, seqno, ingestid, txhorizon;
         uint16_t add_cnt, del_cnt;
 
-        cndb_omf_txstart_read(reader->recbuf, &txid, &seqno, &ingestid, &txhorizon,
-                              &add_cnt, &del_cnt);
+        cndb_omf_txstart_read(
+            reader->recbuf, &txid, &seqno, &ingestid, &txhorizon, &add_cnt, &del_cnt);
 
-        err = cndb_record_txstart_inner(cndb, seqno, ingestid, txhorizon,
-                                        add_cnt, del_cnt, txid, NULL);
+        err = cndb_record_txstart_inner(
+            cndb, seqno, ingestid, txhorizon, add_cnt, del_cnt, txid, NULL);
         ev(err);
 
         if (txid > cndb->txid_curr)
@@ -1068,11 +1058,13 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         uint32_t kblkc, vblkc;
         struct kvset_meta km;
 
-        cndb_omf_kvset_add_read(reader->recbuf, &txid, &cnid, &kvsetid, &nodeid, &hblkid,
-                                &kblkc, &kblkv, &vblkc, &vblkv, &km);
+        cndb_omf_kvset_add_read(
+            reader->recbuf, &txid, &cnid, &kvsetid, &nodeid, &hblkid, &kblkc, &kblkv, &vblkc,
+            &vblkv, &km);
 
-        err = cndb_record_kvset_add(cndb, txid2tx(cndb, txid), cnid, nodeid, &km, kvsetid,
-                                    hblkid, kblkc, kblkv, vblkc, vblkv, NULL);
+        err = cndb_record_kvset_add(
+            cndb, txid2tx(cndb, txid), cnid, nodeid, &km, kvsetid, hblkid, kblkc, kblkv, vblkc,
+            vblkv, NULL);
         ev(err);
 
         if (kvsetid > cndb->kvsetid_curr)
@@ -1094,7 +1086,7 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         uint32_t kvset_idc;
 
         cndb_omf_kvset_move_read(
-                reader->recbuf, &cnid, &src_nodeid, &tgt_nodeid, &kvset_idc, &kvset_idv);
+            reader->recbuf, &cnid, &src_nodeid, &tgt_nodeid, &kvset_idc, &kvset_idv);
 
         err = cndb_record_kvsetv_move(cndb, cnid, src_nodeid, tgt_nodeid, kvset_idc, kvset_idv);
         ev(err);
@@ -1108,7 +1100,7 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
         err = cndb_record_kvset_ack_cmn(cndb, txid2tx(cndb, txid), type, kvsetid);
         ev(err);
 
-    } else if (rec_type ==  CNDB_TYPE_NAK) {
+    } else if (rec_type == CNDB_TYPE_NAK) {
         uint64_t txid;
 
         cndb_omf_nak_read(reader->recbuf, &txid);
@@ -1124,12 +1116,12 @@ cndb_read_record(struct cndb *cndb, struct cndb_reader *reader)
 }
 
 struct recovery_ctx {
-    struct mpool     *mp;
+    struct mpool *mp;
     struct mpool_mdc *mdc;
-    struct map       *cn_map;
-    struct map       *mbid_map;
-    bool              is_rollback;
-    bool              allow_writes;
+    struct map *cn_map;
+    struct map *mbid_map;
+    bool is_rollback;
+    bool allow_writes;
 };
 
 static bool
@@ -1266,11 +1258,11 @@ kvset_mblock_delete(struct mpool *mp, struct map *mbid_map, struct cndb_kvset *k
 
 static merr_t
 recover_incomplete_txn_cb(
-    struct cndb_txn   *tx,
+    struct cndb_txn *tx,
     struct cndb_kvset *kvset,
-    bool               isadd,
-    bool               isacked,
-    void              *ctx)
+    bool isadd,
+    bool isacked,
+    void *ctx)
 {
     struct recovery_ctx *rctx = ctx;
     merr_t err = 0;
@@ -1313,8 +1305,9 @@ recover_incomplete_txn_cb(
         delme = map_remove_ptr(cn->kvset_map, kvset->ck_kvsetid);
         if (!isacked && allow_writes) {
             kvset_mblock_delete(rctx->mp, rctx->mbid_map, delme);
-            err = cndb_omf_ack_write(rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid,
-                                     CNDB_ACK_TYPE_DEL, delme->ck_kvsetid);
+            err = cndb_omf_ack_write(
+                rctx->mdc, cndb_txn_txid_get(tx), delme->ck_cnid, CNDB_ACK_TYPE_DEL,
+                delme->ck_kvsetid);
         }
 
         free(delme);

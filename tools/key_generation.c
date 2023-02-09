@@ -3,10 +3,10 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <tgmath.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tgmath.h>
 
 #include <hse/tools/key_generation.h>
 
@@ -57,9 +57,9 @@ increment_multifield_index(int32_t *index, int32_t index_width, int32_t wrap)
 bool
 generate_elements(char *elements, int32_t width, int32_t count)
 {
-    int32_t  num_symbols = (int)ceil(pow((double)count, 1.0 / (double)width));
+    int32_t num_symbols = (int)ceil(pow((double)count, 1.0 / (double)width));
     int32_t *field_offsets;
-    int      i, j;
+    int i, j;
 
     field_offsets = calloc(1, width * sizeof(*field_offsets));
     if (!field_offsets)
@@ -81,7 +81,7 @@ struct key_generator *
 create_key_generator(uint64_t key_space_sz, int32_t key_width)
 {
     struct key_generator *kg;
-    double                tmp;
+    double tmp;
 
     /* can't have 0 or negative width keys */
     if (key_width <= 0)
@@ -137,9 +137,9 @@ get_key(struct key_generator *self, uint8_t *key_buffer, uint64_t key_index)
     const int32_t numf = self->num_fields;
     const int32_t kw = self->key_width;
     const int32_t fw = self->field_width;
-    uint8_t *     pos = key_buffer + kw - fw;
-    uint64_t      offset;
-    int           i, copy_width;
+    uint8_t *pos = key_buffer + kw - fw;
+    uint64_t offset;
+    int i, copy_width;
 
     copy_width = fw;
 

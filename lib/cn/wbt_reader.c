@@ -3,29 +3,29 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <stdlib.h>
 #include <stdint.h>
-#include <sys/mman.h>
+#include <stdlib.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
-#include <hse/util/atomic.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/keycmp.h>
-#include <hse/util/compiler.h>
+#include <sys/mman.h>
 
 #include <hse/limits.h>
 
-#include <hse/ikvdb/tuple.h>
 #include <hse/ikvdb/omf_kmd.h>
+#include <hse/ikvdb/tuple.h>
+#include <hse/util/alloc.h>
+#include <hse/util/atomic.h>
+#include <hse/util/compiler.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/keycmp.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
-#include "wbt_internal.h"
-#include "omf.h"
-#include "kvs_mblk_desc.h"
 #include "kblock_reader.h"
+#include "kvs_mblk_desc.h"
 #include "kvset.h"
+#include "omf.h"
+#include "wbt_internal.h"
 
 #define MTF_MOCK_IMPL_wbt_reader
 #include "wbt_reader.h"
@@ -38,56 +38,56 @@ static struct kmem_cache *wbti_cache HSE_READ_MOSTLY;
 
 void
 wbt_read_kmd_vref(
-    const void            *kmd,
-    struct vgmap          *vgmap,
-    size_t                *off,
-    uint64_t              *seq,
+    const void *kmd,
+    struct vgmap *vgmap,
+    size_t *off,
+    uint64_t *seq,
     struct kvs_vtuple_ref *vref)
 {
     enum kmd_vtype vtype;
-    uint           vbidx = 0;
-    uint           vboff = 0;
-    uint           vlen = 0;
-    uint           complen = 0;
-    const void *   vdata = 0;
+    uint vbidx = 0;
+    uint vboff = 0;
+    uint vlen = 0;
+    uint complen = 0;
+    const void *vdata = 0;
 
     kmd_type_seq(kmd, off, &vtype, seq);
 
     switch (vtype) {
-        case VTYPE_UCVAL:
-            kmd_val(kmd, off, &vbidx, &vboff, &vlen);
-            /* assert no truncation */
-            assert(vbidx <= UINT16_MAX);
-            assert(vboff <= UINT32_MAX);
-            assert(vlen <= UINT32_MAX);
-            vref->vb.vr_index = vbidx;
-            vref->vb.vr_off = vboff;
-            vref->vb.vr_len = vlen;
-            vref->vb.vr_complen = 0;
-            break;
-        case VTYPE_CVAL:
-            kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
-            /* assert no truncation */
-            assert(vbidx <= UINT16_MAX);
-            assert(vboff <= UINT32_MAX);
-            assert(vlen <= UINT32_MAX);
-            assert(complen <= UINT32_MAX);
-            vref->vb.vr_index = vbidx;
-            vref->vb.vr_off = vboff;
-            vref->vb.vr_len = vlen;
-            vref->vb.vr_complen = complen;
-            break;
-        case VTYPE_IVAL:
-            kmd_ival(kmd, off, &vdata, &vlen);
-            /* assert no truncation */
-            assert(vlen <= UINT32_MAX);
-            vref->vi.vr_data = vdata;
-            vref->vi.vr_len = vlen;
-            break;
-        case VTYPE_ZVAL:
-        case VTYPE_TOMB:
-        case VTYPE_PTOMB:
-            break;
+    case VTYPE_UCVAL:
+        kmd_val(kmd, off, &vbidx, &vboff, &vlen);
+        /* assert no truncation */
+        assert(vbidx <= UINT16_MAX);
+        assert(vboff <= UINT32_MAX);
+        assert(vlen <= UINT32_MAX);
+        vref->vb.vr_index = vbidx;
+        vref->vb.vr_off = vboff;
+        vref->vb.vr_len = vlen;
+        vref->vb.vr_complen = 0;
+        break;
+    case VTYPE_CVAL:
+        kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
+        /* assert no truncation */
+        assert(vbidx <= UINT16_MAX);
+        assert(vboff <= UINT32_MAX);
+        assert(vlen <= UINT32_MAX);
+        assert(complen <= UINT32_MAX);
+        vref->vb.vr_index = vbidx;
+        vref->vb.vr_off = vboff;
+        vref->vb.vr_len = vlen;
+        vref->vb.vr_complen = complen;
+        break;
+    case VTYPE_IVAL:
+        kmd_ival(kmd, off, &vdata, &vlen);
+        /* assert no truncation */
+        assert(vlen <= UINT32_MAX);
+        vref->vi.vr_data = vdata;
+        vref->vi.vr_len = vlen;
+        break;
+    case VTYPE_ZVAL:
+    case VTYPE_TOMB:
+    case VTYPE_PTOMB:
+        break;
     }
 
     if ((vtype == VTYPE_UCVAL || vtype == VTYPE_CVAL) && vgmap) {
@@ -126,9 +126,9 @@ wbtr_seek_page(
     uint lcp)
 {
     const struct wbt_node_hdr_omf *node;
-    int                      j, cmp, node_num;
-    uint                     cmplen;
-    size_t                   pg;
+    int j, cmp, node_num;
+    uint cmplen;
+    size_t pg;
 
     /* pull struct derefs out of the loop */
     uint first_page = wbd->wbd_first_page;
@@ -150,10 +150,10 @@ wbtr_seek_page(
         int last = omf_wbn_num_keys(node) - 1;
 
         const void *node_pfx;
-        uint        node_pfx_len;
+        uint node_pfx_len;
 
         const void *kdata;
-        uint        klen;
+        uint klen;
 
         wbt_node_pfx(node, &node_pfx, &node_pfx_len);
 
@@ -269,19 +269,19 @@ static bool
 wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
 {
     const struct wbt_node_hdr_omf *node;
-    int                      j, cmp, node_num;
-    int                      first, last, lfe_eof;
-    size_t                   pg;
-    const void *             kdata, *kt_data;
-    uint                     klen, kt_len, cmplen;
+    int j, cmp, node_num;
+    int first, last, lfe_eof;
+    size_t pg;
+    const void *kdata, *kt_data;
+    uint klen, kt_len, cmplen;
     const struct wbt_lfe_omf *lfe;
-    struct wbt_desc *        wbd = self->wbd;
+    struct wbt_desc *wbd = self->wbd;
 
     bool create = kt->kt_len < 0;
     bool sfx_search;
 
     const void *node_pfx;
-    uint        node_pfx_len;
+    uint node_pfx_len;
 
     if (self->node_idx == NODE_EOF)
         return false;
@@ -460,17 +460,17 @@ static bool
 wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
 {
     const struct wbt_node_hdr_omf *node;
-    int                      cmp, node_num;
-    int                      first, last, lfe_eof;
-    size_t                   pg;
-    const void *             kdata, *kt_data;
-    uint                     klen, kt_len, cmplen;
+    int cmp, node_num;
+    int first, last, lfe_eof;
+    size_t pg;
+    const void *kdata, *kt_data;
+    uint klen, kt_len, cmplen;
     const struct wbt_lfe_omf *lfe;
-    struct wbt_desc *        wbd = self->wbd;
-    bool                     create = kt->kt_len < 0;
-    bool                     sfx_search;
-    const void *             node_pfx;
-    uint                     node_pfx_len;
+    struct wbt_desc *wbd = self->wbd;
+    bool create = kt->kt_len < 0;
+    bool sfx_search;
+    const void *node_pfx;
+    uint node_pfx_len;
 
     int dbg_nrepeat HSE_MAYBE_UNUSED;
 
@@ -675,7 +675,7 @@ static bool
 wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
     const struct wbt_lfe_omf *lfe;
-    size_t              off;
+    size_t off;
 
     uint64_t seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
@@ -747,24 +747,24 @@ wbti_reset(
 
 merr_t
 wbtr_read_vref(
-    const void              *base,
-    const struct wbt_desc   *wbd,
+    const void *base,
+    const struct wbt_desc *wbd,
     const struct kvs_ktuple *kt,
-    uint64_t                 seq,
-    enum key_lookup_res     *lookup_res,
-    struct vgmap            *vgmap,
-    struct kvs_vtuple_ref   *vref)
+    uint64_t seq,
+    enum key_lookup_res *lookup_res,
+    struct vgmap *vgmap,
+    struct kvs_vtuple_ref *vref)
 {
     const struct wbt_node_hdr_omf *node;
-    int                      j, cmp, node_num;
-    int                      first, last;
-    size_t                   pg;
-    const void *             kdata, *kt_data;
-    uint                     klen, kt_len;
+    int j, cmp, node_num;
+    int first, last;
+    size_t pg;
+    const void *kdata, *kt_data;
+    uint klen, kt_len;
     const struct wbt_lfe_omf *lfe;
 
     const void *node_pfx;
-    uint        node_pfx_len;
+    uint node_pfx_len;
 
     kt_data = kt->kt_data;
     kt_len = kt->kt_len;
@@ -879,7 +879,7 @@ wbti_create(
     bool cache)
 {
     struct wbti *self = NULL;
-    merr_t       err;
+    merr_t err;
 
     err = wbti_alloc(&self);
     if (ev(err))

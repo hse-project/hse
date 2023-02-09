@@ -8,22 +8,22 @@
 
 #include <stdint.h>
 
+#include <hse/error/merr.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
-#include <hse/error/merr.h>
-#include <hse/util/time.h>
 #include <hse/util/list.h>
+#include <hse/util/time.h>
 
 struct timer_jclock {
     volatile ulong jc_jclock_ns HSE_ACP_ALIGNED;
     volatile ulong jc_jiffies;
-    ulong          jc_cstart;
-    ulong          jc_tstart;
+    ulong jc_cstart;
+    ulong jc_tstart;
 };
 
 struct timer_list {
     struct list_head entry;
-    unsigned long    expires;
+    unsigned long expires;
 
     void (*function)(unsigned long);
     unsigned long data;
@@ -37,8 +37,8 @@ struct timer_list {
  */
 extern struct timer_jclock timer_jclock;
 
-#define jclock_ns   (timer_jclock.jc_jclock_ns)
-#define jiffies     (timer_jclock.jc_jiffies)
+#define jclock_ns (timer_jclock.jc_jclock_ns)
+#define jiffies   (timer_jclock.jc_jiffies)
 
 extern unsigned long timer_slack;
 
@@ -91,7 +91,9 @@ add_timer(struct timer_list *timer);
 int
 del_timer(struct timer_list *timer);
 
-merr_t hse_timer_init(void) HSE_COLD;
-void hse_timer_fini(void) HSE_COLD;
+merr_t
+hse_timer_init(void) HSE_COLD;
+void
+hse_timer_fini(void) HSE_COLD;
 
 #endif /* HSE_PLATFORM_TIMER_H */

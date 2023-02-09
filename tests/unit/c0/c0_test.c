@@ -3,22 +3,21 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/error/merr.h>
-#include <hse/util/seqno.h>
-
 #include <hse/ikvdb/c0.h>
-#include <hse/ikvdb/c0sk.h>
 #include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0sk.h>
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/tuple.h>
+#include <hse/util/seqno.h>
 
-#include "cn_mock.h"
-#include "c0sk_mock.h"
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 #include <hse/test/support/random_buffer.h>
+
+#include "c0sk_mock.h"
+#include "cn_mock.h"
 
 struct c0sk *ikvdb_get_c0sk_gv_c0sk = 0;
 

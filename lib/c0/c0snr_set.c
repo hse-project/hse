@@ -5,22 +5,20 @@
 
 #include <stdint.h>
 
-#include <hse/util/arch.h>
+#include <hse/error/merr.h>
+#include <hse/ikvdb/c0snr_set.h>
+#include <hse/ikvdb/limits.h>
 #include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/minmax.h>
-#include <hse/util/spinlock.h>
+#include <hse/util/arch.h>
 #include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/log2.h>
+#include <hse/util/minmax.h>
 #include <hse/util/page.h>
 #include <hse/util/seqno.h>
-#include <hse/error/merr.h>
+#include <hse/util/slab.h>
+#include <hse/util/spinlock.h>
 #include <hse/util/vlb.h>
-#include <hse/util/event_counter.h>
-
-#include <hse/ikvdb/c0snr_set.h>
-
-#include <hse/ikvdb/limits.h>
 
 /* clang-format off */
 
@@ -135,8 +133,8 @@ merr_t
 c0snr_set_list_create(uint32_t max_elts, uint32_t index, struct c0snr_set_list **tree)
 {
     struct c0snr_set_list *self;
-    size_t                 sz;
-    void *                 vlb;
+    size_t sz;
+    void *vlb;
 
     sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
     sz += __alignof__(*self) * 8;
@@ -174,9 +172,9 @@ merr_t
 c0snr_set_create(struct c0snr_set **handle)
 {
     struct c0snr_set_impl *self;
-    uint32_t               max_elts, max_bkts;
-    merr_t                 err = 0;
-    int                    i;
+    uint32_t max_elts, max_bkts;
+    merr_t err = 0;
+    int i;
 
     max_bkts = NELEM(self->css_bktv);
     max_elts = HSE_C0SNRSET_ELTS_MAX / max_bkts;
@@ -209,7 +207,7 @@ void
 c0snr_set_destroy(struct c0snr_set *handle)
 {
     struct c0snr_set_impl *self;
-    int                    i;
+    int i;
 
     if (ev(!handle))
         return;
@@ -228,12 +226,12 @@ c0snr_set_destroy(struct c0snr_set *handle)
 void *
 c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
 {
-    struct c0snr_set_impl * self = c0snr_set_h2r(handle);
+    struct c0snr_set_impl *self = c0snr_set_h2r(handle);
     struct c0snr_set_entry *entry;
-    struct c0snr_set_list * cslist;
-    struct c0snr_set_bkt *  bkt;
-    uint                    cpu, node;
-    uint                    tries;
+    struct c0snr_set_list *cslist;
+    struct c0snr_set_bkt *bkt;
+    uint cpu, node;
+    uint tries;
 
     cpu = hse_getcpu(&node);
 
@@ -324,7 +322,7 @@ void
 c0snr_dropref(uintptr_t *priv)
 {
     struct c0snr_set_entry *entry;
-    struct c0snr_set_list * tree;
+    struct c0snr_set_list *tree;
 
     entry = priv_to_c0snr_set_entry(priv);
 
@@ -343,12 +341,12 @@ void
 c0snr_droprefv(int refc, uintptr_t **refv)
 {
     struct c0snr_set_impl *self;
-    int                    i;
+    int i;
 
     struct bkt {
         struct c0snr_set_entry **tailp;
-        struct c0snr_set_entry * head;
-    } * bkt, bktv[NELEM(self->css_bktv)];
+        struct c0snr_set_entry *head;
+    } *bkt, bktv[NELEM(self->css_bktv)];
 
     for (bkt = bktv; bkt < bktv + NELEM(bktv); ++bkt) {
         bkt->tailp = &bkt->head;

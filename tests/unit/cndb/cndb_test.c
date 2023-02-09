@@ -5,19 +5,16 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/error/merr.h>
-#include <hse/util/list.h>
-
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/kvdb_rparams.h>
-
 #include <hse/mpool/mpool.h>
+#include <hse/util/list.h>
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 
 #include "cn/kvset.h"
-
 #include "cndb/omf.h"
 
 struct mock_mdc_record {
@@ -34,12 +31,12 @@ struct mock_mdc {
 
 static merr_t
 _mpool_mdc_alloc(
-    struct mpool     *mp,
-    uint32_t          magic,
-    size_t            capacity,
+    struct mpool *mp,
+    uint32_t magic,
+    size_t capacity,
     enum hse_mclass mclass,
-    uint64_t         *logid1,
-    uint64_t         *logid2)
+    uint64_t *logid1,
+    uint64_t *logid2)
 {
     struct mock_mdc *m = calloc(1, sizeof(*m));
 
@@ -161,7 +158,6 @@ _mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *size, uint64_t *allocated, uin
     return 0;
 }
 
-
 static int
 collection_pre(struct mtf_test_info *ti)
 {
@@ -246,8 +242,11 @@ struct t_kvset {
     struct blks vb; /* list of vblock ids */
 };
 
-#define NUMARGS(...) (sizeof((int[]){__VA_ARGS__})/sizeof(int))
-#define BLKS(...) { .cnt = NUMARGS(__VA_ARGS__), .idv = {__VA_ARGS__} }
+#define NUMARGS(...) (sizeof((int[]){ __VA_ARGS__ }) / sizeof(int))
+#define BLKS(...)                                           \
+    {                                                       \
+        .cnt = NUMARGS(__VA_ARGS__), .idv = { __VA_ARGS__ } \
+    }
 
 uint64_t g_hbid = 0;
 uint64_t g_seqno = 0;
@@ -270,8 +269,8 @@ kvset_add(struct cndb *cndb, struct cndb_txn *tx, uint64_t dgen, struct t_kvset 
     void *cookie;
 
     *kid = cndb_kvsetid_mint(cndb);
-    err = cndb_record_kvset_add(cndb, tx, 1, k.nid, &km, *kid, ++g_hbid,
-                                k.kb.cnt, k.kb.idv, k.vb.cnt, k.vb.idv, &cookie);
+    err = cndb_record_kvset_add(
+        cndb, tx, 1, k.nid, &km, *kid, ++g_hbid, k.kb.cnt, k.kb.idv, k.vb.cnt, k.vb.idv, &cookie);
     if (err)
         return 0;
 
@@ -342,13 +341,13 @@ uint64_t g_mbid = 0;
 static void
 create_kvset(
     struct mtf_test_info *lcl_ti,
-    struct cndb          *cndb,
-    uint64_t              cnid,
-    uint                  kblkc,
-    uint64_t             *kblkv,
-    uint                  vblkc,
-    uint64_t             *vblkv,
-    uint64_t             *kvsetid)
+    struct cndb *cndb,
+    uint64_t cnid,
+    uint kblkc,
+    uint64_t *kblkv,
+    uint vblkc,
+    uint64_t *vblkv,
+    uint64_t *kvsetid)
 {
     merr_t err;
     void *cookie;
@@ -367,8 +366,9 @@ create_kvset(
     err = cndb_record_txstart(cndb, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON, 1, 0, &tx);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, *kvsetid, hblkid,
-                                kblkc, kblkv, vblkc, vblkv, &cookie);
+    err = cndb_record_kvset_add(
+        cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, *kvsetid, hblkid, kblkc, kblkv, vblkc, vblkv,
+        &cookie);
     ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_add_ack(cndb, tx, cookie);
@@ -405,8 +405,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     struct cndb_txn *tx;
     uint64_t kvsetid_ingest;
     struct mpool *mp = (void *)-1;
-    uint64_t kblkv_ingest[2] = {1, 2};
-    uint64_t vblkv_ingest[3] = {10, 20, 30};
+    uint64_t kblkv_ingest[2] = { 1, 2 };
+    uint64_t vblkv_ingest[3] = { 10, 20, 30 };
     uint64_t seqno_out, ingestid_out, txhorizon_out;
     struct kvdb_rparams rp = kvdb_rparams_defaults();
 
@@ -426,25 +426,26 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, replay_full, test_pre, test_post)
     };
 
     /* Reuse one kblk and all vblks */
-    uint64_t kblkv_left[2] = {3, 4};
-    uint64_t kblkv_right[2] = {2, 5};
+    uint64_t kblkv_left[2] = { 3, 4 };
+    uint64_t kblkv_right[2] = { 2, 5 };
 
     g_mbid = 0;
 
-    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
-                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+    create_kvset(
+        lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest, NELEM(vblkv_ingest), vblkv_ingest,
+        &kvsetid_ingest);
 
     err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, src_nodeid, &km, kvsetid_left,
-                                hbid_left, NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest),
-                                vblkv_ingest, &c1);
+    err = cndb_record_kvset_add(
+        cndb, tx, cnid, src_nodeid, &km, kvsetid_left, hbid_left, NELEM(kblkv_left), kblkv_left,
+        NELEM(vblkv_ingest), vblkv_ingest, &c1);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, src_nodeid, &km, kvsetid_right,
-                                hbid_right, NELEM(kblkv_right), kblkv_right, NELEM(vblkv_ingest),
-                                vblkv_ingest, &c2);
+    err = cndb_record_kvset_add(
+        cndb, tx, cnid, src_nodeid, &km, kvsetid_right, hbid_right, NELEM(kblkv_right), kblkv_right,
+        NELEM(vblkv_ingest), vblkv_ingest, &c2);
     ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_del(cndb, tx, cnid, kvsetid_ingest, &delcookie);
@@ -497,8 +498,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
     struct cndb_txn *tx;
     uint64_t kvsetid_ingest;
     struct mpool *mp = (void *)-1;
-    uint64_t kblkv_ingest[2] = {1, 2};
-    uint64_t vblkv_ingest[3] = {10, 20, 30};
+    uint64_t kblkv_ingest[2] = { 1, 2 };
+    uint64_t vblkv_ingest[3] = { 10, 20, 30 };
     uint64_t seqno_out, ingestid_out, txhorizon_out;
     struct kvdb_rparams rp = kvdb_rparams_defaults();
 
@@ -516,23 +517,26 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, rollback, test_pre, test_post)
     };
 
     /* Reuse one kblk and all vblks */
-    uint64_t kblkv_left[2] = {3, 4};
-    uint64_t kblkv_right[2] = {2, 5};
+    uint64_t kblkv_left[2] = { 3, 4 };
+    uint64_t kblkv_right[2] = { 2, 5 };
 
     g_mbid = 0;
 
-    create_kvset(lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest,
-                 NELEM(vblkv_ingest), vblkv_ingest, &kvsetid_ingest);
+    create_kvset(
+        lcl_ti, cndb, cnid, NELEM(kblkv_ingest), kblkv_ingest, NELEM(vblkv_ingest), vblkv_ingest,
+        &kvsetid_ingest);
 
     err = cndb_record_txstart(cndb, 2, 0, 0, 2, 1, &tx);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_left, hbid_left,
-                                NELEM(kblkv_left), kblkv_left, NELEM(vblkv_ingest), vblkv_ingest, &c1);
+    err = cndb_record_kvset_add(
+        cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_left, hbid_left, NELEM(kblkv_left),
+        kblkv_left, NELEM(vblkv_ingest), vblkv_ingest, &c1);
     ASSERT_EQ(0, err);
 
-    err = cndb_record_kvset_add(cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_right, hbid_right,
-                                NELEM(kblkv_right), kblkv_right, NELEM(vblkv_ingest), vblkv_ingest, &c2);
+    err = cndb_record_kvset_add(
+        cndb, tx, cnid, cndb_nodeid_mint(cndb), &km, kvsetid_right, hbid_right, NELEM(kblkv_right),
+        kblkv_right, NELEM(vblkv_ingest), vblkv_ingest, &c2);
     ASSERT_EQ(0, err);
 
     err = cndb_record_kvset_del(cndb, tx, cnid, kvsetid_ingest, &delcookie);
@@ -752,9 +756,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, compact_no_recovery, test_pre, test_post)
 
     uint64_t kvsetid_ingest, kvsetid_left, kvsetid_right;
     struct t_kvset k[] = {
-        {.nid = 0, .kb = BLKS(1, 2), .vb = BLKS(10, 20, 30)},
-        {.nid = 2, .kb = BLKS(3, 4), .vb = BLKS(10, 20, 30)},
-        {.nid = 3, .kb = BLKS(2, 5), .vb = BLKS(10, 20, 30)},
+        { .nid = 0, .kb = BLKS(1, 2), .vb = BLKS(10, 20, 30) },
+        { .nid = 2, .kb = BLKS(3, 4), .vb = BLKS(10, 20, 30) },
+        { .nid = 3, .kb = BLKS(2, 5), .vb = BLKS(10, 20, 30) },
     };
 
     g_mbid = 0;
@@ -860,7 +864,6 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, only_deletes_rollforward, test_pre, test_pos
 
     err = txstart(cndb, NELEM(k), 0, &tx);
     ASSERT_EQ(0, err);
-
 
     add_cookiev[0] = kvset_add(cndb, tx, ++dgen, k[0], &kvsetid[0]);
     ASSERT_NE(0, add_cookiev[0]);

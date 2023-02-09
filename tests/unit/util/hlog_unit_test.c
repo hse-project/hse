@@ -5,17 +5,18 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
 #include <hse/util/hash.h>
 #include <hse/util/hlog.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(hlog);
 
 MTF_DEFINE_UTEST(hlog, t_hlog_create)
 {
-    merr_t       err;
+    merr_t err;
     struct hlog *hlog;
-    uint         p, i;
+    uint p, i;
 
     for (p = 0; p < HLOG_PRECISION_MAX + 4; p++) {
         err = hlog_create(&hlog, p);
@@ -56,10 +57,10 @@ add(struct hlog *hlog, uint64_t start, uint64_t count)
 static int
 check(struct mtf_test_info *lcl_ti, uint precision, uint64_t count)
 {
-    merr_t       err;
+    merr_t err;
     struct hlog *hlog;
-    uint64_t     i, est, est2;
-    double       pct;
+    uint64_t i, est, est2;
+    double pct;
 
     err = hlog_create(&hlog, precision);
     ASSERT_EQ_RET(err, 0, -1);
@@ -92,7 +93,7 @@ check(struct mtf_test_info *lcl_ti, uint precision, uint64_t count)
 
 MTF_DEFINE_UTEST(hlog, t_hlog)
 {
-    int  err;
+    int err;
     uint p, base;
 
     printf("hlog: %2s  %10s  %10s  %6s\n", "p", "actual", "estimate", "error");

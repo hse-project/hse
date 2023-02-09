@@ -10,7 +10,7 @@
 #include <hse/test/mtf/framework.h>
 
 int
-test_collection_setup(struct mtf_test_info *const lcl_ti)
+test_collection_setup(struct mtf_test_info * const lcl_ti)
 {
     hse_fini();
 
@@ -38,8 +38,8 @@ MTF_DEFINE_UTEST(hse_api_test, param_mismatched_buf_buf_sz)
 MTF_DEFINE_UTEST(hse_api_test, param_dne)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[16];
+    size_t needed_sz;
+    char buf[16];
 
     err = hse_param_get("does.not.exist", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(ENOENT, hse_err_to_errno(err));
@@ -52,8 +52,8 @@ MTF_DEFINE_UTEST(hse_api_test, param_dne)
 MTF_DEFINE_UTEST(hse_api_test, param_success)
 {
     hse_err_t err;
-    size_t    needed_sz;
-    char      buf[16];
+    size_t needed_sz;
+    char buf[16];
 
     err = hse_param_get("logging.destination", NULL, 0, &needed_sz);
     ASSERT_EQ(0, hse_err_to_errno(err));

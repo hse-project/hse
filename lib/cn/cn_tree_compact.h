@@ -8,13 +8,12 @@
 
 #include <stdint.h>
 
-#include <hse/util/atomic.h>
-#include <hse/util/list.h>
-#include <hse/util/workqueue.h>
-#include <hse/util/perfc.h>
-
 #include <hse/ikvdb/csched.h>
 #include <hse/ikvdb/sched_sts.h>
+#include <hse/util/atomic.h>
+#include <hse/util/list.h>
+#include <hse/util/perfc.h>
+#include <hse/util/workqueue.h>
 
 #include "cn_metrics.h"
 #include "kcompact.h"
@@ -63,10 +62,10 @@ cn_action2str(enum cn_action action)
 
 /* compaction work debug flags */
 enum {
-    CW_DEBUG_START    = 0x01, /* enable cn_comp_start log messages */
+    CW_DEBUG_START = 0x01,    /* enable cn_comp_start log messages */
     CW_DEBUG_PROGRESS = 0x02, /* enable cn_comp_stats type=progress log messages */
-    CW_DEBUG_FINAL    = 0x04, /* enable cn_comp_stats type=final log messages */
-    CW_DEBUG_SPLIT    = 0x08  /* enable cn_comp_stats type=split log messages */
+    CW_DEBUG_FINAL = 0x04,    /* enable cn_comp_stats type=final log messages */
+    CW_DEBUG_SPLIT = 0x08     /* enable cn_comp_stats type=split log messages */
 };
 
 typedef void (*cn_work_callback)(struct cn_compaction_work *w);
@@ -79,9 +78,9 @@ typedef void (*cn_work_callback)(struct cn_compaction_work *w);
  */
 struct cn_work_est {
     struct cn_samp_stats cwe_samp;
-    int64_t              cwe_read_sz;  /* must be signed */
-    int64_t              cwe_write_sz; /* must be signed */
-    uint64_t             cwe_keys;
+    int64_t cwe_read_sz;  /* must be signed */
+    int64_t cwe_write_sz; /* must be signed */
+    uint64_t cwe_keys;
 };
 
 /**
@@ -124,83 +123,83 @@ struct cn_work_est {
  * @cw_t5_update:    debug stats
  */
 struct cn_compaction_work {
-    struct work_struct       cw_work;
-    uint64_t                 cw_horizon;
-    uint                     cw_iter_flags;
-    uint                     cw_debug;
-    bool                     cw_canceled;
-    bool                     cw_resched;
-    uint8_t                  cw_qnum;
-    merr_t                   cw_err;
+    struct work_struct cw_work;
+    uint64_t cw_horizon;
+    uint cw_iter_flags;
+    uint cw_debug;
+    bool cw_canceled;
+    bool cw_resched;
+    uint8_t cw_qnum;
+    merr_t cw_err;
     struct workqueue_struct *cw_io_workq;
-    struct perfc_set *       cw_pc;
-    atomic_int              *cw_cancel_request;
-    struct mpool *           cw_mp;
-    struct kvs_rparams *     cw_rp;
-    struct kvs_cparams *     cw_cp;
+    struct perfc_set *cw_pc;
+    atomic_int *cw_cancel_request;
+    struct mpool *cw_mp;
+    struct kvs_rparams *cw_rp;
+    struct kvs_cparams *cw_cp;
 
-    uint64_t                 cw_sgen;
-    struct cn_tree *         cw_tree;
-    struct cn_tree_node *    cw_node;
-    struct cn_tree_node *    cw_join;
+    uint64_t cw_sgen;
+    struct cn_tree *cw_tree;
+    struct cn_tree_node *cw_node;
+    struct cn_tree_node *cw_join;
     struct kvset_list_entry *cw_mark;
-    struct cn_node_stats     cw_ns;
-    uint                     cw_kvset_cnt;
-    uint32_t                 cw_nh;
-    uint32_t                 cw_nk;
-    uint32_t                 cw_nv;
-    uint32_t                 cw_compc;
-    uint32_t                 cw_input_vgroups;
-    uint                     cw_pfx_len;
-    enum cn_action           cw_action;
-    enum cn_rule             cw_rule;
-    bool                     cw_have_token;
-    bool                     cw_maybe_zspill;
-    atomic_int               cw_rspill_commit_in_progress;
-    uint64_t                 cw_dgen_hi;
-    uint64_t                 cw_dgen_hi_min;
-    uint64_t                 cw_dgen_lo;
+    struct cn_node_stats cw_ns;
+    uint cw_kvset_cnt;
+    uint32_t cw_nh;
+    uint32_t cw_nk;
+    uint32_t cw_nv;
+    uint32_t cw_compc;
+    uint32_t cw_input_vgroups;
+    uint cw_pfx_len;
+    enum cn_action cw_action;
+    enum cn_rule cw_rule;
+    bool cw_have_token;
+    bool cw_maybe_zspill;
+    atomic_int cw_rspill_commit_in_progress;
+    uint64_t cw_dgen_hi;
+    uint64_t cw_dgen_hi_min;
+    uint64_t cw_dgen_lo;
 
     /* For scheduler */
-    struct sts_job        cw_job;
-    cn_work_callback      cw_checkpoint;
-    cn_work_callback      cw_progress;
-    void *                cw_sched;
-    struct list_head      cw_sched_link;
-    struct cn_samp_stats  cw_samp_pre;
-    struct cn_samp_stats  cw_samp_post;
-    struct cn_work_est    cw_est;
+    struct sts_job cw_job;
+    cn_work_callback cw_checkpoint;
+    cn_work_callback cw_progress;
+    void *cw_sched;
+    struct list_head cw_sched_link;
+    struct cn_samp_stats cw_samp_pre;
+    struct cn_samp_stats cw_samp_post;
+    struct cn_work_est cw_est;
     struct cn_merge_stats cw_stats;
     struct cn_merge_stats cw_stats_prev;
 
     /* Progress tracking */
     uint64_t cw_prog_interval;
 
-    uint                     cw_outc;
-    bool                     cw_drop_tombs;
-    uint64_t                *cw_kvsetidv;
-    struct kvset_mblocks    *cw_outv;
-    struct kv_iterator     **cw_inputv;
-    struct cn_tree_node    **cw_output_nodev;
-    struct vgmap           **cw_vgmap; /* used during k-compact and split */
-    struct kvset_vblk_map    cw_vbmap; /* used only during k-compact */
-    bool                     cw_keep_vblks;
+    uint cw_outc;
+    bool cw_drop_tombs;
+    uint64_t *cw_kvsetidv;
+    struct kvset_mblocks *cw_outv;
+    struct kv_iterator **cw_inputv;
+    struct cn_tree_node **cw_output_nodev;
+    struct vgmap **cw_vgmap;        /* used during k-compact and split */
+    struct kvset_vblk_map cw_vbmap; /* used only during k-compact */
+    bool cw_keep_vblks;
 
     /* Used only for node split */
     struct {
-        void                 *key;       /* split key for this node */
-        struct blk_list      *commit;    /* mblocks to commit - a list per output kvset */
-        struct blk_list      *purge;     /* mblocks to purge - a list per source kvset */
-        uint64_t             *dgen_hi;   /* dgen_hi array - one entry per output kvset */
-        uint64_t             *dgen_lo;   /* dgen_lo array - one entry per output kvset */
-        uint32_t             *compc;     /* compc array - one entry per output kvset */
-        struct cn_tree_node  *nodev[2];  /* node split output nodes */
-        uint                  klen;      /* split key length */
+        void *key;                     /* split key for this node */
+        struct blk_list *commit;       /* mblocks to commit - a list per output kvset */
+        struct blk_list *purge;        /* mblocks to purge - a list per source kvset */
+        uint64_t *dgen_hi;             /* dgen_hi array - one entry per output kvset */
+        uint64_t *dgen_lo;             /* dgen_lo array - one entry per output kvset */
+        uint32_t *compc;               /* compc array - one entry per output kvset */
+        struct cn_tree_node *nodev[2]; /* node split output nodes */
+        uint klen;                     /* split key length */
     } cw_split;
 
     /* Used only for zspill */
     struct {
-        struct cn_tree_node     *znode;
+        struct cn_tree_node *znode;
         struct kvset_list_entry *kvset_list;
     } cw_zspill;
 
@@ -211,17 +210,17 @@ struct cn_compaction_work {
     uint64_t cw_t3_build;
     uint64_t cw_t4_commit;
     uint64_t cw_t5_finish;
-    char     cw_threadname[16];
+    char cw_threadname[16];
 };
 
 /* MTF_MOCK */
 void
 cn_tree_ingest_update(
     struct cn_tree *tree,
-    struct kvset *  kvset,
-    void *          ptomb,
-    uint            ptlen,
-    uint64_t        ptseq);
+    struct kvset *kvset,
+    void *ptomb,
+    uint ptlen,
+    uint64_t ptseq);
 
 /* MTF_MOCK */
 void

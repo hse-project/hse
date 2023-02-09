@@ -14,11 +14,11 @@
 
 #include "mclass.h"
 
-#define MDC_LOGHDR_MAGIC   (0xdeadbeefU)
-#define MDC_LOGHDR_LEN     (4096)
-#define MDC_RA_BYTES       (128u << KB_SHIFT)
-#define MDC_EXTEND_FACTOR  (8)
-#define MDC_FILE_PFX       "mdc"
+#define MDC_LOGHDR_MAGIC  (0xdeadbeefU)
+#define MDC_LOGHDR_LEN    (4096)
+#define MDC_RA_BYTES      (128u << KB_SHIFT)
+#define MDC_EXTEND_FACTOR (8)
+#define MDC_FILE_PFX      "mdc"
 
 struct mpool_mdc;
 struct mdc_file;
@@ -105,12 +105,12 @@ mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
  */
 merr_t
 mdc_file_create(
-    int             dirfd,
-    const char     *name,
-    int             flags,
-    int             mode,
+    int dirfd,
+    const char *name,
+    int flags,
+    int mode,
     enum hse_mclass mclass,
-    size_t          capacity);
+    size_t capacity);
 
 /**
  * mdc_file_destroy() - destroy an MDC file
@@ -144,12 +144,12 @@ mdc_file_commit(int dirfd, const char *name);
 merr_t
 mdc_file_open(
     struct mpool_mdc *mdc,
-    int               dirfd,
-    const char       *name,
-    uint64_t          logid,
-    bool              rdonly,
-    bool              gclose,
-    uint64_t         *gen,
+    int dirfd,
+    const char *name,
+    uint64_t logid,
+    bool rdonly,
+    bool gclose,
+    uint64_t *gen,
     struct mdc_file **handle);
 
 /**

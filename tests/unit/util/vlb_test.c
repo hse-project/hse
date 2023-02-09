@@ -3,8 +3,8 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/util/platform.h>
 #include <hse/util/page.h>
+#include <hse/util/platform.h>
 #include <hse/util/vlb.h>
 
 #include <hse/test/mtf/framework.h>
@@ -33,7 +33,6 @@ MTF_DEFINE_UTEST(vlb_test, alloc)
     for (i = 0; i < imax; ++i)
         vlb_free(memv[i], HSE_KVS_VALUE_LEN_MAX);
 
-
     /* Allocate and free a buffer, should come from cache.
      */
     ASSERT_TRUE(VLB_KEEPSZ_MAX + PAGE_SIZE < VLB_ALLOCSZ_MAX);
@@ -42,13 +41,11 @@ MTF_DEFINE_UTEST(vlb_test, alloc)
     ASSERT_NE(NULL, memv[0]);
     vlb_free(memv[0], VLB_KEEPSZ_MAX);
 
-
     /* Allocate and free a buffer over the max alloc size.
      */
     memv[0] = vlb_alloc(VLB_ALLOCSZ_MAX * 2);
     ASSERT_NE(NULL, memv[0]);
     vlb_free(memv[0], VLB_ALLOCSZ_MAX * 2);
-
 
     /* Try to allocate an impossibly large buffer.
      */

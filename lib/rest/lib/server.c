@@ -11,8 +11,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
 
 #include <bsd/string.h>
@@ -22,6 +20,8 @@
 #include <event2/http.h>
 #include <event2/listener.h>
 #include <event2/thread.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
@@ -29,13 +29,13 @@
 #include <hse/rest/method.h>
 #include <hse/rest/request.h>
 #include <hse/rest/response.h>
+#include <hse/rest/server.h>
 #include <hse/util/assert.h>
 #include <hse/util/compiler.h>
 #include <hse/util/err_ctx.h>
 #include <hse/util/event_counter.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
-#include <hse/rest/server.h>
 
 #include "response.h"
 #include "status.h"
@@ -114,9 +114,9 @@ evhttp_cmd_type_to_string(const enum evhttp_cmd_type cmd)
 
 static void
 send_error(
-    struct evhttp_request *const req,
+    struct evhttp_request * const req,
     const enum rest_status status,
-    const char *const detail,
+    const char * const detail,
     const merr_t origin)
 {
     const char *reason;
@@ -128,14 +128,15 @@ send_error(
     headers = evhttp_request_get_output_headers(req);
 
     evhttp_add_header(headers, REST_HEADER_CONTENT_TYPE, REST_APPLICATION_PROBLEM_JSON);
-    evbuffer_add_printf(evbuf, RFC7807_FMT, reason, status, detail, merr_file(origin),
-        merr_lineno(origin), merr_errno(origin));
+    evbuffer_add_printf(
+        evbuf, RFC7807_FMT, reason, status, detail, merr_file(origin), merr_lineno(origin),
+        merr_errno(origin));
 
     evhttp_send_reply(req, (int)status, reason, NULL);
 }
 
 static void
-handle_request(struct evhttp_request *const req, const struct endpoint *const endpoint)
+handle_request(struct evhttp_request * const req, const struct endpoint * const endpoint)
 {
     int rc;
     char *resp_data;
@@ -161,7 +162,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     resp_headers = evhttp_request_get_output_headers(req);
 
     if (!endpoint->handlers[evhttp_cmd_type_to_rest_method(cmd)]) {
-        send_error(req, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
+        send_error(
+            req, REST_STATUS_METHOD_NOT_ALLOWED, "Method for endpoint does not exist",
             merr(ENOENT));
         return;
     }
@@ -189,7 +191,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
         len = evbuffer_copyout(req_body, req_data, req_data_len + 1);
         if (len == -1) {
             free(req_data);
-            send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data out of buffer",
+            send_error(
+                req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data out of buffer",
                 merr(EBADE));
             return;
         }
@@ -206,8 +209,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
     hresp.rr_stream = open_memstream(&resp_data, &resp_data_len);
     if (ev(!hresp.rr_stream)) {
         free(req_data);
-        send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to open memory stream",
-            merr(ENOSTR));
+        send_error(
+            req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to open memory stream", merr(ENOSTR));
         return;
     }
 
@@ -231,7 +234,8 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
 
         rc = evbuffer_add(resp_body, resp_data, resp_data_len);
         if (ev(rc == -1)) {
-            send_error(req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data to buffer",
+            send_error(
+                req, REST_STATUS_INTERNAL_SERVER_ERROR, "Failed to copy data to buffer",
                 merr(EBADE));
             return;
         }
@@ -247,7 +251,7 @@ handle_request(struct evhttp_request *const req, const struct endpoint *const en
 }
 
 void
-on_exact_request(struct evhttp_request *const req, void *const arg)
+on_exact_request(struct evhttp_request * const req, void * const arg)
 {
     enum evhttp_cmd_type cmd;
     const struct endpoint *endpoint;
@@ -257,7 +261,8 @@ on_exact_request(struct evhttp_request *const req, void *const arg)
 
     cmd = evhttp_request_get_command(req);
 
-    log_debug("REST request received: %s %s", evhttp_cmd_type_to_string(cmd),
+    log_debug(
+        "REST request received: %s %s", evhttp_cmd_type_to_string(cmd),
         evhttp_request_get_uri(req));
 
     endpoint = arg;
@@ -266,18 +271,19 @@ on_exact_request(struct evhttp_request *const req, void *const arg)
 }
 
 void
-on_inexact_request(struct evhttp_request *const req, void *const arg)
+on_inexact_request(struct evhttp_request * const req, void * const arg)
 {
     const char *path;
     enum evhttp_cmd_type cmd;
-    const struct evhttp_uri* uri;
+    const struct evhttp_uri *uri;
     const struct endpoint *endpoint = NULL;
 
     cmd = evhttp_request_get_command(req);
     uri = evhttp_request_get_evhttp_uri(req);
     path = evhttp_uri_get_path(uri);
 
-    log_debug("REST request received: %s %s", evhttp_cmd_type_to_string(cmd),
+    log_debug(
+        "REST request received: %s %s", evhttp_cmd_type_to_string(cmd),
         evhttp_request_get_uri(req));
 
     list_for_each_entry(endpoint, &server.endpoints, entry) {
@@ -289,8 +295,8 @@ on_inexact_request(struct evhttp_request *const req, void *const arg)
         if (endpoint->flags & REST_ENDPOINT_EXACT)
             continue;
 
-        if (strncmp(path, endpoint->path, path_len) == 0 && ((path[path_len] == '/' &&
-                path[path_len + 1] != '\0') || path[path_len] == '\0'))
+        if (strncmp(path, endpoint->path, path_len) == 0 &&
+            ((path[path_len] == '/' && path[path_len + 1] != '\0') || path[path_len] == '\0'))
             break;
     }
 
@@ -306,8 +312,8 @@ merr_t
 rest_server_add_endpoint(
     const unsigned int flags,
     rest_handler *handlers[REST_METHOD_COUNT],
-    void *const ctx,
-    const char *const path_fmt,
+    void * const ctx,
+    const char * const path_fmt,
     ...)
 {
     int rc;
@@ -370,7 +376,7 @@ out:
 }
 
 merr_t
-rest_server_remove_endpoint(const char *const path_fmt, ...)
+rest_server_remove_endpoint(const char * const path_fmt, ...)
 {
     int rc;
     va_list args;
@@ -421,7 +427,7 @@ out:
 }
 
 static void *
-run_server(void *const arg)
+run_server(void * const arg)
 {
     sigset_t sigset;
     int rc HSE_MAYBE_UNUSED;
@@ -440,7 +446,7 @@ run_server(void *const arg)
 }
 
 merr_t
-rest_server_start(const char *const socket_path)
+rest_server_start(const char * const socket_path)
 {
     size_t n HSE_MAYBE_UNUSED;
     int rc;
@@ -484,11 +490,12 @@ rest_server_start(const char *const socket_path)
         goto out;
     }
 
-    evhttp_set_allowed_methods(server.handle, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_PUT |
-        EVHTTP_REQ_DELETE);
+    evhttp_set_allowed_methods(
+        server.handle, EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE);
 
-    listener = evconnlistener_new_bind(server.base, NULL, NULL,
-        LEV_OPT_CLOSE_ON_FREE, -1, (struct sockaddr *)&server.addr, sizeof(server.addr));
+    listener = evconnlistener_new_bind(
+        server.base, NULL, NULL, LEV_OPT_CLOSE_ON_FREE, -1, (struct sockaddr *)&server.addr,
+        sizeof(server.addr));
     if (ev(!listener)) {
         err = merr(ECONNABORTED);
         goto out;

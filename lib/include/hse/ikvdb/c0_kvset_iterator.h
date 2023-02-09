@@ -9,10 +9,9 @@
 #include <stdint.h>
 
 #include <hse/error/merr.h>
-#include <hse/util/element_source.h>
-#include <hse/util/bonsai_tree.h>
-
 #include <hse/ikvdb/lc.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/element_source.h>
 
 /**
  * c0_kvset_iterator - c0kvs iterator (used for in order traversal)
@@ -29,11 +28,11 @@
  */
 struct c0_kvset_iterator {
     struct element_source c0it_handle;
-    struct bonsai_root *  c0it_root;
-    struct bonsai_kv *    c0it_next;
-    struct bonsai_kv *    c0it_prev;
-    uint                  c0it_flags;
-    int                   c0it_index;
+    struct bonsai_root *c0it_root;
+    struct bonsai_kv *c0it_next;
+    struct bonsai_kv *c0it_prev;
+    uint c0it_flags;
+    int c0it_index;
 };
 
 #define C0_KVSET_ITER_FLAG_REVERSE 0x0001
@@ -61,9 +60,9 @@ struct kvs_ktuple;
 void
 c0_kvset_iterator_init(
     struct c0_kvset_iterator *iter,
-    struct bonsai_root *      root,
-    uint                      flags,
-    int                       index);
+    struct bonsai_root *root,
+    uint flags,
+    int index);
 
 /**
  * c0_kvset_iterator_empty() - check to see if container is empty
@@ -102,9 +101,9 @@ c0_kvset_iterator_eof(struct c0_kvset_iterator *handle);
 void
 c0_kvset_iterator_seek(
     struct c0_kvset_iterator *iter,
-    const void *              seek,
-    uint32_t                  seeklen,
-    struct kvs_ktuple *       kt);
+    const void *seek,
+    uint32_t seeklen,
+    struct kvs_ktuple *kt);
 
 /**
  * c0_kvset_iterator_get_es() -

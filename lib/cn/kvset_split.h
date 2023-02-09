@@ -23,12 +23,12 @@ enum split_side { LEFT = 0, RIGHT = 1 };
  */
 struct kvset_split_res {
     struct {
-        struct kvset_mblocks *blks;        /* kblocks, vblocks and the hblock */
-        struct vgmap        **vgmap;       /* vgroup map */
-        struct blk_list      *blks_commit; /* list of mblocks in the target kvsets to commit */
+        struct kvset_mblocks *blks;   /* kblocks, vblocks and the hblock */
+        struct vgmap **vgmap;         /* vgroup map */
+        struct blk_list *blks_commit; /* list of mblocks in the target kvsets to commit */
     } ks[2];
 
-    struct blk_list          *blks_purge;  /* list of mblocks in the source kvset to delete */
+    struct blk_list *blks_purge; /* list of mblocks in the source kvset to delete */
 };
 
 /**
@@ -43,12 +43,12 @@ struct kvset_split_res {
  * @result:     split result (output)
  */
 struct kvset_split_wargs {
-    struct work_struct     work;
-    struct kvset          *ks;
-    struct key_obj        *split_kobj;
-    struct perfc_set      *pc;
-    merr_t                 err;
-    atomic_uint           *inflightp;
+    struct work_struct work;
+    struct kvset *ks;
+    struct key_obj *split_kobj;
+    struct perfc_set *pc;
+    merr_t err;
+    atomic_uint *inflightp;
     struct kvset_split_res result;
 };
 

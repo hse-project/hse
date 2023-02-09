@@ -3,15 +3,15 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/wal.h>
-#include <hse/config/params.h>
-
 #include <stdarg.h>
+
+#include <hse/config/params.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/ikvdb/wal.h>
+
+#include <hse/test/mtf/framework.h>
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_rparams_test)
 
@@ -26,9 +26,9 @@ test_pre(struct mtf_test_info *ti)
 }
 
 const struct param_spec *
-ps_get(const char *const name)
+ps_get(const char * const name)
 {
-    size_t                   sz = 0;
+    size_t sz = 0;
     const struct param_spec *pspecs = kvdb_rparams_pspecs_get(&sz);
 
     assert(name);
@@ -45,19 +45,19 @@ ps_get(const char *const name)
  * Check the validity of various key=value combinations
  */
 merr_t HSE_SENTINEL
-check(const char *const arg, ...)
+check(const char * const arg, ...)
 {
-    merr_t      err;
-    bool        success;
+    merr_t err;
+    bool success;
     const char *a = arg;
-    va_list     ap;
+    va_list ap;
 
     assert(arg);
 
     va_start(ap, arg);
 
     do {
-        const char * paramv[] = { a };
+        const char *paramv[] = { a };
         const size_t paramc = NELEM(paramv);
 
         success = !!va_arg(ap, int);
@@ -78,8 +78,8 @@ check(const char *const arg, ...)
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, kvdb_open_mode, test_pre)
 {
-    char                     buf[128];
-    size_t                   needed_sz;
+    char buf[128];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("mode");
 
     ASSERT_NE(NULL, ps);
@@ -591,9 +591,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_managed, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
 {
-    merr_t                   err;
-    char                     buf[128];
-    size_t                   needed_sz;
+    merr_t err;
+    char buf[128];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("durability.mclass");
 
     ASSERT_NE(NULL, ps);
@@ -684,8 +684,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_debug_intvl_s, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
 {
-    char                     buf[128];
-    size_t                   needed_sz;
+    char buf[128];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("throttling.init_policy");
 
     ASSERT_NE(NULL, ps);
@@ -935,9 +935,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
      * into this test at some point for checking conversion and validation
      * specific tests.
      */
-    merr_t                   err;
-    char                     buf[512];
-    size_t                   needed_sz;
+    merr_t err;
+    char buf[512];
+    size_t needed_sz;
     const struct param_spec *ps = ps_get("mclass_policies");
 
     ASSERT_NE(NULL, ps);
@@ -955,8 +955,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
     err = check(
         "mclass_policies=[{\"name\":\"yolo\",\"config\":{\"leaf\":{\"keys\":\"capacity\","
         "\"values\":\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
-        true,
-        NULL);
+        true, NULL);
     ASSERT_EQ(0, merr_errno(err));
 
     err = ps->ps_stringify(ps, &params.mclass_policies, buf, sizeof(buf), &needed_sz);
@@ -971,7 +970,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
 MTF_DEFINE_UTEST(kvdb_rparams_test, get)
 {
     merr_t err;
-    char   buf[128];
+    char buf[128];
     size_t needed_sz;
 
     const struct kvdb_rparams p = kvdb_rparams_defaults();

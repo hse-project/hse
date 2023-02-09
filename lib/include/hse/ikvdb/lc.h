@@ -8,16 +8,15 @@
 
 #include <stdint.h>
 
+#include <lc/bonsai_iter.h>
+
 #include <hse/error/merr.h>
 #include <hse/util/workqueue.h>
-
-#include <lc/bonsai_iter.h>
 
 /* Max number of bonsai trees in LC - includes one ptomb tree. */
 #define LC_SOURCE_CNT_MAX 2
 
-struct lc {
-};
+struct lc {};
 
 struct lc_builder;
 struct lc_cursor;
@@ -61,28 +60,28 @@ lc_builder_finish(struct lc_builder *lcb);
 /* MTF_MOCK */
 merr_t
 lc_get(
-    struct lc *              handle,
-    uint16_t                 skidx,
-    uint32_t                 pfxlen,
+    struct lc *handle,
+    uint16_t skidx,
+    uint32_t pfxlen,
     const struct kvs_ktuple *kt,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf);
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf);
 
 /* MTF_MOCK */
 merr_t
 lc_pfx_probe(
-    struct lc *              handle,
+    struct lc *handle,
     const struct kvs_ktuple *kt,
-    uint16_t                 skidx,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    uint                     pfxlen,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf);
+    uint16_t skidx,
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    uint pfxlen,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf);
 
 /**
  * lc_ingest_seqno_set() - Notify the LC about the max ingested seqno once an ingest has finished.
@@ -120,16 +119,16 @@ lc_ingest_seqno_get(struct lc *handle);
 /* MTF_MOCK */
 merr_t
 lc_cursor_create(
-    struct lc *            handle,
-    uint16_t               skidx,
-    uint64_t               seqno,
-    uintptr_t              seqnoref,
-    bool                   reverse,
-    const void *           pfx_padded,
-    size_t                 pfxlen,
-    size_t                 tree_pfxlen,
+    struct lc *handle,
+    uint16_t skidx,
+    uint64_t seqno,
+    uintptr_t seqnoref,
+    bool reverse,
+    const void *pfx_padded,
+    size_t pfxlen,
+    size_t tree_pfxlen,
     struct cursor_summary *summary,
-    struct lc_cursor **    lccur);
+    struct lc_cursor **lccur);
 
 /* MTF_MOCK */
 merr_t
@@ -173,12 +172,12 @@ struct lc_ingest_iter {
 /* MTF_MOCK */
 void
 lc_ingest_iterv_init(
-    struct lc *             lc,
-    struct lc_ingest_iter * iterv,
+    struct lc *lc,
+    struct lc_ingest_iter *iterv,
     struct element_source **srcv,
-    uint64_t                min_seq,
-    uint64_t                max_seq,
-    uint *                  iter_cnt);
+    uint64_t min_seq,
+    uint64_t max_seq,
+    uint *iter_cnt);
 
 /* MTF_MOCK */
 merr_t

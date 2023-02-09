@@ -6,9 +6,9 @@
 #ifndef HSE_PLATFORM_BYTEORDER_H
 #define HSE_PLATFORM_BYTEORDER_H
 
+#include <byteswap.h>
 #include <endian.h>
 #include <stdint.h>
-#include <byteswap.h>
 
 #include <hse/util/compiler.h>
 

@@ -6,13 +6,14 @@
 #include <errno.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdarg.h>
-#include <stdio.h>
 
 #include <bsd/string.h>
+
 #include <hse/hse.h>
 #include <hse/limits.h>
 
@@ -23,27 +24,27 @@ struct test {
 } test;
 
 struct kvs_info {
-    char                name[HSE_KVS_NAME_LEN_MAX];
-    struct hse_kvs     *hdl;
-    struct kvs_info    *next;
+    char name[HSE_KVS_NAME_LEN_MAX];
+    struct hse_kvs *hdl;
+    struct kvs_info *next;
 };
 struct kvs_info *k_head;
 
 struct thread_info {
-    pthread_t           tid;
-    enum kh_flags       flags;
-    kh_func            *func;
-    struct kh_thread_arg  *targ;
+    pthread_t tid;
+    enum kh_flags flags;
+    kh_func *func;
+    struct kh_thread_arg *targ;
     struct thread_info *next;
-    struct hse_kvs     *idx_kvs;
+    struct hse_kvs *idx_kvs;
 };
 static struct thread_info *t_head, *t_detached;
 
 /* caller processes cmdline options */
 struct hse_kvdb *
 kh_init(
-    const char  *config,
-    const char  *kvdb_home,
+    const char *config,
+    const char *kvdb_home,
     struct svec *hse_gparms,
     struct svec *kvdb_oparms)
 {
@@ -124,8 +125,7 @@ kh_wait_all(void)
 }
 
 static void *
-threadfunc(
-    void *arg)
+threadfunc(void *arg)
 {
     struct thread_info *ti = arg;
 
@@ -135,10 +135,7 @@ threadfunc(
 }
 
 struct hse_kvs *
-kh_get_kvs(
-    const char           *name,
-    struct svec          *cparms,
-    struct svec          *oparms)
+kh_get_kvs(const char *name, struct svec *cparms, struct svec *oparms)
 {
     hse_err_t err;
     struct kvs_info *ki;
@@ -172,24 +169,23 @@ kh_get_kvs(
             free(ki);
             fatal(err, "hse_kvdb_kvs_open failed");
         }
-
     }
 
     /* add to list */
     ki->next = k_head;
-    k_head   = ki;
+    k_head = ki;
 
     return ki->hdl;
 }
 
 int
 kh_register_kvs(
-    const char           *kvs,
-    enum kh_flags         flags,
-    struct svec          *kvs_cparms,
-    struct svec          *kvs_oparms,
-    kh_func              *func,
-    void                 *arg)
+    const char *kvs,
+    enum kh_flags flags,
+    struct svec *kvs_cparms,
+    struct svec *kvs_oparms,
+    kh_func *func,
+    void *arg)
 {
     struct thread_info *ti;
     merr_t rc;
@@ -206,11 +202,11 @@ kh_register_kvs(
     ti->func = func;
     ti->next = 0;
 
-    ti->targ       = (struct kh_thread_arg *)(ti + 1);
-    ti->targ->arg  = arg;
+    ti->targ = (struct kh_thread_arg *)(ti + 1);
+    ti->targ->arg = arg;
     ti->targ->kvdb = test.kvdb;
-    ti->targ->kvs  = kvs ? kh_get_kvs(kvs, kvs_cparms, kvs_oparms) : 0;
-    ti->flags      = flags;
+    ti->targ->kvs = kvs ? kh_get_kvs(kvs, kvs_cparms, kvs_oparms) : 0;
+    ti->flags = flags;
 
 again:
     rc = merr(pthread_create(&ti->tid, 0, threadfunc, ti));
@@ -235,21 +231,13 @@ again:
 }
 
 int
-kh_register(
-    enum kh_flags         flags,
-    kh_func              *func,
-    void                 *arg)
+kh_register(enum kh_flags flags, kh_func *func, void *arg)
 {
     return kh_register_kvs(NULL, flags, NULL, NULL, func, arg);
 }
 
 int
-kh_register_multiple(
-    int           kvs_cnt,
-    const char  **kvs_vec,
-    int           num_threads,
-    void        **argv,
-    kh_func      *func)
+kh_register_multiple(int kvs_cnt, const char **kvs_vec, int num_threads, void **argv, kh_func *func)
 {
     /* iteratively register the function w/ all args and assign to KVSes
      * in a round-robin fashion (maybe other variations can be added later;
@@ -261,15 +249,15 @@ kh_register_multiple(
 /* cursor helper functions */
 struct hse_kvs_cursor *
 kh_cursor_create(
-    struct hse_kvs *     kvs,
-    unsigned int         flags,
+    struct hse_kvs *kvs,
+    unsigned int flags,
     struct hse_kvdb_txn *txn,
-    void *               pfx,
-    size_t               pfxlen)
+    void *pfx,
+    size_t pfxlen)
 {
     struct hse_kvs_cursor *cur;
-    hse_err_t              err;
-    int                    attempts = 5;
+    hse_err_t err;
+    int attempts = 5;
 
 retry:
     if (attempts-- == 0)
@@ -278,7 +266,7 @@ retry:
     err = hse_kvs_cursor_create(kvs, flags, txn, pfx, pfxlen, &cur);
     if (err) {
         if (hse_err_to_errno(err) == EAGAIN) {
-            usleep(10*1000);
+            usleep(10 * 1000);
             goto retry;
         }
 
@@ -289,9 +277,7 @@ retry:
 }
 
 void
-kh_cursor_update_view(
-    struct hse_kvs_cursor *cur,
-    unsigned int           flags)
+kh_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
 {
     hse_err_t err;
 
@@ -301,14 +287,11 @@ kh_cursor_update_view(
 }
 
 void
-kh_cursor_seek(
-    struct hse_kvs_cursor    *cur,
-    void                 *key,
-    size_t                klen)
+kh_cursor_seek(struct hse_kvs_cursor *cur, void *key, size_t klen)
 {
-    hse_err_t          err;
-    const void        *fkey;
-    size_t             fklen;
+    hse_err_t err;
+    const void *fkey;
+    size_t fklen;
 
     err = hse_kvs_cursor_seek(cur, 0, key, klen, &fkey, &fklen);
     if (err)
@@ -317,29 +300,28 @@ kh_cursor_seek(
 
 void
 kh_cursor_seek_limited(
-    struct hse_kvs_cursor    *cur,
-    void                 *from,
-    size_t                from_len,
-    void                 *to,
-    size_t                to_len)
+    struct hse_kvs_cursor *cur,
+    void *from,
+    size_t from_len,
+    void *to,
+    size_t to_len)
 {
-    hse_err_t          err;
-    const void        *fkey;
-    size_t             fklen;
+    hse_err_t err;
+    const void *fkey;
+    size_t fklen;
 
-    err = hse_kvs_cursor_seek_range(cur, 0, from, from_len, to, to_len,
-                   &fkey, &fklen);
+    err = hse_kvs_cursor_seek_range(cur, 0, from, from_len, to, to_len, &fkey, &fklen);
     if (err)
         fatal(err, "cursor seek failed");
 }
 
 bool
 kh_cursor_read(
-    struct hse_kvs_cursor    *cur,
-    const void          **key,
-    size_t               *klen,
-    const void          **val,
-    size_t               *vlen)
+    struct hse_kvs_cursor *cur,
+    const void **key,
+    size_t *klen,
+    const void **val,
+    size_t *vlen)
 {
     bool eof;
     hse_err_t err;
@@ -352,8 +334,7 @@ kh_cursor_read(
 }
 
 void
-kh_cursor_destroy(
-    struct hse_kvs_cursor    *cur)
+kh_cursor_destroy(struct hse_kvs_cursor *cur)
 {
     hse_err_t err;
 

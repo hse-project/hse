@@ -10,23 +10,21 @@
 
 #include <stdint.h>
 
-#include <hse/util/rmlock.h>
-#include <hse/util/mutex.h>
-#include <hse/util/spinlock.h>
-#include <hse/util/list.h>
-
 #include <hse/limits.h>
 
-#include <hse/ikvdb/sched_sts.h>
 #include <hse/ikvdb/mclass_policy.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/util/list.h>
+#include <hse/util/mutex.h>
+#include <hse/util/rmlock.h>
+#include <hse/util/spinlock.h>
 
+#include "cn_metrics.h"
 #include "cn_tree.h"
 #include "cn_tree_iter.h"
-#include "cn_metrics.h"
 #include "cn_work.h"
-#include "omf.h"
-
 #include "csched_sp3.h"
+#include "omf.h"
 
 struct hlog;
 struct route_map;
@@ -53,16 +51,16 @@ struct route_map;
  * entry objects as will fit into the page.
  */
 struct cn_kle_cache {
-    spinlock_t       kc_lock;
-    int              kc_npages;
+    spinlock_t kc_lock;
+    int kc_npages;
     struct list_head kc_pages;
 };
 
 struct cn_kle_hdr {
     struct list_head kh_link HSE_L1D_ALIGNED;
     struct list_head kh_entries;
-    ulong            kh_nallocs;
-    ulong            kh_nfrees;
+    ulong kh_nallocs;
+    ulong kh_nfrees;
 };
 
 /**
@@ -92,44 +90,44 @@ struct cn_kle_hdr {
  */
 struct cn_tree {
     struct cn_tree_node *ct_root;
-    struct list_head     ct_nodes;
-    uint16_t             ct_fanout;
-    uint16_t             ct_pfx_len;
-    bool                 ct_rspills_wedged;
-    struct cn           *cn;
-    struct mpool        *mp;
-    struct kvs_rparams  *rp;
-    struct route_map    *ct_route_map;
+    struct list_head ct_nodes;
+    uint16_t ct_fanout;
+    uint16_t ct_pfx_len;
+    bool ct_rspills_wedged;
+    struct cn *cn;
+    struct mpool *mp;
+    struct kvs_rparams *rp;
+    struct route_map *ct_route_map;
 
-    struct cndb *       cndb;
-    struct cn_kvdb *    cn_kvdb;
+    struct cndb *cndb;
+    struct cn_kvdb *cn_kvdb;
     struct kvs_cparams *ct_cp;
-    uint64_t            cnid;
+    uint64_t cnid;
 
     struct cn_samp_stats ct_samp;
 
-    struct mutex         ct_ss_lock HSE_L1D_ALIGNED;
-    struct cv            ct_ss_cv;
+    struct mutex ct_ss_lock HSE_L1D_ALIGNED;
+    struct cv ct_ss_cv;
 
-    atomic_ulong         ct_rspill_dt;
-    atomic_uint          ct_rspill_slp;
-    atomic_uint          ct_split_cnt;
-    uint64_t             ct_split_dly;
-    uint64_t             ct_sgen;
+    atomic_ulong ct_rspill_dt;
+    atomic_uint ct_rspill_slp;
+    atomic_uint ct_split_cnt;
+    uint64_t ct_split_dly;
+    uint64_t ct_sgen;
 
     union {
         struct sp3_tree sp3t HSE_L1D_ALIGNED;
     } ct_sched;
 
-    uint64_t                 ct_capped_ttl;
-    uint64_t                 ct_capped_dgen;
+    uint64_t ct_capped_ttl;
+    uint64_t ct_capped_dgen;
     struct kvset_list_entry *ct_capped_le;
 
     struct kvdb_health *ct_kvdb_health HSE_L1D_ALIGNED;
 
     uint64_t ct_last_ptseq;
     uint32_t ct_last_ptlen;
-    uint8_t  ct_last_ptomb[HSE_KVS_PFX_LEN_MAX];
+    uint8_t ct_last_ptomb[HSE_KVS_PFX_LEN_MAX];
 
     struct cn_kle_cache ct_kle_cache HSE_L1D_ALIGNED;
 
@@ -151,61 +149,59 @@ struct cn_tree {
  * @tn_destroy_work: used for async destroy
  */
 struct cn_tree_node {
-    uint64_t             tn_nodeid;
-    struct cn_tree      *tn_tree;
-    struct route_node   *tn_route_node;
-    struct list_head     tn_link;
-    size_t               tn_split_size;
-    uint64_t             tn_split_ns;
-    atomic_uint          tn_readers;
+    uint64_t tn_nodeid;
+    struct cn_tree *tn_tree;
+    struct route_node *tn_route_node;
+    struct list_head tn_link;
+    size_t tn_split_size;
+    uint64_t tn_split_ns;
+    atomic_uint tn_readers;
 
-    struct list_head     tn_kvset_list HSE_L1D_ALIGNED;
-    uint64_t             tn_update_incr_dgen;
-    struct hlog         *tn_hlog;
+    struct list_head tn_kvset_list HSE_L1D_ALIGNED;
+    uint64_t tn_update_incr_dgen;
+    struct hlog *tn_hlog;
     struct cn_node_stats tn_ns;
     struct cn_samp_stats tn_samp;
 
-    atomic_int           tn_compacting HSE_L1D_ALIGNED;
-    atomic_uint          tn_busycnt;
-    struct list_head     tn_dnode_linkv[2];
+    atomic_int tn_compacting HSE_L1D_ALIGNED;
+    atomic_uint tn_busycnt;
+    struct list_head tn_dnode_linkv[2];
 
     union {
-        struct sp3_node  tn_sp3n;
-        struct cn_work   tn_destroy_work;
+        struct sp3_node tn_sp3n;
+        struct cn_work tn_destroy_work;
     };
 
     /* Subspill synchronization.
      */
-    struct list_head     tn_ss_list HSE_L1D_ALIGNED;
-    atomic_uint          tn_ss_spilling;
-    bool                 tn_ss_splitting;
-    int8_t               tn_ss_joining;
-    uint8_t              tn_ss_visits;
-    atomic_long          tn_sgen;      /* The last spill gen that was added to the node */
+    struct list_head tn_ss_list HSE_L1D_ALIGNED;
+    atomic_uint tn_ss_spilling;
+    bool tn_ss_splitting;
+    int8_t tn_ss_joining;
+    uint8_t tn_ss_visits;
+    atomic_long tn_sgen; /* The last spill gen that was added to the node */
 };
 
 /* Iterate over all tree nodes, starting with the root node.
  */
-#define cn_tree_foreach_node(_item, _tree)                                                      \
-    for ((_item) = (_tree)->ct_root;                                                            \
-         (_item);                                                                               \
+#define cn_tree_foreach_node(_item, _tree)    \
+    for ((_item) = (_tree)->ct_root; (_item); \
          (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
 
 /* Iterate over all leaf nodes (excluding root node).
  */
-#define cn_tree_foreach_leaf(_item, _tree)                                                      \
-    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes);      \
-         (_item);                                                                               \
-         (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
+#define cn_tree_foreach_leaf(_item, _tree)                                                 \
+    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes); \
+         (_item); (_item) = list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes))
 
 #define cn_tree_foreach_leaf_safe(_item, _next, _tree)                                          \
-    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes),         \
-             _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL; \
-         (_item);                                                                                  \
-         _item = (_next), _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL)
+    for ((_item) = list_next_entry_or_null((_tree)->ct_root, tn_link, &(_tree)->ct_nodes),      \
+        _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL; \
+         (_item); _item = (_next),                                                              \
+        _next = (_item) ? list_next_entry_or_null((_item), tn_link, &(_tree)->ct_nodes) : NULL)
 
 /* cn_tree_node to sp3_node */
-#define tn2spn(_tn) (&(_tn)->tn_sp3n)
+#define tn2spn(_tn)  (&(_tn)->tn_sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sp3n)
 
 /* MTF_MOCK */

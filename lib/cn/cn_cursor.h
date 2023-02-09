@@ -8,16 +8,16 @@
 
 #include <stdint.h>
 
-#include <hse/error/merr.h>
 #include <hse/limits.h>
+
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cursor.h>
 #include <hse/util/bin_heap.h>
 #include <hse/util/table.h>
 
-#include <hse/ikvdb/cursor.h>
-
 #include "cn_metrics.h"
-#include "kvset.h"
 #include "kv_iterator.h"
+#include "kvset.h"
 
 /* MTF_MOCK_DECL(cn_cursor) */
 
@@ -29,23 +29,23 @@ struct cursor_summary;
 #define NUM_LEVELS (2)
 
 struct cn_level_cursor {
-    struct element_source   cnlc_es;
-    struct table           *cnlc_kvref_tab;
-    struct bin_heap        *cnlc_bh;
-    size_t                  cnlc_bh_max_cnt;
-    uint32_t                cnlc_iterc;
-    uint                    cnlc_level;
-    struct kv_iterator    **cnlc_iterv;
-    struct cn_kv_item       cnlc_item;
+    struct element_source cnlc_es;
+    struct table *cnlc_kvref_tab;
+    struct bin_heap *cnlc_bh;
+    size_t cnlc_bh_max_cnt;
+    uint32_t cnlc_iterc;
+    uint cnlc_level;
+    struct kv_iterator **cnlc_iterv;
+    struct cn_kv_item cnlc_item;
     struct element_source **cnlc_esrcv;
-    size_t                  cnlc_esrcc;
-    struct cn_cursor       *cnlc_cncur;
-    uint64_t                cnlc_dgen_hi;
-    uint64_t                cnlc_dgen_lo;
-    bool                    cnlc_islast;
+    size_t cnlc_esrcc;
+    struct cn_cursor *cnlc_cncur;
+    uint64_t cnlc_dgen_hi;
+    uint64_t cnlc_dgen_lo;
+    bool cnlc_islast;
 
-    uint                    cnlc_next_eklen;
-    unsigned char           cnlc_next_ekey[HSE_KVS_KEY_LEN_MAX];
+    uint cnlc_next_eklen;
+    unsigned char cnlc_next_ekey[HSE_KVS_KEY_LEN_MAX];
 };
 
 /**
@@ -72,23 +72,23 @@ struct cn_level_cursor {
  * @cncur_pt_seq:      ptomb's seqno
  */
 struct cn_cursor {
-    struct element_source   cncur_es;
-    struct cn *             cncur_cn;
+    struct element_source cncur_es;
+    struct cn *cncur_cn;
 
     struct bin_heap *cncur_bh;
 
     struct cn_level_cursor cncur_lcur[NUM_LEVELS];
-    uint32_t               cncur_iterc;
+    uint32_t cncur_iterc;
 
-    struct element_source  *cncur_esrcv[NUM_LEVELS];
-    struct cursor_summary * cncur_summary;
-    const void *            cncur_pfx;
-    uint32_t                cncur_pfxlen;
-    uint32_t                cncur_tree_pfxlen;
-    merr_t                  cncur_merr;
-    uint64_t                cncur_dgen;
-    uint64_t                cncur_seqno;
-    enum kvset_iter_flags   cncur_flags;
+    struct element_source *cncur_esrcv[NUM_LEVELS];
+    struct cursor_summary *cncur_summary;
+    const void *cncur_pfx;
+    uint32_t cncur_pfxlen;
+    uint32_t cncur_tree_pfxlen;
+    merr_t cncur_merr;
+    uint64_t cncur_dgen;
+    uint64_t cncur_seqno;
+    enum kvset_iter_flags cncur_flags;
 
     struct kvs_cursor_element cncur_elem;
 
@@ -100,22 +100,22 @@ struct cn_cursor {
     uint32_t cncur_first_read : 1;
 
     struct cn_merge_stats cncur_stats;
-    struct kc_filter *    cncur_filter;
+    struct kc_filter *cncur_filter;
 
     struct key_obj cncur_pt_kobj;
-    uint64_t       cncur_pt_seq;
+    uint64_t cncur_pt_seq;
 };
 
 /* MTF_MOCK */
 merr_t
 cn_cursor_create(
-    struct cn *            cn,
-    uint64_t               seqno,
-    bool                   reverse,
-    const void *           prefix,
-    uint32_t               len,
+    struct cn *cn,
+    uint64_t seqno,
+    bool reverse,
+    const void *prefix,
+    uint32_t len,
     struct cursor_summary *summary,
-    struct cn_cursor **    cursorp);
+    struct cn_cursor **cursorp);
 
 /* MTF_MOCK */
 merr_t
@@ -124,10 +124,10 @@ cn_cursor_update(struct cn_cursor *cursor, uint64_t seqno, bool *updated);
 /* MTF_MOCK */
 merr_t
 cn_cursor_seek(
-    struct cn_cursor * cursor,
-    const void *       prefix,
-    uint32_t           len,
-    struct kc_filter * filter);
+    struct cn_cursor *cursor,
+    const void *prefix,
+    uint32_t len,
+    struct kc_filter *filter);
 
 /* MTF_MOCK */
 merr_t

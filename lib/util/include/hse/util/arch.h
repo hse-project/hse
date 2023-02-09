@@ -8,8 +8,9 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <sys/types.h>
 #include <time.h>
+
+#include <sys/types.h>
 
 #include <hse/util/compiler.h>
 #include <hse/util/time.h>

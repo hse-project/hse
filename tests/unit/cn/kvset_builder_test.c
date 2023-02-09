@@ -3,17 +3,15 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/error/merr.h>
-
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/kvs_rparams.h>
-#include <hse/ikvdb/cn.h>
-
 #include <hse/limits.h>
 
+#include <hse/error/merr.h>
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
+
 #include <hse/test/mock/mock_kbb_vbb.h>
+#include <hse/test/mtf/framework.h>
 
 static struct key_obj kobj;
 
@@ -74,13 +72,12 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 #define ds ((struct mpool *)1)
 #define rp ((struct kvs_rparams *)2)
 
-#define KVSET_BUILDER_CREATE() \
-    ({ kvset_builder_create(&bld, (void *)-1, 0, 1); })
+#define KVSET_BUILDER_CREATE() ({ kvset_builder_create(&bld, (void *)-1, 0, 1); })
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_create, pre, post)
 {
-    uint32_t                   api;
-    merr_t                err;
+    uint32_t api;
+    merr_t err;
     struct kvset_builder *bld = 0;
 
     err = KVSET_BUILDER_CREATE();
@@ -225,10 +222,10 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 {
     merr_t err;
     uint64_t seq = 0x1122334455667788ULL;
-    uint   vbidx = 300;
-    uint   vboff = 128 * 1000 * 1000;
-    uint   vlen = 1000 * 1000;
-    uint   i;
+    uint vbidx = 300;
+    uint vboff = 128 * 1000 * 1000;
+    uint vlen = 1000 * 1000;
+    uint i;
 
     struct kvset_builder *bld = 0;
 
@@ -248,13 +245,13 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd1, pre, post)
 MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
 {
     /* just like t_reserve_kmd1 but with memory allocation failures */
-    uint32_t    api;
+    uint32_t api;
     merr_t err;
     uint64_t seq = 0x1122334455667788ULL;
-    uint   vbidx = 300;
-    uint   vboff = 128 * 1000 * 1000;
-    uint   vlen = 1000 * 1000;
-    uint   i;
+    uint vbidx = 300;
+    uint vboff = 128 * 1000 * 1000;
+    uint vlen = 1000 * 1000;
+    uint i;
 
     struct kvset_builder *bld = 0;
 
@@ -304,12 +301,12 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_mblocks_destroy, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_get_mblocks, pre, post)
 {
-    uint32_t                   api;
-    merr_t                err;
-    uint32_t                   seq = 1;
+    uint32_t api;
+    merr_t err;
+    uint32_t seq = 1;
     struct kvset_builder *bld = 0;
-    struct kvset_mblocks  blks;
-    struct key_obj        ko;
+    struct kvset_mblocks blks;
+    struct key_obj ko;
 
     /* create; get empty; destroy */
     err = KVSET_BUILDER_CREATE();

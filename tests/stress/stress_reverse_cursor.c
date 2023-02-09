@@ -16,12 +16,14 @@
 
 #include <bsd/string.h>
 
+#include <hse/hse.h>
+
 #include <hse/cli/program.h>
 #include <hse/error/merr.h>
-#include <hse/hse.h>
-#include <hse/test/fixtures/scratch_directory.h>
 #include <hse/util/compiler.h>
 #include <hse/util/err_ctx.h>
+
+#include <hse/test/fixtures/scratch_directory.h>
 
 #include "stress_util.h"
 
@@ -29,29 +31,29 @@
 #define MAX_VAL_LEN 4096
 #define MAX_THREAD  500
 
-extern int  DEBUG;
-atomic_int  error_count;
-atomic_int  verification_failure_count;
+extern int DEBUG;
+atomic_int error_count;
+atomic_int verification_failure_count;
 atomic_long inserted_record_count;
 atomic_long queries_count;
 
 struct cursor_test_data {
-    char             kvdb_home[PATH_MAX];
-    char *           kvs_name;
-    long int         key_count;
-    int              val_size;
-    int              point_insertion_thread_count;
-    int              cursor_read_thread_count;
-    int              key_size;
-    int              wal_disable;
-    int              uncommitted;
-    int              rank;
-    long int         start;
-    long int         end;
-    long int         key_count_per_thread;
-    struct hse_kvs * kvs;
+    char kvdb_home[PATH_MAX];
+    char *kvs_name;
+    long int key_count;
+    int val_size;
+    int point_insertion_thread_count;
+    int cursor_read_thread_count;
+    int key_size;
+    int wal_disable;
+    int uncommitted;
+    int rank;
+    long int start;
+    long int end;
+    long int key_count_per_thread;
+    struct hse_kvs *kvs;
     struct hse_kvdb *kvdb;
-    char             data[MAX_VAL_LEN];
+    char data[MAX_VAL_LEN];
 };
 
 void
@@ -85,14 +87,14 @@ void
 cursor_read(void *args, struct hse_kvs_cursor *CURSOR)
 {
     struct cursor_test_data *info = args;
-    long int                 i = 0;
-    const void *             cur_key, *cur_val;
-    size_t                   cur_klen, cur_vlen;
-    char                     expected_key_buf[info->key_size];
-    char                     expected_val_buf[info->val_size];
-    bool                     eof = false;
-    hse_err_t                err;
-    char                     msg[100];
+    long int i = 0;
+    const void *cur_key, *cur_val;
+    size_t cur_klen, cur_vlen;
+    char expected_key_buf[info->key_size];
+    char expected_val_buf[info->val_size];
+    bool eof = false;
+    hse_err_t err;
+    char msg[100];
 
     log_info("begin %s", __func__);
 
@@ -101,66 +103,48 @@ cursor_read(void *args, struct hse_kvs_cursor *CURSOR)
 
     for (i = info->end - 1; i >= info->start; i--) {
         generate_record(
-            expected_key_buf,
-            sizeof(expected_key_buf),
-            expected_val_buf,
-            sizeof(expected_val_buf),
-            info->key_size,
-            info->val_size,
-            info->data,
-            i);
+            expected_key_buf, sizeof(expected_key_buf), expected_val_buf, sizeof(expected_val_buf),
+            info->key_size, info->val_size, info->data, i);
 
         if (i == info->end - 1) {
             if (DEBUG) {
                 log_debug(
-                    "hse_kvs_cursor_seek: rank=%d key_index=%ld key=\"%s\"",
-                    info->rank,
-                    i,
+                    "hse_kvs_cursor_seek: rank=%d key_index=%ld key=\"%s\"", info->rank, i,
                     expected_key_buf);
             }
 
-            err = hse_kvs_cursor_seek(
-                CURSOR, 0, expected_key_buf, info->key_size, NULL, NULL);
+            err = hse_kvs_cursor_seek(CURSOR, 0, expected_key_buf, info->key_size, NULL, NULL);
 
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
                 log_error(
                     "hse_kvs_cursor_seek: errno=%d msg=\"%s\" "
                     "rank=%d expected_key=\"%s\"",
-                    hse_err_to_errno(err),
-                    msg,
-                    info->rank,
-                    expected_key_buf);
+                    hse_err_to_errno(err), msg, info->rank, expected_key_buf);
                 ++error_count;
                 break;
             }
         }
 
-        err = hse_kvs_cursor_read(
-            CURSOR, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+        err = hse_kvs_cursor_read(CURSOR, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
                 "hse_kvs_cursor_read: errno=%d msg=\"%s\" rank=%d key_index=%ld",
-                hse_err_to_errno(err),
-                msg,
-                info->rank,
-                i);
+                hse_err_to_errno(err), msg, info->rank, i);
             ++error_count;
             break;
         } else if (DEBUG) {
-            log_debug("hse_kvs_cursor_read: rank=%d key_index=%ld key=\"%*s\"", info->rank, i,
+            log_debug(
+                "hse_kvs_cursor_read: rank=%d key_index=%ld key=\"%*s\"", info->rank, i,
                 (int)cur_klen, (char *)cur_key);
         }
 
         if (eof) {
             log_error(
-                "kvs cursor read unexpected EOF: rank=%d start=%ld end=%ld failed=%ld",
-                info->rank,
-                info->start,
-                info->end,
-                i);
+                "kvs cursor read unexpected EOF: rank=%d start=%ld end=%ld failed=%ld", info->rank,
+                info->start, info->end, i);
             ++verification_failure_count;
             break;
         }
@@ -169,42 +153,29 @@ cursor_read(void *args, struct hse_kvs_cursor *CURSOR)
             log_error(
                 "FAILED key length verification: "
                 "actual_key_len=%ld expected_key_len=%d",
-                cur_klen,
-                info->key_size);
+                cur_klen, info->key_size);
             ++verification_failure_count;
             break;
         } else if (info->val_size != cur_vlen) {
             log_error(
                 "FAILED value length verfication: "
                 "actual_val_len=%ld expected_val_len=%d",
-                cur_vlen,
-                info->val_size);
+                cur_vlen, info->val_size);
             ++verification_failure_count;
             break;
         } else if (memcmp(expected_key_buf, cur_key, info->key_size) != 0) {
             log_error(
                 "FAILED key verification: start=%ld end=%ld i=%ld "
                 "key=\"%*s\" expected_key=\"%s\"",
-                info->start,
-                info->end,
-                i,
-                (int)cur_klen,
-                (char *)cur_key,
-                expected_key_buf);
+                info->start, info->end, i, (int)cur_klen, (char *)cur_key, expected_key_buf);
             ++verification_failure_count;
             break;
         } else if (memcmp(expected_val_buf, cur_val, info->val_size) != 0) {
             log_error(
                 "FAILED value verification: start=%ld end=%ld i=%ld "
                 "key=\"%*s\" value=\"%*s\" expected_value=\"%s\"",
-                info->start,
-                info->end,
-                i,
-                (int)cur_klen,
-                (char *)cur_key,
-                (int)cur_vlen,
-                (char *)cur_val,
-                expected_val_buf);
+                info->start, info->end, i, (int)cur_klen, (char *)cur_key, (int)cur_vlen,
+                (char *)cur_val, expected_val_buf);
             ++verification_failure_count;
             break;
         }
@@ -219,13 +190,13 @@ void
 point_insertion(void *args)
 {
     struct cursor_test_data *info = (struct cursor_test_data *)args;
-    long int                 i = 0;
-    struct hse_kvdb_txn *    txn;
-    struct hse_kvs_cursor *  CURSOR;
-    char                     key_buf[info->key_size];
-    char                     val_buf[info->val_size];
-    hse_err_t                err;
-    char                     msg[100];
+    long int i = 0;
+    struct hse_kvdb_txn *txn;
+    struct hse_kvs_cursor *CURSOR;
+    char key_buf[info->key_size];
+    char val_buf[info->val_size];
+    hse_err_t err;
+    char msg[100];
 
     log_info("begin %s", __func__);
 
@@ -244,9 +215,7 @@ point_insertion(void *args)
     if (err) {
         hse_strerror(err, msg, sizeof(msg));
         log_error(
-            "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d",
-            hse_err_to_errno(err),
-            msg,
+            "hse_kvdb_txn_begin: errno=%d msg=\"%s\" rank=%d", hse_err_to_errno(err), msg,
             info->rank);
         ++error_count;
         goto out2;
@@ -256,30 +225,20 @@ point_insertion(void *args)
 
     for (i = info->start; i < info->end; i++) {
         generate_record(
-            key_buf,
-            sizeof(key_buf),
-            val_buf,
-            sizeof(val_buf),
-            info->key_size,
-            info->val_size,
-            info->data,
-            i);
+            key_buf, sizeof(key_buf), val_buf, sizeof(val_buf), info->key_size, info->val_size,
+            info->data, i);
 
         if (DEBUG) {
             log_debug("hse_kvs_put: rank=%d key_index=%ld key=\"%s\"", info->rank, i, key_buf);
         }
 
-        err = hse_kvs_put(
-            info->kvs, 0, txn, key_buf, sizeof(key_buf), val_buf, sizeof(val_buf));
+        err = hse_kvs_put(info->kvs, 0, txn, key_buf, sizeof(key_buf), val_buf, sizeof(val_buf));
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvs_put: errno=%d msg=\"%s\" rank=%d key=\"%s\"",
-                hse_err_to_errno(err),
-                msg,
-                info->rank,
-                key_buf);
+                "hse_kvs_put: errno=%d msg=\"%s\" rank=%d key=\"%s\"", hse_err_to_errno(err), msg,
+                info->rank, key_buf);
             ++error_count;
             goto out2;
         }
@@ -295,9 +254,7 @@ point_insertion(void *args)
     if (err) {
         hse_strerror(err, msg, sizeof(msg));
         log_error(
-            "hse_kvs_cursor_create: errno=%d msg=\"%s\" rank=%d",
-            hse_err_to_errno(err),
-            msg,
+            "hse_kvs_cursor_create: errno=%d msg=\"%s\" rank=%d", hse_err_to_errno(err), msg,
             info->rank);
         ++error_count;
         goto out2;
@@ -309,9 +266,7 @@ point_insertion(void *args)
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
             log_error(
-                "hse_kvdb_txn_commit: errno=%d msg=\"%s\" rank=%d",
-                hse_err_to_errno(err),
-                msg,
+                "hse_kvdb_txn_commit: errno=%d msg=\"%s\" rank=%d", hse_err_to_errno(err), msg,
                 info->rank);
             ++error_count;
             goto out3;
@@ -329,10 +284,7 @@ out3:
         hse_strerror(err, msg, sizeof(msg));
         log_error(
             "hse_kvs_cursor_destroy: errno=%d msg=\"%s\" rank=%d cursor_idx=%ld",
-            hse_err_to_errno(err),
-            msg,
-            info->rank,
-            i);
+            hse_err_to_errno(err), msg, info->rank, i);
         ++error_count;
     } else if (DEBUG) {
         log_debug("hse_kvs_cursor_destroy: rank=%d", info->rank);
@@ -363,12 +315,12 @@ get_count_per_x(long int long_count, int x)
 void
 spawn_threads(struct cursor_test_data *params, void *thread_fun, char *fun_name)
 {
-    pthread_t               thread_info[MAX_THREAD];
-    int                     thread;
-    char                    buf[100];
+    pthread_t thread_info[MAX_THREAD];
+    int thread;
+    char buf[100];
     struct cursor_test_data args[MAX_THREAD];
-    int                     thread_count = 0;
-    int                     rc;
+    int thread_count = 0;
+    int rc;
 
     if (strcmp(fun_name, "point_insertion") == 0)
         thread_count = params->point_insertion_thread_count;
@@ -408,10 +360,10 @@ int
 execute_test(struct cursor_test_data *params)
 {
     struct hse_kvdb *kvdb;
-    int              status;
-    int              result;
-    hse_err_t        hse_err;
-    char             msg[100];
+    int status;
+    int result;
+    hse_err_t hse_err;
+    char msg[100];
 
     result = 0;
 
@@ -459,11 +411,11 @@ execute_test(struct cursor_test_data *params)
 int
 main(int argc, char *argv[])
 {
-    int                     option = 0;
+    int option = 0;
     struct cursor_test_data para;
-    hse_err_t               err;
-    int                     status;
-    int                     mod;
+    hse_err_t err;
+    int status;
+    int mod;
 
     memset(&para, 0, sizeof(para));
 
@@ -476,53 +428,53 @@ main(int argc, char *argv[])
 
     while ((option = getopt(argc, argv, "b:c:C:d:n:o:r:t:u:v:")) != -1) {
         switch (option) {
-            case 'b':
-                para.key_size = atoi(optarg);
-                break;
+        case 'b':
+            para.key_size = atoi(optarg);
+            break;
 
-            case 'c':
-                para.key_count = atoi(optarg);
-                break;
+        case 'c':
+            para.key_count = atoi(optarg);
+            break;
 
-            case 'C': {
-                size_t n;
+        case 'C': {
+            size_t n;
 
-                n = strlcpy(para.kvdb_home, optarg, sizeof(para.kvdb_home));
-                if (n >= sizeof(para.kvdb_home)) {
-                    fprintf(stderr, "KVDB home directory too long\n");
-                    return EX_USAGE;
-                }
-
-                break;
+            n = strlcpy(para.kvdb_home, optarg, sizeof(para.kvdb_home));
+            if (n >= sizeof(para.kvdb_home)) {
+                fprintf(stderr, "KVDB home directory too long\n");
+                return EX_USAGE;
             }
 
-            case 'd':
-                para.cursor_read_thread_count = atoi(optarg);
-                break;
+            break;
+        }
 
-            case 'n':
-                para.uncommitted = atoi(optarg);
-                break;
+        case 'd':
+            para.cursor_read_thread_count = atoi(optarg);
+            break;
 
-            case 'o':
-                para.point_insertion_thread_count = atoi(optarg);
-                break;
+        case 'n':
+            para.uncommitted = atoi(optarg);
+            break;
 
-            case 'r':
-                para.wal_disable = atoi(optarg);
-                break;
+        case 'o':
+            para.point_insertion_thread_count = atoi(optarg);
+            break;
 
-            case 'u':
-                DEBUG = atoi(optarg);
-                break;
+        case 'r':
+            para.wal_disable = atoi(optarg);
+            break;
 
-            case 'v':
-                para.val_size = atoi(optarg);
-                break;
+        case 'u':
+            DEBUG = atoi(optarg);
+            break;
 
-            default:
-                print_usage();
-                exit(EXIT_FAILURE);
+        case 'v':
+            para.val_size = atoi(optarg);
+            break;
+
+        default:
+            print_usage();
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -537,8 +489,9 @@ main(int argc, char *argv[])
 
         err = scratch_directory_setup(progname, para.kvdb_home, sizeof(para.kvdb_home));
         if (err) {
-            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
-                progname, merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
+            fprintf(
+                stderr, "%s: Failed to setup scratch directory: %s", progname,
+                merr_strinfo(err, buf, sizeof(buf), err_ctx_strerror, NULL));
             return EX_CANTCREAT;
         }
     }

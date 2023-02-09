@@ -6,18 +6,18 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include "sample_element_source.h"
-
 #include <hse/error/merr.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
 
 #include <hse/test/support/random_buffer.h>
 
+#include "sample_element_source.h"
+
 struct sample_es {
-    uint32_t *            tes_elts;
-    uint32_t              tes_elt_cnt;
-    uint32_t              tes_idx;
+    uint32_t *tes_elts;
+    uint32_t tes_elt_cnt;
+    uint32_t tes_idx;
     struct element_source tes_handle;
 };
 
@@ -27,7 +27,7 @@ bool
 sample_es_get_next(struct element_source *handle, void **item)
 {
     struct sample_es *es = sample_es_h2r(handle);
-    bool              res = true;
+    bool res = true;
 
     if (es->tes_elt_cnt - es->tes_idx > 0)
         *item = (void *)&es->tes_elts[es->tes_idx++];
@@ -51,7 +51,7 @@ merr_t
 sample_es_create(struct sample_es **es_out, uint32_t elt_cnt, enum sample_es_mode mode)
 {
     struct sample_es *es;
-    size_t            sz;
+    size_t sz;
 
     es = malloc(sizeof(*es));
     if (!es)
@@ -106,14 +106,14 @@ sample_es_set_elt(struct sample_es *es, uint32_t elt)
 
 merr_t
 sample_es_create_srcid(
-    struct sample_es ** es_out,
-    uint32_t            elt_cnt,
-    uint32_t            start,
-    uint32_t            srcid,
+    struct sample_es **es_out,
+    uint32_t elt_cnt,
+    uint32_t start,
+    uint32_t srcid,
     enum sample_es_mode mode)
 {
     struct sample_es *es;
-    size_t            sz;
+    size_t sz;
 
     es = malloc(sizeof(*es));
     if (!es)

@@ -7,14 +7,15 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
+
 #include <hse/util/base.h>
+
 #include <hse/test/fixtures/kvdb.h>
 #include <hse/test/fixtures/kvs.h>
-
 #include <hse/test/mtf/framework.h>
 
 struct hse_kvdb *kvdb_handle = NULL;
-struct hse_kvs  *kvs_handle = NULL;
+struct hse_kvs *kvs_handle = NULL;
 
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
@@ -63,8 +64,8 @@ MTF_DEFINE_UTEST(transaction_api_test, alloc_null_kvdb)
 
 MTF_DEFINE_UTEST(transaction_api_test, state_transitions)
 {
-    hse_err_t               err;
-    struct hse_kvdb_txn    *txn;
+    hse_err_t err;
+    struct hse_kvdb_txn *txn;
     enum hse_kvdb_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -99,7 +100,7 @@ MTF_DEFINE_UTEST(transaction_api_test, state_transitions)
 
 MTF_DEFINE_UTEST(transaction_api_test, state_get_null_kvdb)
 {
-    struct hse_kvdb_txn    *txn;
+    struct hse_kvdb_txn *txn;
     enum hse_kvdb_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -119,7 +120,7 @@ MTF_DEFINE_UTEST(transaction_api_test, state_get_null_txn)
 
 MTF_DEFINE_UTEST(transaction_api_test, begin_null_kvdb)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -139,7 +140,7 @@ MTF_DEFINE_UTEST(transaction_api_test, begin_null_txn)
 
 MTF_DEFINE_UTEST(transaction_api_test, commit_null_kvdb)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -159,7 +160,7 @@ MTF_DEFINE_UTEST(transaction_api_test, commit_null_txn)
 
 MTF_DEFINE_UTEST(transaction_api_test, abort_null_kvdb)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -181,7 +182,7 @@ MTF_DEFINE_UTEST(transaction_api_test, abort_null_txn)
 
 MTF_DEFINE_UTEST(transaction_api_test, commit_without_begin)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -195,7 +196,7 @@ MTF_DEFINE_UTEST(transaction_api_test, commit_without_begin)
 
 MTF_DEFINE_UTEST(transaction_api_test, abort_without_begin)
 {
-    hse_err_t            err;
+    hse_err_t err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
@@ -239,7 +240,8 @@ MTF_DEFINE_UTEST(transaction_api_test, expired)
         ASSERT_EQ(ECANCELED, hse_err_to_errno(err));
         ASSERT_EQ(HSE_ERR_CTX_TXN_EXPIRED, hse_err_to_ctx(err));
 
-        err = hse_kvs_get(kvs_handle, 0, txn, "test", 4, &found, val_buf, sizeof(val_buf), &val_len);
+        err =
+            hse_kvs_get(kvs_handle, 0, txn, "test", 4, &found, val_buf, sizeof(val_buf), &val_len);
         ASSERT_EQ(ECANCELED, hse_err_to_errno(err));
         ASSERT_EQ(HSE_ERR_CTX_TXN_EXPIRED, hse_err_to_ctx(err));
 

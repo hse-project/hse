@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 
-#include <hse/util/compiler.h>
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
 
 enum hse_mclass_policy_age;
 struct cn;
@@ -45,19 +45,19 @@ hbb_destroy(struct hblock_builder *bld);
 merr_t
 hbb_finish(
     struct hblock_builder *bld,
-    uint64_t              *hblk_id_out,
-    const struct vgmap    *vgmap,
-    struct key_obj        *min_pfxp,
-    struct key_obj        *max_pfxp,
-    const uint64_t         min_seqno,
-    const uint64_t         max_seqno,
-    const uint32_t         num_kblocks,
-    const uint32_t         num_vblocks,
-    const uint32_t         num_ptombs,
-    const uint8_t         *hlog,
-    const uint8_t         *ptree,
-    struct wbt_desc       *ptree_desc,
-    uint32_t               ptree_pgc);
+    uint64_t *hblk_id_out,
+    const struct vgmap *vgmap,
+    struct key_obj *min_pfxp,
+    struct key_obj *max_pfxp,
+    const uint64_t min_seqno,
+    const uint64_t max_seqno,
+    const uint32_t num_kblocks,
+    const uint32_t num_vblocks,
+    const uint32_t num_ptombs,
+    const uint8_t *hlog,
+    const uint8_t *ptree,
+    struct wbt_desc *ptree_desc,
+    uint32_t ptree_pgc);
 
 merr_t
 hbb_set_agegroup(struct hblock_builder *bld, enum hse_mclass_policy_age age) HSE_NONNULL(1);

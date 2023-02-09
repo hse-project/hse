@@ -19,7 +19,7 @@
 #define PLAIN "plain"
 
 enum format
-format_from_string(const char *const format)
+format_from_string(const char * const format)
 {
     if (!format)
         return FORMAT_INVALID;
@@ -27,8 +27,8 @@ format_from_string(const char *const format)
     if (strcmp(format, JSON) == 0)
         return FORMAT_JSON;
 
-    if (strncmp(format, TAB, sizeof(TAB) - 1) == 0 && (format[sizeof(TAB) - 1] == ':' ||
-            format[sizeof(TAB) - 1] == '\0'))
+    if (strncmp(format, TAB, sizeof(TAB) - 1) == 0 &&
+        (format[sizeof(TAB) - 1] == ':' || format[sizeof(TAB) - 1] == '\0'))
         return FORMAT_TABULAR;
 
     if (strcmp(format, PLAIN) == 0)
@@ -39,10 +39,10 @@ format_from_string(const char *const format)
 
 int
 format_parse_tabular(
-    const char *const format,
+    const char * const format,
     const size_t ncolumns,
-    const char **const headers,
-    bool *const enabled)
+    const char ** const headers,
+    bool * const enabled)
 {
     int rc = 0;
     char *dup;

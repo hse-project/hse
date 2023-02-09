@@ -6,8 +6,8 @@
 #ifndef WAL_BUFFER_H
 #define WAL_BUFFER_H
 
-#include <stdint.h>
 #include <stdatomic.h>
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/compiler.h>
@@ -21,10 +21,10 @@ struct wal_flush_stats;
 struct wal_bufset *
 wal_bufset_open(
     struct wal_fileset *wfset,
-    size_t              bufsz,
-    uint32_t            dur_bytes,
-    atomic_ulong       *ingestgen,
-    struct wal_iocb    *iocb);
+    size_t bufsz,
+    uint32_t dur_bytes,
+    atomic_ulong *ingestgen,
+    struct wal_iocb *iocb);
 
 void
 wal_bufset_close(struct wal_bufset *wbs);
@@ -32,18 +32,18 @@ wal_bufset_close(struct wal_bufset *wbs);
 void *
 wal_bufset_alloc(
     struct wal_bufset *wbs,
-    size_t             len,
-    uint64_t          *offout,
-    uint32_t          *wbidx,
-    int64_t           *cookie);
+    size_t len,
+    uint64_t *offout,
+    uint32_t *wbidx,
+    int64_t *cookie);
 
 void
 wal_bufset_finish(
     struct wal_bufset *wbs,
-    uint32_t           wbidx,
-    size_t             len,
-    uint64_t           gen,
-    uint64_t           endoff);
+    uint32_t wbidx,
+    size_t len,
+    uint64_t gen,
+    uint64_t endoff);
 
 void
 wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen);

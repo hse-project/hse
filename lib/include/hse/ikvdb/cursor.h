@@ -41,22 +41,22 @@
  */
 
 struct cursor_summary {
-    void *addr;     /* ikvs */
-    uint64_t created;  /* ikvs */
-    uint64_t updated;  /* ikvs */
-    uint64_t dgen[4];  /* cn */
-    uint64_t seqno;    /* ikvs */
-    uint32_t read_c0;  /* ikvs */
-    uint32_t read_cn;  /* ikvs */
-    uint32_t util;     /* ikvs */
-    uint16_t n_kvset;  /* cn */
-    uint8_t  n_kvms;   /* c0sk */
-    uint8_t  n_trim;   /* c0sk */
-    uint8_t  n_bind;   /* ikvs */
-    uint8_t  n_update; /* ikvs */
-    uint8_t  n_dgen;   /* cn */
-    uint8_t  skidx;    /* c0sk */
-                    /* flags? created c0, cn, restored c0, cn? */
+    void *addr;       /* ikvs */
+    uint64_t created; /* ikvs */
+    uint64_t updated; /* ikvs */
+    uint64_t dgen[4]; /* cn */
+    uint64_t seqno;   /* ikvs */
+    uint32_t read_c0; /* ikvs */
+    uint32_t read_cn; /* ikvs */
+    uint32_t util;    /* ikvs */
+    uint16_t n_kvset; /* cn */
+    uint8_t n_kvms;   /* c0sk */
+    uint8_t n_trim;   /* c0sk */
+    uint8_t n_bind;   /* ikvs */
+    uint8_t n_update; /* ikvs */
+    uint8_t n_dgen;   /* cn */
+    uint8_t skidx;    /* c0sk */
+                      /* flags? created c0, cn, restored c0, cn? */
 };
 
 static inline void
@@ -84,12 +84,12 @@ enum kvs_bh_source {
  * @kce_is_ptomb: Whether or not kv-tuple is a ptomb
  */
 struct kvs_cursor_element {
-    struct kvs_vtuple  kce_vt;
-    struct key_obj     kce_kobj;
+    struct kvs_vtuple kce_vt;
+    struct key_obj kce_kobj;
     enum kvs_bh_source kce_source;
-    uintptr_t          kce_seqnoref;
-    uint               kce_complen;
-    bool               kce_is_ptomb;
+    uintptr_t kce_seqnoref;
+    uint kce_complen;
+    bool kce_is_ptomb;
 };
 
 static inline int
@@ -115,9 +115,9 @@ kvs_cursor_cmp_rev(const void *a_blob, const void *b_blob)
 {
     const struct kvs_cursor_element *a = a_blob;
     const struct kvs_cursor_element *b = b_blob;
-    size_t                           a_klen = key_obj_len(&a->kce_kobj);
-    size_t                           b_klen = key_obj_len(&b->kce_kobj);
-    int                              rc;
+    size_t a_klen = key_obj_len(&a->kce_kobj);
+    size_t b_klen = key_obj_len(&b->kce_kobj);
+    int rc;
 
     if (!(a->kce_is_ptomb ^ b->kce_is_ptomb)) {
         rc = key_obj_cmp(&a->kce_kobj, &b->kce_kobj);

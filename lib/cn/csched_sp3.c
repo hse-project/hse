@@ -12,6 +12,15 @@
 #include <sys/resource.h>
 
 #include <hse/experimental.h>
+
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/csched.h>
+#include <hse/ikvdb/hse_gparams.h>
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_perfc.h>
+#include <hse/ikvdb/kvdb_rparams.h>
+#include <hse/ikvdb/sched_sts.h>
+#include <hse/ikvdb/throttle.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/method.h>
 #include <hse/rest/params.h>
@@ -24,20 +33,10 @@
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
 
-#include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/csched.h>
-#include <hse/ikvdb/sched_sts.h>
-#include <hse/ikvdb/throttle.h>
-#include <hse/ikvdb/kvdb_rparams.h>
-#include <hse/ikvdb/hse_gparams.h>
-
-#include "csched_sp3.h"
-#include "csched_sp3_work.h"
-
 #include "cn_tree_compact.h"
 #include "cn_tree_internal.h"
+#include "csched_sp3.h"
+#include "csched_sp3_work.h"
 #include "kvset.h"
 #include "route.h"
 
@@ -198,28 +197,28 @@ struct sp3_qinfo {
  * are neither protected by a lock, atomic, nor volatile.
  */
 struct sp3 {
-    struct kvdb_rparams     *rp;
-    struct sts              *sts;
-    struct sp3_thresholds    thresh;
-    struct throttle_sensor  *throttle_sensor_root;
-    struct kvdb_health      *health;
-    atomic_int               running;
-    struct sp3_qinfo         qinfo[SP3_QNUM_MAX];
+    struct kvdb_rparams *rp;
+    struct sts *sts;
+    struct sp3_thresholds thresh;
+    struct throttle_sensor *throttle_sensor_root;
+    struct kvdb_health *health;
+    atomic_int running;
+    struct sp3_qinfo qinfo[SP3_QNUM_MAX];
 
     struct rb_root rbt[wtype_MAX];
 
     struct list_head mon_tlist;
     struct list_head spn_rlist;
     struct list_head spn_alist;
-    bool             sp_healthy;
-    ulong            sp_ingest_ns;
-    uint             sp_sval_min;
-    uint             activity;
-    uint             jobs_started;
-    uint             jobs_finished;
-    uint             jobs_max;
-    uint             rr_wtype;
-    uint64_t         job_id;
+    bool sp_healthy;
+    ulong sp_ingest_ns;
+    uint sp_sval_min;
+    uint activity;
+    uint jobs_started;
+    uint jobs_finished;
+    uint jobs_max;
+    uint rr_wtype;
+    uint64_t job_id;
 
     struct cn_compaction_work *wp;
 
@@ -268,19 +267,19 @@ struct sp3 {
 
     /* Shared, accessed by monitor, compaction, and external threads.
      */
-    struct mutex     mon_lock HSE_ACP_ALIGNED;
-    bool             mon_signaled;
+    struct mutex mon_lock HSE_ACP_ALIGNED;
+    bool mon_signaled;
     struct list_head work_list;
     struct list_head add_tlist;
-    struct cv        mon_cv;
+    struct cv mon_cv;
 
     /* Shared, accessed by monitor and compaction threads.
      */
-    struct mutex     sp_dlist_lock HSE_L1D_ALIGNED;
-    atomic_uint      sp_dlist_idx;
+    struct mutex sp_dlist_lock HSE_L1D_ALIGNED;
+    atomic_uint sp_dlist_idx;
     struct list_head sp_dtree_listv[2];
-    atomic_int       sp_ingest_count;
-    atomic_int       sp_addprune_count;
+    atomic_int sp_ingest_count;
+    atomic_int sp_addprune_count;
 
     struct cn_merge_stats sp_mstatsv[CN_RULE_MAX] HSE_L1D_ALIGNED;
     struct rusage sp_rusage;
@@ -293,8 +292,8 @@ struct sp3 {
 };
 
 /* cn_tree 2 sp3_tree */
-#define tree2spt(_tree)     (&(_tree)->ct_sched.sp3t)
-#define spt2tree(_spt)      container_of(_spt, struct cn_tree, ct_sched.sp3t)
+#define tree2spt(_tree) (&(_tree)->ct_sched.sp3t)
+#define spt2tree(_spt)  container_of(_spt, struct cn_tree, ct_sched.sp3t)
 
 /* Scale of kvdb rparms */
 #define EXT_SCALE 100
@@ -307,13 +306,13 @@ struct sp3 {
 #define ONE   SCALE
 
 /* Easy-ish access to run-time parameters */
-#define debug_tree_life(_sp)   (csched_rp_dbg_tree_life((_sp)->rp))
-#define debug_dirty_node(_sp)  (csched_rp_dbg_dirty_node((_sp)->rp))
-#define debug_sched(_sp)       (csched_rp_dbg_sched((_sp)->rp))
-#define debug_qos(_sp)         (csched_rp_dbg_qos((_sp)->rp))
-#define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
-#define debug_tree_shape(_sp)  (csched_rp_dbg_tree_shape((_sp)->rp))
-#define debug_stats(_sp)       (csched_rp_dbg_stats((_sp)->rp))
+#define debug_tree_life(_sp)  (csched_rp_dbg_tree_life((_sp)->rp))
+#define debug_dirty_node(_sp) (csched_rp_dbg_dirty_node((_sp)->rp))
+#define debug_sched(_sp)      (csched_rp_dbg_sched((_sp)->rp))
+#define debug_qos(_sp)        (csched_rp_dbg_qos((_sp)->rp))
+#define debug_rbtree(_sp)     (csched_rp_dbg_rbtree((_sp)->rp))
+#define debug_tree_shape(_sp) (csched_rp_dbg_tree_shape((_sp)->rp))
+#define debug_stats(_sp)      (csched_rp_dbg_stats((_sp)->rp))
 
 static void
 sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn);
@@ -394,10 +393,10 @@ static void
 sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool final)
 {
     struct cn_work_est *est = &w->cw_est;
-    double              progress;
-    double              vblk_read_efficiency;
-    const char *        msg_type;
-    uint64_t            qt, pt, bt, ct;
+    double progress;
+    double vblk_read_efficiency;
+    const char *msg_type;
+    uint64_t qt, pt, bt, ct;
 
     if (final) {
         msg_type = "final";
@@ -474,44 +473,43 @@ sp3_refresh_samp(struct sp3 *sp)
         const uint64_t new_val =
             clamp_t(uint64_t, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
 
-        log_info("sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
-                 (ulong)sp->inputs.csched_samp_max,
-                 (ulong)new_val);
+        log_info(
+            "sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
+            (ulong)sp->inputs.csched_samp_max, (ulong)new_val);
         sp->inputs.csched_samp_max = new_val;
     }
     if (csched_lo_th_pct_changed) {
         const uint64_t new_val =
             clamp_t(uint64_t, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
 
-        log_info("sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
-                 (ulong)sp->inputs.csched_lo_th_pct,
-                 (ulong)new_val);
+        log_info(
+            "sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_lo_th_pct, (ulong)new_val);
         sp->inputs.csched_lo_th_pct = new_val;
     }
     if (csched_hi_th_pct_changed) {
         const uint64_t new_val =
             clamp_t(uint64_t, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
 
-        log_info("sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
-                 (ulong)sp->inputs.csched_hi_th_pct,
-                 (ulong)new_val);
+        log_info(
+            "sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_hi_th_pct, (ulong)new_val);
         sp->inputs.csched_hi_th_pct = new_val;
     }
     if (csched_leaf_pct_changed) {
         const uint64_t new_val =
             clamp_t(uint64_t, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
 
-        log_info("sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
-                 (ulong)sp->inputs.csched_leaf_pct,
-                 (ulong)new_val);
+        log_info(
+            "sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_leaf_pct, (ulong)new_val);
         sp->inputs.csched_leaf_pct = new_val;
     }
 
-    log_info("sp3 new samp input params: samp %lu, lwm_pct %lu, hwm_pct %lu, leaf_pct %lu",
-             (ulong)sp->inputs.csched_samp_max,
-             (ulong)sp->inputs.csched_lo_th_pct,
-             (ulong)sp->inputs.csched_hi_th_pct,
-             (ulong)sp->inputs.csched_leaf_pct);
+    log_info(
+        "sp3 new samp input params: samp %lu, lwm_pct %lu, hwm_pct %lu, leaf_pct %lu",
+        (ulong)sp->inputs.csched_samp_max, (ulong)sp->inputs.csched_lo_th_pct,
+        (ulong)sp->inputs.csched_hi_th_pct, (ulong)sp->inputs.csched_leaf_pct);
 
     /* Input params (from kvdb_rparams) are scaled up by 100.
      * Internally we scale up by SCALE (10000) to get more
@@ -591,14 +589,14 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.rspill_wlen_max = SP3_RSPILL_WLEN_MAX_DEFAULT;
     }
 
-    thresh.rspill_runlen_max = clamp_t(uint8_t, thresh.rspill_runlen_max,
-                                       SP3_RSPILL_RUNLEN_MIN, SP3_RSPILL_RUNLEN_MAX);
+    thresh.rspill_runlen_max =
+        clamp_t(uint8_t, thresh.rspill_runlen_max, SP3_RSPILL_RUNLEN_MIN, SP3_RSPILL_RUNLEN_MAX);
 
-    thresh.rspill_runlen_min = clamp_t(uint8_t, thresh.rspill_runlen_min,
-                                       SP3_RSPILL_RUNLEN_MIN, thresh.rspill_runlen_max);
+    thresh.rspill_runlen_min =
+        clamp_t(uint8_t, thresh.rspill_runlen_min, SP3_RSPILL_RUNLEN_MIN, thresh.rspill_runlen_max);
 
-    thresh.rspill_wlen_max = clamp_t(size_t, thresh.rspill_wlen_max,
-                                     SP3_RSPILL_WLEN_MIN, SP3_RSPILL_WLEN_MAX);
+    thresh.rspill_wlen_max =
+        clamp_t(size_t, thresh.rspill_wlen_max, SP3_RSPILL_WLEN_MIN, SP3_RSPILL_WLEN_MAX);
 
     /* leaf node compaction settings */
     v = sp->rp->csched_leaf_comp_params;
@@ -612,14 +610,14 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.lcomp_split_keys = SP3_LCOMP_SPLIT_KEYS_DEFAULT;
     }
 
-    thresh.lcomp_runlen_max = clamp_t(uint, thresh.lcomp_runlen_max,
-                                      SP3_LCOMP_RUNLEN_MAX_MIN, SP3_LCOMP_RUNLEN_MAX_MAX);
+    thresh.lcomp_runlen_max =
+        clamp_t(uint, thresh.lcomp_runlen_max, SP3_LCOMP_RUNLEN_MAX_MIN, SP3_LCOMP_RUNLEN_MAX_MAX);
 
-    thresh.lcomp_join_pct = clamp_t(uint, thresh.lcomp_join_pct,
-                                    SP3_LCOMP_JOIN_PCT_MIN, SP3_LCOMP_JOIN_PCT_MAX);
+    thresh.lcomp_join_pct =
+        clamp_t(uint, thresh.lcomp_join_pct, SP3_LCOMP_JOIN_PCT_MIN, SP3_LCOMP_JOIN_PCT_MAX);
 
-    thresh.lcomp_split_keys = clamp_t(uint, thresh.lcomp_split_keys,
-                                      SP3_LCOMP_SPLIT_KEYS_MIN, SP3_LCOMP_SPLIT_KEYS_MAX);
+    thresh.lcomp_split_keys =
+        clamp_t(uint, thresh.lcomp_split_keys, SP3_LCOMP_SPLIT_KEYS_MIN, SP3_LCOMP_SPLIT_KEYS_MAX);
 
     /* leaf node length settings */
     v = sp->rp->csched_leaf_len_params;
@@ -635,11 +633,11 @@ sp3_refresh_thresholds(struct sp3 *sp)
         thresh.llen_idlem = SP3_LLEN_IDLEM_DEFAULT;
     }
 
-    thresh.llen_runlen_max = clamp_t(uint8_t, thresh.llen_runlen_max,
-                                     SP3_LLEN_RUNLEN_MIN, SP3_LLEN_RUNLEN_MAX);
+    thresh.llen_runlen_max =
+        clamp_t(uint8_t, thresh.llen_runlen_max, SP3_LLEN_RUNLEN_MIN, SP3_LLEN_RUNLEN_MAX);
 
-    thresh.llen_runlen_min = clamp_t(uint8_t, thresh.llen_runlen_min,
-                                     SP3_LLEN_RUNLEN_MIN, thresh.llen_runlen_max);
+    thresh.llen_runlen_min =
+        clamp_t(uint8_t, thresh.llen_runlen_min, SP3_LLEN_RUNLEN_MIN, thresh.llen_runlen_max);
 
     /* vgroup leaf-scatter remediation settings
      */
@@ -710,8 +708,8 @@ static void
 sp3_rb_insert(struct rb_root *root, struct sp3_rbe *new_node)
 {
     struct rb_node **link = &root->rb_node;
-    struct rb_node * parent = 0;
-    uint64_t         weight = new_node->rbe_weight;
+    struct rb_node *parent = 0;
+    uint64_t weight = new_node->rbe_weight;
 
     assert(RB_EMPTY_NODE(&new_node->rbe_node));
 
@@ -1226,7 +1224,7 @@ sp3_process_worklist(struct sp3 *sp, struct list_head *listp)
 static void
 sp3_trees_add(struct sp3 *sp)
 {
-    struct cn_tree * tree, *tmp;
+    struct cn_tree *tree, *tmp;
     struct list_head list;
 
     INIT_LIST_HEAD(&list);
@@ -1430,11 +1428,11 @@ sp3_work_progress(struct cn_compaction_work *w)
 
 static void
 sp3_comp_thread_name(
-    char *              buf,
-    size_t              bufsz,
-    enum cn_action      action,
-    enum cn_rule        rule,
-    uint64_t            nodeid)
+    char *buf,
+    size_t bufsz,
+    enum cn_action action,
+    enum cn_rule rule,
+    uint64_t nodeid)
 {
     const char *a = "XX";
     const char *r = "XX";
@@ -1545,7 +1543,7 @@ sp3_comp_thread_name(
 }
 
 static merr_t
-sp3_job_serialize(struct sts_job *const job, void *const arg)
+sp3_job_serialize(struct sts_job * const job, void * const arg)
 {
     bool bad;
     ulong tm;
@@ -1577,22 +1575,20 @@ sp3_job_serialize(struct sts_job *const job, void *const arg)
     bad |= !cJSON_AddNumberToObject(node, "qnum", w->cw_qnum);
     bad |= !cJSON_AddNumberToObject(node, "busy", atomic_read(&w->cw_node->tn_busycnt) >> 16);
     bad |= !cJSON_AddNumberToObject(node, "kvsets", w->cw_kvset_cnt);
-    bad |= !cJSON_AddNumberToObject(node, "allocated_length_mb",
-            cn_ns_alen(&w->cw_ns) >> MB_SHIFT);
-    bad |= !cJSON_AddNumberToObject(node, "compacted_length_mb",
-            cn_ns_clen(&w->cw_ns) >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "allocated_length_mb", cn_ns_alen(&w->cw_ns) >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(node, "compacted_length_mb", cn_ns_clen(&w->cw_ns) >> MB_SHIFT);
     bad |= !cJSON_AddNumberToObject(node, "pcap", w->cw_ns.ns_pcap);
     bad |= !cJSON_AddNumberToObject(node, "compc", w->cw_compc);
     bad |= !cJSON_AddNumberToObject(node, "dgen", w->cw_dgen_hi_min);
     bad |= !cJSON_AddNumberToObject(node, "hblocks", w->cw_nh);
     bad |= !cJSON_AddNumberToObject(node, "kblocks", w->cw_nk);
     bad |= !cJSON_AddNumberToObject(node, "vblocks", w->cw_nv);
-    bad |= !cJSON_AddNumberToObject(node, "root_allocated_length_mb",
-            w->cw_est.cwe_samp.r_alen >> MB_SHIFT);
-    bad |= !cJSON_AddNumberToObject(node, "leaf_allocated_length_mb",
-            w->cw_est.cwe_samp.l_alen >> MB_SHIFT);
-    bad |= !cJSON_AddNumberToObject(node, "leaf_compacted_length_mb",
-            w->cw_est.cwe_samp.l_good >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(
+        node, "root_allocated_length_mb", w->cw_est.cwe_samp.r_alen >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(
+        node, "leaf_allocated_length_mb", w->cw_est.cwe_samp.l_alen >> MB_SHIFT);
+    bad |= !cJSON_AddNumberToObject(
+        node, "leaf_compacted_length_mb", w->cw_est.cwe_samp.l_good >> MB_SHIFT);
     bad |= !cJSON_AddStringToObject(node, "wmesg", sts_job_wmesg_get(job));
     bad |= !cJSON_AddNumberToObject(node, "progress", sts_job_progress_get(job));
     bad |= !cJSON_AddStringToObject(node, "time", tmbuf);
@@ -1610,8 +1606,8 @@ sp3_job_serialize(struct sts_job *const job, void *const arg)
 
 static enum rest_status
 rest_csched_sp3_get(
-    const struct rest_request *const req,
-    struct rest_response *const resp,
+    const struct rest_request * const req,
+    struct rest_response * const resp,
     void *arg)
 {
     char *str;
@@ -1629,32 +1625,33 @@ rest_csched_sp3_get(
 
     err = rest_params_get(req->rr_params, "pretty", &pretty, false);
     if (ev(err))
-        return rest_response_perror(resp, REST_STATUS_BAD_REQUEST,
-            "The 'pretty' query parameter must be a boolean", merr(EINVAL));
+        return rest_response_perror(
+            resp, REST_STATUS_BAD_REQUEST, "The 'pretty' query parameter must be a boolean",
+            merr(EINVAL));
 
     root = cJSON_CreateArray();
     if (ev(!root))
-        return rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        return rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
 
     err = sts_foreach_job(sp->sts, sp3_job_serialize, root);
     if (ev(err)) {
         switch (merr_errno(err)) {
         case ENOMEM:
-            status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-                err);
+            status =
+                rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", err);
             goto out;
         default:
-            status = rest_response_perror(resp, REST_STATUS_INTERNAL_SERVER_ERROR,
-                "Unhandled error", err);
+            status = rest_response_perror(
+                resp, REST_STATUS_INTERNAL_SERVER_ERROR, "Unhandled error", err);
             goto out;
         }
     }
 
     str = (pretty ? cJSON_Print : cJSON_PrintUnformatted)(root);
     if (ev(!str)) {
-        status = rest_response_perror(resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory",
-            merr(ENOMEM));
+        status = rest_response_perror(
+            resp, REST_STATUS_SERVICE_UNAVAILABLE, "Out of memory", merr(ENOMEM));
         goto out;
     }
 
@@ -1693,16 +1690,12 @@ static void
 sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum)
 {
     struct cn_tree_node *tn = w->cw_node;
-    struct sp3_tree *    spt = tree2spt(w->cw_tree);
+    struct sp3_tree *spt = tree2spt(w->cw_tree);
 
     assert(qnum < SP3_QNUM_MAX);
 
     sp3_comp_thread_name(
-        w->cw_threadname,
-        sizeof(w->cw_threadname),
-        w->cw_action,
-        w->cw_rule,
-        tn->tn_nodeid);
+        w->cw_threadname, sizeof(w->cw_threadname), w->cw_action, w->cw_rule, tn->tn_nodeid);
 
     w->cw_iter_flags = kvset_iter_flag_fullscan;
     w->cw_io_workq = NULL;
@@ -1828,12 +1821,12 @@ sp3_check_roots(struct sp3 *sp, uint qnum)
 static void
 sp3_rb_dump(struct sp3 *sp, uint tx, uint count_max)
 {
-    struct rb_root *     root;
-    struct rb_node *     rbn;
-    struct sp3_rbe *     rbe;
-    struct sp3_node *    spn;
+    struct rb_root *root;
+    struct rb_node *rbn;
+    struct sp3_rbe *rbe;
+    struct sp3_node *spn;
     struct cn_tree_node *tn;
-    uint                 count;
+    uint count;
 
     if (tx >= NELEM(sp->rbt))
         return;
@@ -2045,11 +2038,9 @@ sp3_tree_shape_check(struct sp3 *sp)
     samp_bad = sp->samp_curr > sp->samp_max;
 
     if (log || sp->shape_samp_bad != samp_bad || samp_bad) {
-        log_info("current samp %.3lf is %s max %.3lf (target %.3lf)",
-                 scale2dbl(sp->samp_curr),
-                 samp_bad ? "above" : "below",
-                 scale2dbl(sp->samp_max),
-                 scale2dbl(sp->samp_targ));
+        log_info(
+            "current samp %.3lf is %s max %.3lf (target %.3lf)", scale2dbl(sp->samp_curr),
+            samp_bad ? "above" : "below", scale2dbl(sp->samp_max), scale2dbl(sp->samp_targ));
         sp->shape_samp_bad = samp_bad;
     }
 
@@ -2062,15 +2053,16 @@ sp3_tree_shape_check(struct sp3 *sp)
 /* spn_rbe must be first element in sp3_node struct in order for
  * '(void *)(rbe - tx)' to map rbe back to the sp3_node struct.
  */
-static_assert(offsetof(struct sp3_node, spn_rbe) == 0,
-              "spn_rbe must be first field in struct sp3_node");
+static_assert(
+    offsetof(struct sp3_node, spn_rbe) == 0,
+    "spn_rbe must be first field in struct sp3_node");
 
 static bool
 sp3_check_rb_tree(struct sp3 *sp, enum sp3_work_type wtype, uint64_t threshold, uint qnum)
 {
     struct rb_root *root;
     struct rb_node *rbn;
-    uint            debug;
+    uint debug;
 
     assert(wtype < NELEM(sp->rbt));
 
@@ -2216,8 +2208,8 @@ sp3_qos_check(struct sp3 *sp)
         log_info(
             "root_sensor=%u rootmax=%u rspill_dt_max=%lu "
             "samp_curr=%.3f samp_targ=%.3f lpct_targ=%.3f",
-            sval, rootmax, rspill_dt_max,
-            scale2dbl(sp->samp_curr), scale2dbl(sp->samp_targ), scale2dbl(sp->lpct_targ));
+            sval, rootmax, rspill_dt_max, scale2dbl(sp->samp_curr), scale2dbl(sp->samp_targ),
+            scale2dbl(sp->lpct_targ));
     }
 }
 
@@ -2234,8 +2226,9 @@ sp3_schedule(struct sp3 *sp)
      * after a sufficient number of jobs complete.
      */
     if (sp->jobs_started - sp->jobs_finished > sp->jobs_max) {
-        log_warn("possible job queue accounting bug (%u - %u > %u)",
-                 sp->jobs_started, sp->jobs_finished, sp->jobs_max);
+        log_warn(
+            "possible job queue accounting bug (%u - %u > %u)", sp->jobs_started, sp->jobs_finished,
+            sp->jobs_max);
         usleep(NSEC_PER_SEC / 3);
         return;
     }
@@ -2358,21 +2351,20 @@ static void
 sp3_ucomp_report(struct sp3 *sp, bool final)
 {
     if (final) {
-        log_info("user-initiated compaction %s: space_amp %.3lf",
-                 sp->ucomp_canceled ? "canceled" : "finished",
-                 scale2dbl(sp->samp_curr));
+        log_info(
+            "user-initiated compaction %s: space_amp %.3lf",
+            sp->ucomp_canceled ? "canceled" : "finished", scale2dbl(sp->samp_curr));
 
     } else {
         uint started = sp->jobs_started;
         uint finished = sp->jobs_finished;
 
-        log_info("user-initiated compaction in progress:"
-                 " jobs: active %u, started %u, finished %u;"
-                 " space_amp: current %.3lf, goal %.3lf, target %.3lf;",
-                 started - finished, started, finished,
-                 scale2dbl(sp->samp_curr),
-                 scale2dbl(sp->samp_lwm),
-                 scale2dbl(sp->samp_targ));
+        log_info(
+            "user-initiated compaction in progress:"
+            " jobs: active %u, started %u, finished %u;"
+            " space_amp: current %.3lf, goal %.3lf, target %.3lf;",
+            started - finished, started, finished, scale2dbl(sp->samp_curr),
+            scale2dbl(sp->samp_lwm), scale2dbl(sp->samp_targ));
     }
 }
 
@@ -2390,8 +2382,8 @@ sp3_ucomp_check(struct sp3 *sp)
      */
     if (sp->ucomp_active) {
         const bool no_ongoing_jobs = sp->jobs_started == sp->jobs_finished;
-        const bool completed = sp->ucomp_canceled ||
-                               (!sp->samp_reduce && (!sp->ucomp_full || no_ongoing_jobs));
+        const bool completed =
+            sp->ucomp_canceled || (!sp->samp_reduce && (!sp->ucomp_full || no_ongoing_jobs));
         const ulong now = jclock_ns;
 
         if (completed)
@@ -2412,8 +2404,9 @@ sp3_stats(struct sp3 *sp)
     if (!debug_stats(sp))
         return;
 
-    log_info("%8s %6s %12s %12s %7s %7s %8s %8s",
-             "rule", "jobs",  "keysin", "keysout", "kbrM", "kbwM", "vbrM", "vbwM");
+    log_info(
+        "%8s %6s %12s %12s %7s %7s %8s %8s", "rule", "jobs", "keysin", "keysout", "kbrM", "kbwM",
+        "vbrM", "vbwM");
 
     memset(&sp->sp_mstatsv[CN_RULE_NONE], 0, sizeof(sp->sp_mstatsv[0]));
 
@@ -2445,9 +2438,9 @@ sp3_stats(struct sp3 *sp)
     ru.ru_inblock -= sp->sp_rusage.ru_inblock;
     ru.ru_oublock -= sp->sp_rusage.ru_oublock;
 
-    log_info("minflt %lu  majflt %lu  nswap %lu  inM %lu  outM %lu",
-             ru.ru_minflt, ru.ru_majflt,ru.ru_nswap,
-             (ru.ru_inblock * 512) >> 20, (ru.ru_oublock * 512) >> 20);
+    log_info(
+        "minflt %lu  majflt %lu  nswap %lu  inM %lu  outM %lu", ru.ru_minflt, ru.ru_majflt,
+        ru.ru_nswap, (ru.ru_inblock * 512) >> 20, (ru.ru_oublock * 512) >> 20);
 }
 
 /*
@@ -2486,20 +2479,19 @@ sp3_update_samp(struct sp3 *sp)
         }
 
         if (!sp->samp_reduce) {
-            log_info("current samp %.3lf is below %s %.3lf, %s samp reduction disabled",
-                     scale2dbl(sp->samp_curr),
-                     lwm > sp->samp_lwm ? "hwm" : "lwm", scale2dbl(lwm),
-                     sp->ucomp_active ? "user-initiated" : "automatic");
+            log_info(
+                "current samp %.3lf is below %s %.3lf, %s samp reduction disabled",
+                scale2dbl(sp->samp_curr), lwm > sp->samp_lwm ? "hwm" : "lwm", scale2dbl(lwm),
+                sp->ucomp_active ? "user-initiated" : "automatic");
         }
     } else {
         const uint hwm = sp->ucomp_active ? sp->samp_lwm : sp->samp_hwm;
 
         if (sp->samp_curr >= hwm) {
-            log_info("current samp %.3lf is above %s %.3lf, %s samp reduction enabled",
-                     scale2dbl(sp->samp_curr),
-                     hwm < sp->samp_hwm ? "lwm" : "hwm",
-                     scale2dbl(hwm),
-                     hwm < sp->samp_hwm ? "user-initiated" : "automatic");
+            log_info(
+                "current samp %.3lf is above %s %.3lf, %s samp reduction enabled",
+                scale2dbl(sp->samp_curr), hwm < sp->samp_hwm ? "lwm" : "hwm", scale2dbl(hwm),
+                hwm < sp->samp_hwm ? "user-initiated" : "automatic");
             sp->samp_reduce = true;
         }
     }
@@ -2515,11 +2507,11 @@ sp3_monitor(struct work_struct *work)
 {
     struct sp3 *sp = container_of(work, struct sp3, mon_work);
 
-    struct periodic_check chk_qos     = { .interval = NSEC_PER_SEC / 3 };
-    struct periodic_check chk_sched   = { .interval = NSEC_PER_SEC * 3 };
+    struct periodic_check chk_qos = { .interval = NSEC_PER_SEC / 3 };
+    struct periodic_check chk_sched = { .interval = NSEC_PER_SEC * 3 };
     struct periodic_check chk_refresh = { .interval = NSEC_PER_SEC * 17 };
-    struct periodic_check chk_shape   = { .interval = NSEC_PER_SEC * 23 };
-    struct periodic_check chk_stats   = { .interval = NSEC_PER_SEC * 300 };
+    struct periodic_check chk_shape = { .interval = NSEC_PER_SEC * 23 };
+    struct periodic_check chk_stats = { .interval = NSEC_PER_SEC * 300 };
 
     chk_refresh.next = get_time_ns() + chk_refresh.interval;
     chk_stats.next = get_time_ns() + chk_stats.interval;
@@ -2825,9 +2817,9 @@ sp3_destroy(struct csched *handle)
 merr_t
 sp3_create(
     struct kvdb_rparams *rp,
-    const char *         kvdb_alias,
-    struct kvdb_health * health,
-    struct csched      **handle)
+    const char *kvdb_alias,
+    struct kvdb_health *health,
+    struct csched **handle)
 {
     static rest_handler *handlers[REST_METHOD_COUNT] = {
         [REST_METHOD_GET] = rest_csched_sp3_get,
@@ -2890,8 +2882,8 @@ sp3_create(
     sp->kvdb_alias = kvdb_alias;
 
     if (hse_gparams.gp_rest.enabled) {
-        err = rest_server_add_endpoint(REST_ENDPOINT_EXACT, handlers, sp, ENDPOINT_FMT_KVDB_CSCED,
-            kvdb_alias);
+        err = rest_server_add_endpoint(
+            REST_ENDPOINT_EXACT, handlers, sp, ENDPOINT_FMT_KVDB_CSCED, kvdb_alias);
         if (err) {
             log_errx("Failed to add REST endpoint (" ENDPOINT_FMT_KVDB_CSCED ")", err, kvdb_alias);
             goto err_exit;

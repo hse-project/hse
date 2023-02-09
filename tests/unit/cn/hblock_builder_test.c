@@ -5,14 +5,7 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-
-#include <hse/test/mock/mock_mpool.h>
-
-#include "cn/blk_list.h"
-#include "cn/hblock_builder.h"
-#include "cn/omf.h"
-
+#include <hse/error/merr.h>
 #include <hse/ikvdb/blk_list.h>
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/ikvdb/kvset_builder.h>
@@ -20,13 +13,18 @@
 #include <hse/util/alloc.h>
 #include <hse/util/assert.h>
 #include <hse/util/base.h>
-#include <hse/error/merr.h>
-#include <hse/util/key_util.h>
-#include <hse/util/page.h>
 #include <hse/util/hlog.h>
+#include <hse/util/key_util.h>
 #include <hse/util/keycmp.h>
+#include <hse/util/page.h>
 
+#include <hse/test/mock/mock_mpool.h>
+#include <hse/test/mtf/framework.h>
+
+#include "cn/blk_list.h"
+#include "cn/hblock_builder.h"
 #include "cn/kvset.h"
+#include "cn/omf.h"
 
 #define WORK_BUF_SIZE (100 * 1024)
 
@@ -35,7 +33,7 @@ static struct vgmap *vgmap;
 
 void *key_buf;
 void *kmd_buf;
-int   salt;
+int salt;
 
 struct mclass_policy mocked_mpolicy = {
     .mc_name = "capacity_only",
@@ -106,11 +104,7 @@ test_post(struct mtf_test_info *info)
 }
 
 merr_t
-add_ptomb(
-    struct hblock_builder *hbb,
-    uint klen,
-    uint kmdlen,
-    const void **pfx)
+add_ptomb(struct hblock_builder *hbb, uint klen, uint kmdlen, const void **pfx)
 {
     const void *kmd;
     const void *kdata;
@@ -243,10 +237,15 @@ MTF_DEFINE_UTEST_PREPOST(hblock_builder_test, add_ptomb_success, test_pre, test_
     ASSERT_EQ(190, omf_hbh_num_ptombs(hdr));
     ASSERT_EQ(1, omf_hbh_num_kblocks(hdr));
     ASSERT_EQ(3, omf_hbh_num_vblocks(hdr));
-    ASSERT_EQ(0, keycmp(pfx_max, pfx_max_len, (void *)hdr + HBLOCK_HDR_LEN -
-        2 * HSE_KVS_PFX_LEN_MAX, pfx_max_len));
-    ASSERT_EQ(0, keycmp(pfx_min, pfx_min_len, (void *)hdr + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX,
-        pfx_min_len));
+    ASSERT_EQ(
+        0,
+        keycmp(
+            pfx_max, pfx_max_len, (void *)hdr + HBLOCK_HDR_LEN - 2 * HSE_KVS_PFX_LEN_MAX,
+            pfx_max_len));
+    ASSERT_EQ(
+        0,
+        keycmp(
+            pfx_min, pfx_min_len, (void *)hdr + HBLOCK_HDR_LEN - HSE_KVS_PFX_LEN_MAX, pfx_min_len));
 
     hbb_destroy(bld);
 

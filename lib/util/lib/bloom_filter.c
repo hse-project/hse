@@ -19,14 +19,14 @@
  * successive iterative rotation of the hash.
  */
 #define BF_BKTSHIFT (9)
-#define BF_ROTL (11)
+#define BF_ROTL     (11)
 
 _Static_assert(BF_BKTSHIFT >= 9 && BF_BKTSHIFT <= 15, "BF_BKTSHIFT is too large or too small");
 _Static_assert(BF_ROTL >= 1 && BF_ROTL <= 63, "BF_ROTL is too large or too small");
 
 struct bf_prob_range {
-    uint32_t               bfpr_min;
-    uint32_t               bfpr_max;
+    uint32_t bfpr_min;
+    uint32_t bfpr_max;
     struct bf_bithash_desc bfpr_bhdesc;
 };
 
@@ -126,7 +126,6 @@ static const struct bf_prob_range bf_ranges[] = {
 };
 // clang-format on
 
-
 struct bf_bithash_desc
 bf_compute_bithash_est(uint32_t probability)
 {
@@ -153,11 +152,11 @@ bf_element_estimate(struct bf_bithash_desc desc, size_t size_in_bytes)
 
 void
 bf_filter_init(
-    struct bloom_filter *  filter,
+    struct bloom_filter *filter,
     struct bf_bithash_desc desc,
-    uint32_t               exp_elmts,
-    uint8_t *              storage,
-    size_t                 storage_sz)
+    uint32_t exp_elmts,
+    uint8_t *storage,
+    size_t storage_sz)
 {
     assert(IS_ALIGNED(storage_sz, PAGE_SIZE));
     assert(storage_sz >= PAGE_SIZE);

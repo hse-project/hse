@@ -19,28 +19,26 @@
 
 #include <stdint.h>
 
-#include <hse/util/event_counter.h>
-#include <hse/util/page.h>
+#include <hse/ikvdb/cn.h>
 #include <hse/logging/logging.h>
 #include <hse/util/assert.h>
-#include <hse/util/table.h>
+#include <hse/util/bin_heap.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/key_util.h>
 #include <hse/util/keycmp.h>
-#include <hse/util/bin_heap.h>
-
-#include <hse/ikvdb/cn.h>
+#include <hse/util/page.h>
+#include <hse/util/table.h>
 
 #include "cn/cn_cursor.h"
-
 #include "route.h"
 
 #define MTF_MOCK_IMPL_cn_tree_cursor
 
-#include "cn_tree_internal.h"
 #include "cn_tree_cursor.h"
-#include "kvset_internal.h"
-#include "kvset.h"
+#include "cn_tree_internal.h"
 #include "kv_iterator.h"
+#include "kvset.h"
+#include "kvset_internal.h"
 
 /*
  * Min heap comparator for forward iteration.
@@ -74,8 +72,8 @@ cn_kv_cmp_rev(const void *a_blob, const void *b_blob)
 {
     const struct cn_kv_item *a = a_blob;
     const struct cn_kv_item *b = b_blob;
-    size_t                   a_klen = a->kobj.ko_pfx_len + a->kobj.ko_sfx_len;
-    size_t                   b_klen = b->kobj.ko_pfx_len + b->kobj.ko_sfx_len;
+    size_t a_klen = a->kobj.ko_pfx_len + a->kobj.ko_sfx_len;
+    size_t b_klen = b->kobj.ko_pfx_len + b->kobj.ko_sfx_len;
 
     int rc;
 
@@ -109,7 +107,7 @@ cn_tree_kvset_refs(struct cn_tree_node *node, struct cn_level_cursor *lcur)
     lcur->cnlc_dgen_hi = lcur->cnlc_dgen_lo = 0;
     table_reset(tab);
 
-    list_for_each_entry (le, &node->tn_kvset_list, le_link) {
+    list_for_each_entry(le, &node->tn_kvset_list, le_link) {
         struct kvset *kvset = le->le_kvset;
         struct kvref *k;
         uint64_t dgen = kvset_get_dgen(kvset);
@@ -145,11 +143,10 @@ static bool
 cn_lcur_read(struct element_source *, void **);
 
 MTF_STATIC merr_t
-cn_lcur_init(
-    struct cn_level_cursor *lcur)
+cn_lcur_init(struct cn_level_cursor *lcur)
 {
-    struct cn_cursor       *cncur = lcur->cnlc_cncur;
-    struct table           *tab = lcur->cnlc_kvref_tab;
+    struct cn_cursor *cncur = lcur->cnlc_cncur;
+    struct table *tab = lcur->cnlc_kvref_tab;
     struct element_source **esrc;
 
     struct workqueue_struct *maint_wq = cn_get_maint_wq(cncur->cncur_cn);
@@ -200,9 +197,9 @@ cn_lcur_init(
         lcur->cnlc_bh = 0;
 
         lcur->cnlc_bh_max_cnt = bh_max_cnt;
-        err = bin_heap_create(lcur->cnlc_bh_max_cnt,
-                              cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp,
-                              &lcur->cnlc_bh);
+        err = bin_heap_create(
+            lcur->cnlc_bh_max_cnt, cncur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp,
+            &lcur->cnlc_bh);
         if (ev(err))
             return err;
     }
@@ -272,7 +269,8 @@ cn_tree_cursor_create(struct cn_cursor *cur)
     cur->cncur_first_read = 1;
 
     cur->cncur_dgen = lcur->cnlc_dgen_hi;
-    err = bin_heap_create(NUM_LEVELS, cur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->cncur_bh);
+    err =
+        bin_heap_create(NUM_LEVELS, cur->cncur_reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->cncur_bh);
 
 out:
     if (err) {
@@ -307,10 +305,7 @@ cn_tree_cursor_destroy(struct cn_cursor *cur)
 }
 
 MTF_STATIC merr_t
-cn_lcur_seek(
-    struct cn_level_cursor *lcur,
-    const void             *key,
-    uint32_t                len)
+cn_lcur_seek(struct cn_level_cursor *lcur, const void *key, uint32_t len)
 {
     merr_t err;
     int i;
@@ -351,9 +346,9 @@ cn_lcur_advance(struct cn_level_cursor *lcur)
 
     rmlock_rlock(&tree->ct_lock, &lock);
 
-    rtn_curr = cncur->cncur_reverse ?
-               route_map_lookup(tree->ct_route_map, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen) :
-               route_map_lookupGT(tree->ct_route_map, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen);
+    rtn_curr = cncur->cncur_reverse
+        ? route_map_lookup(tree->ct_route_map, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen)
+        : route_map_lookupGT(tree->ct_route_map, lcur->cnlc_next_ekey, lcur->cnlc_next_eklen);
 
     do {
         if (cncur->cncur_reverse) {
@@ -395,17 +390,16 @@ cn_lcur_advance(struct cn_level_cursor *lcur)
     if (lcur->cnlc_islast)
         return;
 
-    route_node_keycpy(rtn_ekey, lcur->cnlc_next_ekey,
-                      sizeof(lcur->cnlc_next_ekey),
-                      &lcur->cnlc_next_eklen);
+    route_node_keycpy(
+        rtn_ekey, lcur->cnlc_next_ekey, sizeof(lcur->cnlc_next_ekey), &lcur->cnlc_next_eklen);
 }
 
 static bool
 cn_lcur_read(struct element_source *es, void **element)
 {
     struct cn_level_cursor *lcur = container_of(es, struct cn_level_cursor, cnlc_es);
-    struct cn_kv_item      *popme;
-    bool                    more;
+    struct cn_kv_item *popme;
+    bool more;
 
     more = bin_heap_peek(lcur->cnlc_bh, (void **)&popme);
 
@@ -428,11 +422,7 @@ cn_lcur_read(struct element_source *es, void **element)
 }
 
 merr_t
-cn_tree_cursor_seek(
-    struct cn_cursor * cur,
-    const void *       key,
-    uint32_t           len,
-    struct kc_filter * filter)
+cn_tree_cursor_seek(struct cn_cursor *cur, const void *key, uint32_t len, struct kc_filter *filter)
 {
     struct cn_tree *tree = cn_get_tree(cur->cncur_cn);
     struct cn_level_cursor *lcur = &cur->cncur_lcur[1];
@@ -473,8 +463,8 @@ cn_tree_cursor_seek(
     } while (!lcur->cnlc_islast && !table_len(lcur->cnlc_kvref_tab));
 
     if (!lcur->cnlc_islast)
-        route_node_keycpy(rtn_ekey, lcur->cnlc_next_ekey,
-                          sizeof(lcur->cnlc_next_ekey), &lcur->cnlc_next_eklen);
+        route_node_keycpy(
+            rtn_ekey, lcur->cnlc_next_ekey, sizeof(lcur->cnlc_next_ekey), &lcur->cnlc_next_eklen);
 
     rmlock_runlock(lock);
 
@@ -526,7 +516,7 @@ cn_tree_cursor_active_kvsets(struct cn_cursor *cur, uint32_t *active, uint32_t *
         struct cn_level_cursor *lcur = &cur->cncur_lcur[i];
 
         *active += bin_heap_width(lcur->cnlc_bh);
-        *total  += table_len(lcur->cnlc_kvref_tab);
+        *total += table_len(lcur->cnlc_kvref_tab);
     }
 
     return 0;
@@ -597,7 +587,7 @@ drop_dups(struct cn_cursor *cur, struct key_obj *kobj)
 static int
 cur_item_pfx_cmp(struct cn_cursor *cur, struct cn_kv_item *item)
 {
-    int            rc;
+    int rc;
     struct key_obj ko_pfx;
 
     key2kobj(&ko_pfx, cur->cncur_pfx, cur->cncur_pfxlen);
@@ -658,15 +648,15 @@ cn_tree_cursor_advance_safe(struct cn_cursor *cur)
 merr_t
 cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof)
 {
-    struct cn_kv_item  *item;
-    uint64_t            seq;
-    bool                found;
-    const void *        vdata;
-    uint                vlen;
-    uint                complen;
-    int                 rc;
+    struct cn_kv_item *item;
+    uint64_t seq;
+    bool found;
+    const void *vdata;
+    uint vlen;
+    uint complen;
+    int rc;
     struct kv_iterator *kv_iter = 0;
-    struct key_obj      filter_ko = { 0 };
+    struct key_obj filter_ko = { 0 };
 
     if (ev(cur->cncur_merr))
         return cur->cncur_merr;
@@ -681,9 +671,9 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
 
     do {
         enum kmd_vtype vtype;
-        uint32_t       vbidx;
-        uint32_t       vboff;
-        bool           more;
+        uint32_t vbidx;
+        uint32_t vboff;
+        bool more;
 
         if (!cur->cncur_first_read) {
             cn_tree_cursor_advance_safe(cur);
@@ -715,15 +705,15 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
         kv_iter = kvset_cursor_es_h2r(item->src);
 
         do {
-            found = kvset_iter_next_vref(kv_iter, &item->vctx, &seq, &vtype, &vbidx,
-                                         &vboff, &vdata, &vlen, &complen);
+            found = kvset_iter_next_vref(
+                kv_iter, &item->vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen, &complen);
         } while (found && seq > cur->cncur_seqno);
 
         if (!found)
             continue; /* Key doesn't have a value in the cursor's view. */
 
-        cur->cncur_merr = kvset_iter_val_get(kv_iter, &item->vctx, vtype, vbidx,
-                                       vboff, &vdata, &vlen, &complen);
+        cur->cncur_merr =
+            kvset_iter_val_get(kv_iter, &item->vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
         if (ev(cur->cncur_merr))
             return cur->cncur_merr;
 
@@ -757,7 +747,6 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
         }
 
     } while (!found);
-
 
     elem->kce_kobj = item->kobj;
     kvs_vtuple_init(&elem->kce_vt, (void *)vdata, vlen);

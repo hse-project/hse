@@ -3,20 +3,17 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/util/assert.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/compression_lz4.h>
 #include <hse/logging/logging.h>
+#include <hse/util/assert.h>
+#include <hse/util/compression_lz4.h>
+#include <hse/util/event_counter.h>
 
 #if LZ4_VERSION_NUMBER < (10000 + 900 + 2)
 #error "Need LZ4 1.9.2 or higher"
 #endif
 
-static
-uint
-compress_lz4_estimate(
-    const void *data,
-    uint        len)
+static uint
+compress_lz4_estimate(const void *data, uint len)
 {
     if (!len)
         return 0;
@@ -28,14 +25,8 @@ compress_lz4_estimate(
     return (uint)LZ4_compressBound((int)len);
 }
 
-static
-merr_t
-compress_lz4_compress(
-    const void *src,
-    uint        src_len,
-    void       *dst,
-    uint        dst_capacity,
-    uint       *dst_len)
+static merr_t
+compress_lz4_compress(const void *src, uint src_len, void *dst, uint dst_capacity, uint *dst_len)
 {
     int len;
 
@@ -57,14 +48,8 @@ compress_lz4_compress(
     return (len < 1) ? merr(EFBIG) : 0;
 }
 
-static
-merr_t
-compress_lz4_decompress(
-    const void *src,
-    uint        src_len,
-    void       *dst,
-    uint        dst_capacity,
-    uint       *dst_len)
+static merr_t
+compress_lz4_decompress(const void *src, uint src_len, void *dst, uint dst_capacity, uint *dst_len)
 {
     int len;
 
@@ -85,9 +70,10 @@ compress_lz4_decompress(
      * version of lz4, or you've unwittingly linked against a buggy version
      * (i.e., any version prior to v1.9.2).
      */
-    if (HSE_UNLIKELY( len < 1 )) {
-        log_err("slen %u, cap %u, len %d, src %p, dst %p, ver %s",
-                src_len, dst_capacity, len, src, dst, LZ4_versionString());
+    if (HSE_UNLIKELY(len < 1)) {
+        log_err(
+            "slen %u, cap %u, len %d, src %p, dst %p, ver %s", src_len, dst_capacity, len, src, dst,
+            LZ4_versionString());
 
         return merr(EFBIG);
     }
@@ -98,7 +84,7 @@ compress_lz4_decompress(
 }
 
 struct compress_ops compress_lz4_ops HSE_READ_MOSTLY = {
-    .cop_estimate   = compress_lz4_estimate,
-    .cop_compress   = compress_lz4_compress,
+    .cop_estimate = compress_lz4_estimate,
+    .cop_compress = compress_lz4_compress,
     .cop_decompress = compress_lz4_decompress,
 };

@@ -13,13 +13,13 @@
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 
-#include <hse/hse.h>
 #include <hse/experimental.h>
+#include <hse/hse.h>
 #include <hse/limits.h>
 #include <hse/types.h>
 
-#include <hse/cli/rest/client.h>
 #include <hse/cli/rest/api.h>
+#include <hse/cli/rest/client.h>
 #include <hse/error/merr.h>
 #include <hse/rest/headers.h>
 #include <hse/rest/params.h>
@@ -42,11 +42,11 @@ status_to_error(const long status)
 static merr_t
 copy_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err;
     const char **out = arg;
@@ -65,11 +65,11 @@ copy_cb(
 static merr_t
 check_status_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     const long *needed = arg;
 
@@ -77,31 +77,32 @@ check_status_cb(
 }
 
 merr_t
-rest_get_param(char **const value, const char *const param, bool pretty)
+rest_get_param(char ** const value, const char * const param, bool pretty)
 {
     if (!param || !value)
         return merr(EINVAL);
 
     *value = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, value, "/params/%s?pretty=%s", param,
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, value, "/params/%s?pretty=%s", param,
         QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
-rest_get_params(char **const config, const bool pretty)
+rest_get_params(char ** const config, const bool pretty)
 {
     if (!config)
         return merr(EINVAL);
 
     *config = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, config, "/params?pretty=%s",
-        QUERY_VALUE_FROM_BOOL(pretty));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, config, "/params?pretty=%s", QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
-rest_set_param(const char *const param, const char *const value)
+rest_set_param(const char * const param, const char * const value)
 {
     struct curl_slist *headers = NULL;
     long status = REST_STATUS_CREATED;
@@ -109,29 +110,29 @@ rest_set_param(const char *const param, const char *const value)
     if (!param || !value)
         return merr(EINVAL);
 
-    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-        REST_APPLICATION_JSON));
+    headers = curl_slist_append(
+        headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON));
     if (!headers)
         return merr(ENOMEM);
 
-    return rest_client_fetch("PUT", headers, value, strlen(value), check_status_cb, &status,
-        "/params/%s", param);
+    return rest_client_fetch(
+        "PUT", headers, value, strlen(value), check_status_cb, &status, "/params/%s", param);
 }
 
 merr_t
-rest_kvdb_cancel_compaction(const char *const alias)
+rest_kvdb_cancel_compaction(const char * const alias)
 {
     long status = REST_STATUS_ACCEPTED;
 
     if (!alias)
         return merr(EINVAL);
 
-    return rest_client_fetch("DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact",
-        alias);
+    return rest_client_fetch(
+        "DELETE", NULL, NULL, 0, check_status_cb, &status, "/kvdbs/%s/compact", alias);
 }
 
 merr_t
-rest_kvdb_compact(const char *const alias, bool full)
+rest_kvdb_compact(const char * const alias, bool full)
 {
     long status = REST_STATUS_ACCEPTED;
     const char *fmt = "/kvdbs/%s/compact?full=%s";
@@ -139,12 +140,12 @@ rest_kvdb_compact(const char *const alias, bool full)
     if (!alias)
         return merr(EINVAL);
 
-    return rest_client_fetch("POST", NULL, NULL, 0, check_status_cb, &status, fmt,
-                             alias, QUERY_VALUE_FROM_BOOL(full));
+    return rest_client_fetch(
+        "POST", NULL, NULL, 0, check_status_cb, &status, fmt, alias, QUERY_VALUE_FROM_BOOL(full));
 }
 
 void
-rest_kvdb_free_kvs_names(char **const namev)
+rest_kvdb_free_kvs_names(char ** const namev)
 {
     free(namev);
 }
@@ -152,11 +153,11 @@ rest_kvdb_free_kvs_names(char **const namev)
 static merr_t
 kvdb_get_compaction_status_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err;
     cJSON *body, *samp_lwm_pct, *samp_hwm_pct, *samp_curr_pct, *active, *canceled;
@@ -201,25 +202,25 @@ kvdb_get_compaction_status_cb(
 
 merr_t
 rest_kvdb_get_compaction_status(
-    struct hse_kvdb_compact_status *const status,
-    const char *const alias)
+    struct hse_kvdb_compact_status * const status,
+    const char * const alias)
 {
 
     if (!alias)
         return merr(EINVAL);
 
-    return rest_client_fetch("GET", NULL, NULL, 0, kvdb_get_compaction_status_cb, status,
-        "/kvdbs/%s/compact", alias);
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, kvdb_get_compaction_status_cb, status, "/kvdbs/%s/compact", alias);
 }
 
 static merr_t
 kvdb_get_configured_mclasses_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     int len;
     merr_t err;
@@ -262,20 +263,21 @@ kvdb_get_configured_mclasses_cb(
 
 merr_t
 rest_kvdb_get_configured_mclasses(
-    bool configured [static HSE_MCLASS_COUNT],
-    const char *const alias)
+    bool configured[static HSE_MCLASS_COUNT],
+    const char * const alias)
 {
     if (!alias || !configured)
         return merr(EINVAL);
 
     memset(configured, 0, HSE_MCLASS_COUNT * sizeof(*configured));
 
-    return rest_client_fetch("GET", NULL, NULL, 0, kvdb_get_configured_mclasses_cb, configured,
-        "/kvdbs/%s/mclass", alias);
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, kvdb_get_configured_mclasses_cb, configured, "/kvdbs/%s/mclass",
+        alias);
 }
 
 merr_t
-rest_kvdb_get_home(char **const home, const char *const alias)
+rest_kvdb_get_home(char ** const home, const char * const alias)
 {
     if (!alias || !home)
         return merr(EINVAL);
@@ -291,11 +293,11 @@ struct kvdb_get_kvs_names_arg {
 static merr_t
 kvdb_get_kvs_names_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     size_t len;
     merr_t err;
@@ -352,25 +354,25 @@ out:
 }
 
 merr_t
-rest_kvdb_get_kvs_names(size_t *const namec, char ***const namev, const char *const alias)
+rest_kvdb_get_kvs_names(size_t * const namec, char *** const namev, const char * const alias)
 {
     struct kvdb_get_kvs_names_arg arg;
 
     arg.namec = namec;
     arg.namev = namev;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, kvdb_get_kvs_names_cb, &arg, "/kvdbs/%s/kvs",
-        alias);
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, kvdb_get_kvs_names_cb, &arg, "/kvdbs/%s/kvs", alias);
 }
 
 static merr_t
 kvdb_get_mclass_info_cb(
     const long status,
-    const char *const headers,
+    const char * const headers,
     const size_t headers_len,
-    const char *const output,
+    const char * const output,
     const size_t output_len,
-    void *const arg)
+    void * const arg)
 {
     merr_t err;
     cJSON *body, *path, *used_bytes, *allocated_bytes;
@@ -409,8 +411,8 @@ kvdb_get_mclass_info_cb(
 
 merr_t
 rest_kvdb_get_mclass_info(
-    struct hse_mclass_info *const info,
-    const char *const alias,
+    struct hse_mclass_info * const info,
+    const char * const alias,
     const enum hse_mclass mclass)
 {
     if (!alias || !info)
@@ -418,15 +420,16 @@ rest_kvdb_get_mclass_info(
 
     memset(info, 0, sizeof(*info));
 
-    return rest_client_fetch("GET", NULL, NULL, 0, kvdb_get_mclass_info_cb, info,
-        "/kvdbs/%s/mclass/%s", alias, hse_mclass_name_get(mclass));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, kvdb_get_mclass_info_cb, info, "/kvdbs/%s/mclass/%s", alias,
+        hse_mclass_name_get(mclass));
 }
 
 merr_t
 rest_kvdb_get_param(
-    char **const value,
-    const char *const alias,
-    const char *const param,
+    char ** const value,
+    const char * const alias,
+    const char * const param,
     const bool pretty)
 {
     if (!alias || !param || !value)
@@ -434,24 +437,26 @@ rest_kvdb_get_param(
 
     *value = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, value, "/kvdbs/%s/params/%s?pretty=%s",
-        alias, param, QUERY_VALUE_FROM_BOOL(pretty));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, value, "/kvdbs/%s/params/%s?pretty=%s", alias, param,
+        QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
-rest_kvdb_get_params(char **const config, const char *const alias, const bool pretty)
+rest_kvdb_get_params(char ** const config, const char * const alias, const bool pretty)
 {
     if (!alias || !config)
         return merr(EINVAL);
 
     *config = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, config, "/kvdbs/%s/params?pretty=%s",
-        alias, QUERY_VALUE_FROM_BOOL(pretty));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, config, "/kvdbs/%s/params?pretty=%s", alias,
+        QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
-rest_kvdb_set_param(const char *const alias, const char *const param, const char *const value)
+rest_kvdb_set_param(const char * const alias, const char * const param, const char * const value)
 {
     struct curl_slist *headers = NULL;
     long status = REST_STATUS_CREATED;
@@ -459,21 +464,22 @@ rest_kvdb_set_param(const char *const alias, const char *const param, const char
     if (!alias || !param || !value)
         return merr(EINVAL);
 
-    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-        REST_APPLICATION_JSON));
+    headers = curl_slist_append(
+        headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON));
     if (!headers)
         return merr(ENOMEM);
 
-    return rest_client_fetch("PUT", headers, value, strlen(value), check_status_cb, &status,
-        "/kvdbs/%s/params/%s", alias, param);
+    return rest_client_fetch(
+        "PUT", headers, value, strlen(value), check_status_cb, &status, "/kvdbs/%s/params/%s",
+        alias, param);
 }
 
 merr_t
 rest_kvs_get_param(
-    char **const value,
-    const char *const alias,
-    const char *const name,
-    const char *const param,
+    char ** const value,
+    const char * const alias,
+    const char * const name,
+    const char * const param,
     const bool pretty)
 {
     if (!alias || !name || !param || !value)
@@ -481,32 +487,34 @@ rest_kvs_get_param(
 
     *value = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, value,
-        "/kvdbs/%s/kvs/%s/params/%s?pretty=%s", alias, name, param, QUERY_VALUE_FROM_BOOL(pretty));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, value, "/kvdbs/%s/kvs/%s/params/%s?pretty=%s", alias, name,
+        param, QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
 rest_kvs_get_params(
-    const char *const alias,
-    const char *const name,
+    const char * const alias,
+    const char * const name,
     const bool pretty,
-    char **const config)
+    char ** const config)
 {
     if (!alias || !name || !config)
         return merr(EINVAL);
 
     *config = NULL;
 
-    return rest_client_fetch("GET", NULL, NULL, 0, copy_cb, config,
-        "/kvdbs/%s/kvs/%s/params?pretty=%s", alias, name, QUERY_VALUE_FROM_BOOL(pretty));
+    return rest_client_fetch(
+        "GET", NULL, NULL, 0, copy_cb, config, "/kvdbs/%s/kvs/%s/params?pretty=%s", alias, name,
+        QUERY_VALUE_FROM_BOOL(pretty));
 }
 
 merr_t
 rest_kvs_set_param(
-    const char *const alias,
-    const char *const name,
-    const char *const param,
-    const char *const value)
+    const char * const alias,
+    const char * const name,
+    const char * const param,
+    const char * const value)
 {
     struct curl_slist *headers = NULL;
     long status = REST_STATUS_CREATED;
@@ -514,11 +522,12 @@ rest_kvs_set_param(
     if (!alias || !name || !param || !value)
         return merr(EINVAL);
 
-    headers = curl_slist_append(headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE,
-        REST_APPLICATION_JSON));
+    headers = curl_slist_append(
+        headers, REST_MAKE_STATIC_HEADER(REST_HEADER_CONTENT_TYPE, REST_APPLICATION_JSON));
     if (!headers)
         return merr(ENOMEM);
 
-    return rest_client_fetch("PUT", headers, value, strlen(value), check_status_cb, &status,
+    return rest_client_fetch(
+        "PUT", headers, value, strlen(value), check_status_cb, &status,
         "/kvdbs/%s/kvs/%s/params/%s", alias, name, param);
 }

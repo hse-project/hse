@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <hse/hse.h>
 
@@ -23,7 +23,7 @@
 
 #include "kvs_helper.h"
 
-static int  err;
+static int err;
 static bool killthreads;
 
 void
@@ -36,33 +36,29 @@ put(void *arg)
         p++;
         hse_kvs_put(targ->kvs, 0, NULL, "abc", 3, &p, sizeof(p));
     }
-
 }
 
 void
 txget(void *arg)
 {
-    struct kh_thread_arg  *targ = arg;
-    struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
-    uint64_t            val1, val2;
-    bool                found;
-    size_t              vlen;
+    struct kh_thread_arg *targ = arg;
+    struct hse_kvdb_txn *txn = hse_kvdb_txn_alloc(targ->kvdb);
+    uint64_t val1, val2;
+    bool found;
+    size_t vlen;
 
     while (!killthreads) {
         val1 = val2 = 0;
 
         hse_kvdb_txn_begin(targ->kvdb, txn);
-        hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val1,
-            sizeof(val1), &vlen);
+        hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val1, sizeof(val1), &vlen);
         if (!found)
             continue;
         usleep(1000);
-        hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val2,
-            sizeof(val2), &vlen);
+        hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val2, sizeof(val2), &vlen);
 
         if (val1 != val2) {
-            printf("Value mismatch: val1 = %lu, val2 = %lu\n",
-                   val1, val2);
+            printf("Value mismatch: val1 = %lu, val2 = %lu\n", val1, val2);
             killthreads = true;
             err = 1;
             return;
@@ -78,11 +74,11 @@ int
 main(int argc, char **argv)
 {
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparms = { 0 };
-    struct svec         kvdb_oparms = { 0 };
-    struct svec         kvs_cparms = { 0 };
-    struct svec         kvs_oparms = { 0 };
-    const char *        mpool;
+    struct svec hse_gparms = { 0 };
+    struct svec kvdb_oparms = { 0 };
+    struct svec kvs_cparms = { 0 };
+    struct svec kvs_oparms = { 0 };
+    const char *mpool;
     int rc = 0;
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
@@ -103,8 +99,7 @@ main(int argc, char **argv)
             fatal(0, "unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n",
-            PG_KVDB_OPEN, argv[optind]);
+        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

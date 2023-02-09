@@ -7,36 +7,34 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/bonsai_tree.h>
-
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/key_hash.h>
-#include <hse/ikvdb/limits.h>
-#include <hse/ikvdb/cn.h>
-
 #include <hse/limits.h>
 
-#include "kcompact.h"
-#include "spill.h"
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/key_hash.h>
+#include <hse/ikvdb/kvset_builder.h>
+#include <hse/ikvdb/limits.h>
+#include <hse/util/alloc.h>
+#include <hse/util/bonsai_tree.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
+#include "blk_list.h"
 #include "hblock_builder.h"
 #include "kblock_builder.h"
+#include "kcompact.h"
+#include "kvset.h"
+#include "kvset_builder_internal.h"
+#include "spill.h"
 #include "vblock_builder.h"
 #include "vblock_reader.h"
-#include "blk_list.h"
-#include "kvset_builder_internal.h"
-#include "kvset.h"
 
 merr_t
 kvset_builder_create(
     struct kvset_builder **bld_out,
-    struct cn *            cn,
-    struct perfc_set *     pc,
-    uint64_t               vgroup)
+    struct cn *cn,
+    struct perfc_set *pc,
+    uint64_t vgroup)
 {
     struct kvset_builder *bld;
     merr_t err;
@@ -78,11 +76,11 @@ out:
 static int
 reserve_kmd(struct kmd_info *ki)
 {
-    uint initial = 16*1024;
+    uint initial = 16 * 1024;
     uint need = 256;
     uint min_size = ki->kmd_used + need;
     uint new_size;
-    uint8_t * new_mem;
+    uint8_t *new_mem;
 
     if (ki->kmd_size >= min_size)
         return 0;
@@ -113,7 +111,7 @@ merr_t
 kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
 {
     merr_t err = 0;
-    uint   klen;
+    uint klen;
 
     if (ev(!kobj))
         return merr(EINVAL);
@@ -123,7 +121,8 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
         return merr(EINVAL);
 
     if (self->key_stats.nptombs > 0) {
-        err = hbb_add_ptomb(self->hbb, kobj, self->hblk_kmd.kmd, self->hblk_kmd.kmd_used, &self->key_stats);
+        err = hbb_add_ptomb(
+            self->hbb, kobj, self->hblk_kmd.kmd, self->hblk_kmd.kmd_used, &self->key_stats);
         if (ev(err))
             return err;
 
@@ -133,7 +132,8 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
     }
 
     if (self->key_stats.nvals > 0) {
-        err = kbb_add_entry(self->kbb, kobj, self->kblk_kmd.kmd, self->kblk_kmd.kmd_used, &self->key_stats);
+        err = kbb_add_entry(
+            self->kbb, kobj, self->kblk_kmd.kmd, self->kblk_kmd.kmd_used, &self->key_stats);
         if (ev(err))
             return err;
     }
@@ -181,15 +181,15 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
  */
 merr_t
 kvset_builder_add_val(
-    struct kvset_builder   *self,
-    const struct key_obj   *kobj,
-    const void             *vdata,
-    uint                    vlen,
-    uint64_t                seq,
-    uint                    complen)
+    struct kvset_builder *self,
+    const struct key_obj *kobj,
+    const void *vdata,
+    uint vlen,
+    uint64_t seq,
+    uint complen)
 {
-    merr_t           err;
-    uint64_t         seqno_prev;
+    merr_t err;
+    uint64_t seqno_prev;
     struct kmd_info *ki = vdata == HSE_CORE_TOMB_PFX ? &self->hblk_kmd : &self->kblk_kmd;
 
     if (ev(reserve_kmd(ki)))
@@ -227,7 +227,8 @@ kvset_builder_add_val(
             return err;
 
         if (complen)
-            kmd_add_cval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
+            kmd_add_cval(
+                self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
         else
             kmd_add_val(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen);
 
@@ -265,12 +266,12 @@ kvset_builder_add_val(
  */
 merr_t
 kvset_builder_add_vref(
-    struct kvset_builder   *self,
-    uint64_t                seq,
-    uint                    vbidx,
-    uint                    vboff,
-    uint                    vlen,
-    uint                    complen)
+    struct kvset_builder *self,
+    uint64_t seq,
+    uint vbidx,
+    uint vboff,
+    uint vlen,
+    uint complen)
 {
     uint om_len = complen ? complen : vlen; /* on-media length */
 
@@ -278,7 +279,8 @@ kvset_builder_add_vref(
         return merr(ev(ENOMEM));
 
     if (complen > 0)
-        kmd_add_cval(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
+        kmd_add_cval(
+            self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen, complen);
     else
         kmd_add_val(self->kblk_kmd.kmd, &self->kblk_kmd.kmd_used, seq, vbidx, vboff, vlen);
 
@@ -322,10 +324,10 @@ kvset_builder_add_nonval(struct kvset_builder *self, uint64_t seq, enum kmd_vtyp
 void
 kvset_builder_adopt_vblocks(
     struct kvset_builder *self,
-    size_t                num_vblocks,
-    uint64_t             *vblock_ids,
-    uint64_t              vtotal,
-    struct vgmap         *vgmap)
+    size_t num_vblocks,
+    uint64_t *vblock_ids,
+    uint64_t vtotal,
+    struct vgmap *vgmap)
 {
     assert(self->vblk_list.idc == 0);
 
@@ -450,9 +452,10 @@ kvset_builder_finish(struct kvset_builder *imp)
         return err;
     }
 
-    err = hbb_finish(imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min,
-                     imp->seqno_max, imp->kblk_list.idc, imp->vblk_list.idc,
-                     hbb_get_nptombs(imp->hbb), kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
+    err = hbb_finish(
+        imp->hbb, &imp->hblk_id, imp->vgmap, NULL, NULL, imp->seqno_min, imp->seqno_max,
+        imp->kblk_list.idc, imp->vblk_list.idc, hbb_get_nptombs(imp->hbb),
+        kbb_get_composite_hlog(imp->kbb), NULL, NULL, 0);
     if (err) {
         struct mpool *mp = cn_get_mpool(imp->cn);
 
@@ -469,7 +472,7 @@ kvset_builder_finish(struct kvset_builder *imp)
 merr_t
 kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblks)
 {
-    merr_t           err;
+    merr_t err;
     struct blk_list *list;
 
     err = kvset_builder_finish(self);

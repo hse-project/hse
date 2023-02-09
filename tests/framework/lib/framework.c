@@ -3,8 +3,6 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
 #include <errno.h>
 #include <getopt.h>
 #include <limits.h>
@@ -14,15 +12,18 @@
 #include <string.h>
 #include <sysexits.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/ikvdb/hse_gparams.h>
 #include <hse/util/base.h>
 #include <hse/util/err_ctx.h>
-#include <hse/test/fixtures/scratch_directory.h>
 
-int         mtf_verify_flag;
-int         mtf_verify_line;
+#include <hse/test/fixtures/scratch_directory.h>
+#include <hse/test/mtf/framework.h>
+
+int mtf_verify_flag;
+int mtf_verify_line;
 const char *mtf_verify_file;
 
 char mtf_kvdb_home[PATH_MAX];
@@ -44,8 +45,8 @@ reset_mtf_test_coll_info(struct mtf_test_coll_info *tci)
 static inline unsigned long
 mtf_get_time_ns(void)
 {
-    int             rc;
-    unsigned long   result;
+    int rc;
+    unsigned long result;
     struct timespec ts;
 
     rc = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -66,7 +67,7 @@ mtf_time_delta_in_ms(unsigned long start, unsigned long stop)
  * Override in the event a test needs custom global parameters.
  */
 void HSE_WEAK
-mtf_get_global_params(size_t *const paramc, char ***const paramv)
+mtf_get_global_params(size_t * const paramc, char *** const paramv)
 {
     static char *gparams[] = { "rest.enabled=false" };
 
@@ -78,7 +79,7 @@ mtf_get_global_params(size_t *const paramc, char ***const paramv)
  * Override in the event a test needs to cleanup global parameters.
  */
 void HSE_WEAK
-mtf_cleanup_global_params(char **const paramv)
+mtf_cleanup_global_params(char ** const paramv)
 {
 }
 
@@ -104,40 +105,38 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 
     while (-1 != (c = getopt_long(argc, argv, "+:1:hC:l:", long_options, NULL))) {
         switch (c) {
-            case '1':
-                tci->tci_named = optarg;
-                break;
+        case '1':
+            tci->tci_named = optarg;
+            break;
 
-            case 'C':
-                argv_home = optarg;
-                break;
+        case 'C':
+            argv_home = optarg;
+            break;
 
-            case 'c':
-                /* [HSE_REVISIT] cheap_test uses -c, so this is a bit wonky
+        case 'c':
+            /* [HSE_REVISIT] cheap_test uses -c, so this is a bit wonky
                  * (note that we can only get here via --config).
                  */
-                config = optarg;
-                break;
+            config = optarg;
+            break;
 
-            case 'h':
-                printf("usage: %s [-l logging-level] [-1 testname] [-C home]\n", progname);
-                printf("usage: %s -h\n", progname);
-                exit(0);
+        case 'h':
+            printf("usage: %s [-l logging-level] [-1 testname] [-C home]\n", progname);
+            printf("usage: %s -h\n", progname);
+            exit(0);
 
-            case 'l':
-                hse_gparams.gp_logging.lp_level = atoi(optarg);
-                break;
+        case 'l':
+            hse_gparams.gp_logging.lp_level = atoi(optarg);
+            break;
 
-            case ':':
-                fprintf(
-                    stderr,
-                    "%s: invalid argument for option '-%c', use -h for help\n",
-                    progname,
-                    optopt);
-                exit(EX_USAGE);
+        case ':':
+            fprintf(
+                stderr, "%s: invalid argument for option '-%c', use -h for help\n", progname,
+                optopt);
+            exit(EX_USAGE);
 
-            default: /* pass on to test */
-                break;
+        default: /* pass on to test */
+            break;
         }
     }
 
@@ -146,8 +145,9 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     tci->tci_optind = optind;
 
     if (argv_home && !realpath(argv_home, mtf_kvdb_home)) {
-        fprintf(stderr, "%s: failed to resolve home directory %s: %s\n",
-            progname, argv_home, strerror(errno));
+        fprintf(
+            stderr, "%s: failed to resolve home directory %s: %s\n", progname, argv_home,
+            strerror(errno));
         return EX_USAGE;
     } else {
         /* If home wasn't provided, use a temporary directory. */
@@ -156,8 +156,9 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 
         err = scratch_directory_setup(progname, mtf_kvdb_home, sizeof(mtf_kvdb_home));
         if (err) {
-            fprintf(stderr, "%s: Failed to setup scratch directory: %s",
-                progname, merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
+            fprintf(
+                stderr, "%s: Failed to setup scratch directory: %s", progname,
+                merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
             return EX_CANTCREAT;
         }
     }
@@ -167,9 +168,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     err = hse_init(config, paramc, (const char **)paramv);
     if (err) {
         fprintf(
-            stderr,
-            "%s: hse_init failed: %s\n",
-            progname,
+            stderr, "%s: hse_init failed: %s\n", progname,
             merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
         return EX_SOFTWARE;
     }
@@ -181,9 +180,7 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     err = mtf_run_tests(tci);
     if (err) {
         fprintf(
-            stderr,
-            "%s: mtf_run_tests failed: %s\n",
-            progname,
+            stderr, "%s: mtf_run_tests failed: %s\n", progname,
             merr_strinfo(err, errbuf, sizeof(errbuf), err_ctx_strerror, NULL));
     }
 
@@ -210,11 +207,8 @@ mtf_run_tests_preamble(struct mtf_test_coll_info *tci)
     ti.ti_status = 1;
 
     mtf_print(
-        tci,
-        "[==========] Running %d test%s from collection %s.\n",
-        tci->tci_named ? 1 : tci->tci_num_tests,
-        tci->tci_named ? "" : "s",
-        tci->tci_coll_name);
+        tci, "[==========] Running %d test%s from collection %s.\n",
+        tci->tci_named ? 1 : tci->tci_num_tests, tci->tci_named ? "" : "s", tci->tci_coll_name);
 
     if (tci->tci_pre_run_hook && tci->tci_pre_run_hook(&ti)) {
         mtf_print(tci, "pre-run hook for %s failed, aborting run.\n", tci->tci_coll_name);
@@ -229,15 +223,15 @@ mtf_run_tests_preamble(struct mtf_test_coll_info *tci)
 int
 mtf_run_test(
     struct mtf_test_coll_info *tci,
-    int                        test_index,
-    int *                      success_cnt,
-    int *                      failed_cnt,
-    int *                      elapsed_time)
+    int test_index,
+    int *success_cnt,
+    int *failed_cnt,
+    int *elapsed_time)
 {
     struct mtf_test_info ti;
-    unsigned long        start, stop;
-    int                  elapsed;
-    int                  i = test_index;
+    unsigned long start, stop;
+    int elapsed;
+    int i = test_index;
 
     mtf_verify_flag = 0;
     ti.ti_coll = tci;
@@ -275,12 +269,8 @@ mtf_run_test(
 
     if (mtf_verify_flag)
         mtf_print(
-            tci,
-            "verify_flag check for test %s.%s failed\nat %s:%d.\n",
-            tci->tci_coll_name,
-            ti.ti_name,
-            mtf_verify_file,
-            mtf_verify_line);
+            tci, "verify_flag check for test %s.%s failed\nat %s:%d.\n", tci->tci_coll_name,
+            ti.ti_name, mtf_verify_file, mtf_verify_line);
 
     if (ti.ti_status && mtf_verify_flag == 0) {
         ++(*success_cnt);
@@ -321,9 +311,9 @@ mtf_run_tests_postamble(struct mtf_test_coll_info *tci)
 void
 mtf_run_tests_wrapup(
     struct mtf_test_coll_info *tci,
-    int                        success_cnt,
-    int                        failed_cnt,
-    int                        total_time)
+    int success_cnt,
+    int failed_cnt,
+    int total_time)
 {
     int i;
 
@@ -331,18 +321,14 @@ mtf_run_tests_wrapup(
         tci,
         "[==========] %d test%s from collection %s ran "
         "(%d ms total).\n",
-        tci->tci_named ? 1 : tci->tci_num_tests,
-        tci->tci_named ? "" : "s",
-        tci->tci_coll_name,
+        tci->tci_named ? 1 : tci->tci_num_tests, tci->tci_named ? "" : "s", tci->tci_coll_name,
         total_time);
 
     mtf_print(tci, "[  PASSED  ] %d test%s.\n", success_cnt, ((success_cnt == 1) ? "" : "s"));
 
     if (failed_cnt > 0) {
         mtf_print(
-            tci,
-            "[  FAILED  ] %d test%s, listed below:\n",
-            failed_cnt,
+            tci, "[  FAILED  ] %d test%s, listed below:\n", failed_cnt,
             ((failed_cnt == 1) ? "" : "s"));
         for (i = 0; i < failed_cnt; ++i) {
             mtf_print(tci, "[  FAILED  ] %s.%s\n", tci->tci_coll_name, tci->tci_failed_tests[i]);
@@ -354,10 +340,10 @@ mtf_run_tests_wrapup(
 merr_t
 mtf_run_tests(struct mtf_test_coll_info *tci)
 {
-    int       success_cnt = 0, failed_cnt = 0;
-    int       elapsed = 0, total_time = 0;
+    int success_cnt = 0, failed_cnt = 0;
+    int elapsed = 0, total_time = 0;
     hse_err_t err;
-    int       i;
+    int i;
 
     reset_mtf_test_coll_info(tci);
 

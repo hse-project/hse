@@ -13,8 +13,8 @@
 
 #include <bsd/string.h>
 
-#include <hse/error/merr.h>
 #include <hse/config/config.h>
+#include <hse/error/merr.h>
 #include <hse/ikvdb/kvdb_home.h>
 #include <hse/ikvdb/kvdb_rparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
@@ -52,11 +52,7 @@ path_join(const char *home, const char *path, char *buf, const size_t buf_sz)
 }
 
 merr_t
-kvdb_home_storage_path_get(
-    const char * home,
-    const char * path,
-    char *       buf,
-    const size_t buf_sz)
+kvdb_home_storage_path_get(const char *home, const char *path, char *buf, const size_t buf_sz)
 {
     INVARIANT(home);
     INVARIANT(path);
@@ -68,10 +64,10 @@ kvdb_home_storage_path_get(
 
 merr_t
 kvdb_home_storage_realpath_get(
-    const char * home,
-    const char * path,
-    char         buf[PATH_MAX],
-    bool         resolved_path)
+    const char *home,
+    const char *path,
+    char buf[PATH_MAX],
+    bool resolved_path)
 {
     merr_t err = 0;
 
@@ -166,7 +162,7 @@ kvdb_home_check_access(const char *home, enum kvdb_open_mode mode)
 }
 
 static merr_t
-kvdb_conf_validate(cJSON *const root)
+kvdb_conf_validate(cJSON * const root)
 {
     merr_t err;
     cJSON *kvs;

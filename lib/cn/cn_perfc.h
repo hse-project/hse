@@ -13,8 +13,8 @@
 
 #include <hse/kvdb_perfc.h>
 
-#include <hse/util/perfc.h>
 #include <hse/ikvdb/cn_perfc.h>
+#include <hse/util/perfc.h>
 
 struct cn;
 

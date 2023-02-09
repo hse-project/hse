@@ -32,23 +32,25 @@ main(int argc, char **argv)
 {
     char *kvdb_home, *kvs_name;
 
-    struct hse_kvdb *      kvdb;
-    struct hse_kvs *       kvs;
+    struct hse_kvdb *kvdb;
+    struct hse_kvs *kvs;
     struct hse_kvs_cursor *cursor = NULL;
 
-    const char * paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
-                             "rest.enabled=false", };
+    const char *paramv[] = {
+        "logging.destination=stdout",
+        "logging.level=3",
+        "rest.enabled=false",
+    };
     const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     char key[64], val[64];
 
-    int       i, cnt = 15;
-    bool      eof = false;
+    int i, cnt = 15;
+    bool eof = false;
     hse_err_t rc, rc2;
 
     const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
+    size_t cur_klen, cur_vlen;
 
     if (argc != 3)
         return usage(argv[0]);
@@ -101,10 +103,7 @@ main(int argc, char **argv)
 
         if (!eof)
             printf(
-                "key:%.*s\tval:%.*s\n",
-                (int)cur_klen,
-                (char *)cur_key,
-                (int)cur_vlen,
+                "key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key, (int)cur_vlen,
                 (char *)cur_val);
     }
 
@@ -121,8 +120,9 @@ main(int argc, char **argv)
 
     printf("After seek to key010:\n");
     printf("expected: key:%s\tval:%s\n", "key010", "val010");
-    printf("found:    key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key,
-           (int)cur_vlen, (char *)cur_val);
+    printf(
+        "found:    key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key, (int)cur_vlen,
+        (char *)cur_val);
 
 cursor_cleanup:
     rc2 = hse_kvs_cursor_destroy(cursor);

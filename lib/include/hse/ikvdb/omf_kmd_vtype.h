@@ -11,12 +11,12 @@
  * compatibility.
  */
 enum kmd_vtype {
-    VTYPE_UCVAL = 0u,  // uncompressed value stored in a vblock
-    VTYPE_ZVAL = 1,    // zero-length value (i.e., a key with no value)
-    VTYPE_TOMB = 2,    // tombstone
-    VTYPE_PTOMB = 3,   // prefix tombstone
-    VTYPE_IVAL = 4,    // immediate value, uncompressed, stored in a kblock
-    VTYPE_CVAL = 5,    // an LZ4 compressed value stored in a vblock
+    VTYPE_UCVAL = 0u, // uncompressed value stored in a vblock
+    VTYPE_ZVAL = 1,   // zero-length value (i.e., a key with no value)
+    VTYPE_TOMB = 2,   // tombstone
+    VTYPE_PTOMB = 3,  // prefix tombstone
+    VTYPE_IVAL = 4,   // immediate value, uncompressed, stored in a kblock
+    VTYPE_CVAL = 5,   // an LZ4 compressed value stored in a vblock
 };
 
 #define NUM_KMD_VTYPES 6

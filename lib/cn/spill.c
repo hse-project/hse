@@ -5,33 +5,31 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/page.h>
-#include <hse/util/event_counter.h>
-#include <hse/logging/logging.h>
-
+#include <hse/ikvdb/cn.h>
+#include <hse/ikvdb/cndb.h>
+#include <hse/ikvdb/kvdb_perfc.h>
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
+#include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/kvset_builder.h>
-#include <hse/ikvdb/kvdb_perfc.h>
-#include <hse/ikvdb/cndb.h>
-#include <hse/ikvdb/cn.h>
+#include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #define MTF_MOCK_IMPL_spill
-#include "spill.h"
-
-#include "cn_tree.h"
-#include "cn_tree_internal.h"
-#include "cn_tree_compact.h"
-#include "kvset.h"
-#include "cn_metrics.h"
-#include "kv_iterator.h"
 #include "blk_list.h"
+#include "cn_metrics.h"
+#include "cn_tree.h"
+#include "cn_tree_compact.h"
+#include "cn_tree_internal.h"
+#include "kv_iterator.h"
+#include "kvset.h"
 #include "route.h"
+#include "spill.h"
 
 static int
 kv_item_compare(const void *a, const void *b)
@@ -70,8 +68,8 @@ get_direct_read_buf(uint len, bool aligned_voff, uint32_t *bufsz, void **buf)
     if (!(*buf) || *bufsz < bufsz_min) {
         const uint vlen_max = HSE_KVS_VALUE_LEN_MAX;
 
-        *bufsz = (len < vlen_max / 4) ? vlen_max / 4 :
-            ((len < vlen_max / 2) ? vlen_max / 2 : vlen_max);
+        *bufsz =
+            (len < vlen_max / 4) ? vlen_max / 4 : ((len < vlen_max / 2) ? vlen_max / 2 : vlen_max);
 
         /* add an extra page if not aligned */
         if (bufsz_min < *bufsz)
@@ -90,18 +88,18 @@ get_direct_read_buf(uint len, bool aligned_voff, uint32_t *bufsz, void **buf)
 struct spillctx {
     struct cn_compaction_work *work;
 
-    uint64_t         sgen;
+    uint64_t sgen;
 
     /* Merge Loop */
-    struct bin_heap        *bh;
+    struct bin_heap *bh;
     struct element_source **bh_sources;
-    bool                    more;
-    struct cn_kv_item      *curr;
+    bool more;
+    struct cn_kv_item *curr;
 
     /* Ptomb */
     struct key_obj pt_kobj;
-    uint64_t       pt_seq; /* [HSE_REVISIT]: Need a list of seqnos to carry all ptombs across leaves. */
-    bool           pt_set;
+    uint64_t pt_seq; /* [HSE_REVISIT]: Need a list of seqnos to carry all ptombs across leaves. */
+    bool pt_set;
 };
 
 merr_t
@@ -190,12 +188,12 @@ cn_subspill_get_kvset_meta(struct subspill *ss, struct kvset_meta *km)
 
 merr_t
 cn_subspill(
-    struct subspill     *ss,
-    struct spillctx     *sctx,
+    struct subspill *ss,
+    struct spillctx *sctx,
     struct cn_tree_node *node,
-    uint64_t             node_dgen,
-    const void          *ekey,
-    uint                 eklen)
+    uint64_t node_dgen,
+    const void *ekey,
+    uint eklen)
 {
     struct cn_compaction_work *w = sctx->work;
     struct bin_heap *bh = sctx->bh;
@@ -315,19 +313,18 @@ cn_subspill(
         }
 
         while (!bg_val) {
-            const void *   vdata = NULL;
-            bool           should_emit = false;
+            const void *vdata = NULL;
+            bool should_emit = false;
             enum kmd_vtype vtype;
-            uint32_t       vbidx;
-            uint32_t       vboff;
-            bool           direct;
+            uint32_t vbidx;
+            uint32_t vboff;
+            bool direct;
 
             if (tstart > 0)
                 tstart = get_time_ns();
 
-            if (!kvset_iter_next_vref(iter, &sctx->curr->vctx,
-                                      &seq, &vtype, &vbidx,
-                                      &vboff, &vdata, &vlen, &complen))
+            if (!kvset_iter_next_vref(
+                    iter, &sctx->curr->vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen, &complen))
                 break;
 
             omlen = (vtype == VTYPE_UCVAL) ? vlen : ((vtype == VTYPE_CVAL) ? complen : 0);
@@ -338,12 +335,11 @@ cn_subspill(
                 if (err)
                     break;
 
-                err = kvset_iter_next_val_direct(iter, vtype, vbidx,
-                                                 vboff, buf, omlen, bufsz);
+                err = kvset_iter_next_val_direct(iter, vtype, vbidx, vboff, buf, omlen, bufsz);
                 vdata = buf;
             } else {
-                err = kvset_iter_val_get(iter, &sctx->curr->vctx, vtype, vbidx,
-                                          vboff, &vdata, &vlen, &complen);
+                err = kvset_iter_val_get(
+                    iter, &sctx->curr->vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
             }
 
             if (err)

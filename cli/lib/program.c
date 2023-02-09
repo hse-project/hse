@@ -10,7 +10,7 @@
 const char *progname;
 
 void
-progname_set(const char *const argv_0)
+progname_set(const char * const argv_0)
 {
     const char *slash;
 

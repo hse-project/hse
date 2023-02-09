@@ -17,8 +17,8 @@
 
 #include <stdint.h>
 
-#include <hse/util/base.h>
 #include <hse/error/merr.h>
+#include <hse/util/base.h>
 
 #ifdef HSE_BUILD_RELEASE
 #define CHEAP_POISON_SZ 0
@@ -30,13 +30,13 @@
  * because the cheap unit tests need access to the implementation).
  */
 struct cheap {
-    size_t    alignment;
-    uint64_t  cursorp;
-    size_t    size;
-    uint64_t  lastp;
-    uint64_t  base;
-    uint64_t  brk;
-    void *    mem;
+    size_t alignment;
+    uint64_t cursorp;
+    size_t size;
+    uint64_t lastp;
+    uint64_t base;
+    uint64_t brk;
+    void *mem;
     uintptr_t magic;
 };
 

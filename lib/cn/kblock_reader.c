@@ -4,35 +4,34 @@
  */
 
 #include <hse/error/merr.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/page.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/assert.h>
-#include <hse/util/compiler.h>
-#include <hse/util/arch.h>
-#include <hse/util/bloom_filter.h>
-#include <hse/logging/logging.h>
-
 #include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/tuple.h>
-
+#include <hse/logging/logging.h>
 #include <hse/mpool/mpool.h>
+#include <hse/util/alloc.h>
+#include <hse/util/arch.h>
+#include <hse/util/assert.h>
+#include <hse/util/bloom_filter.h>
+#include <hse/util/compiler.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/page.h>
+#include <hse/util/slab.h>
 
-#include "omf.h"
 #include "bloom_reader.h"
-#include "wbt_reader.h"
-#include "kvs_mblk_desc.h"
 #include "cn_metrics.h"
 #include "kblock_reader.h"
+#include "kvs_mblk_desc.h"
+#include "omf.h"
+#include "wbt_reader.h"
 
 static HSE_ALWAYS_INLINE bool
 kblock_hdr_valid(const struct kblock_hdr_omf *omf)
 {
     uint32_t vers = omf_kbh_version(omf);
 
-    return (HSE_LIKELY(omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC &&
-                       vers >= KBLOCK_HDR_VERSION6 && vers <= KBLOCK_HDR_VERSION));
+    return (HSE_LIKELY(
+        omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC && vers >= KBLOCK_HDR_VERSION6 &&
+        vers <= KBLOCK_HDR_VERSION));
 }
 
 merr_t
@@ -60,10 +59,10 @@ merr_t
 kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 {
     const struct kblock_hdr_omf *hdr = kbd->map_base;
-    const struct bloom_hdr_omf  *blm_omf = NULL;
-    ulong                        mbid;
-    uint32_t                     magic;
-    uint32_t                     version;
+    const struct bloom_hdr_omf *blm_omf = NULL;
+    ulong mbid;
+    uint32_t magic;
+    uint32_t version;
 
     memset(desc, 0, sizeof(*desc));
     mbid = kbd->mbid;
@@ -75,8 +74,7 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
 
     magic = omf_bh_magic(blm_omf);
     if (ev(magic != BLOOM_OMF_MAGIC)) {
-        log_err("bloom %lx invalid magic %x (expected %x)",
-                mbid, magic, BLOOM_OMF_MAGIC);
+        log_err("bloom %lx invalid magic %x (expected %x)", mbid, magic, BLOOM_OMF_MAGIC);
         return merr(EINVAL);
     }
 
@@ -86,8 +84,7 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
      */
     version = omf_bh_version(blm_omf);
     if (ev(version != BLOOM_OMF_VERSION)) {
-        log_err("bloom %lx invalid version %u (expected %u)",
-                mbid, version, BLOOM_OMF_VERSION);
+        log_err("bloom %lx invalid version %u (expected %u)", mbid, version, BLOOM_OMF_VERSION);
         return 0;
     }
 
@@ -171,7 +168,7 @@ void
 kbr_madvise_bloom(struct kvs_mblk_desc *md, struct bloom_desc *wbd, int advice)
 {
     merr_t err;
-    uint32_t pg     = wbd->bd_first_page;
+    uint32_t pg = wbd->bd_first_page;
     uint32_t pg_cnt = wbd->bd_n_pages;
 
     if (pg_cnt) {

@@ -8,8 +8,8 @@
 
 #include <stdint.h>
 
-#include <hse/util/workqueue.h>
 #include <hse/ikvdb/tuple.h>
+#include <hse/util/workqueue.h>
 
 #include "kvs_mblk_desc.h"
 
@@ -18,8 +18,8 @@
  * VBR_REVERSE    caller is performing reverse iteration
  * VBR_FULLSCAN   caller intends to read all values
  */
-#define VBR_REVERSE     (0x0001u)
-#define VBR_FULLSCAN    (0x0002u)
+#define VBR_REVERSE  (0x0001u)
+#define VBR_FULLSCAN (0x0002u)
 
 /**
  * struct ra_hist - readahead history cache record
@@ -35,11 +35,11 @@ struct ra_hist {
  * struct vbr_madvise_work - async vblock readahead params
  */
 struct vbr_madvise_work {
-    struct work_struct  vmw_work;
+    struct work_struct vmw_work;
     struct vblock_desc *vmw_vbd;
-    uint                vmw_off;
-    uint                vmw_len;
-    int                 vmw_advice;
+    uint vmw_off;
+    uint vmw_len;
+    int vmw_advice;
 };
 
 /**
@@ -50,16 +50,16 @@ struct vbr_madvise_work {
  */
 struct vblock_desc {
     const struct kvs_mblk_desc *vbd_mblkdesc; /* underlying block descriptor */
-    uint32_t             vbd_off;      /* byte offset of vblock data (always 0!) */
-    uint32_t             vbd_wlen;     /* written byte length of vblock data (not including footer) */
-    uint32_t             vbd_alen;     /* allocated byte length of vblock data (not including footer) */
-    uint32_t             vbd_min_koff; /* min key offset */
-    uint32_t             vbd_max_koff; /* max key offset */
-    uint16_t             vbd_min_klen; /* min key length */
-    uint16_t             vbd_max_klen; /* max key length */
-    uint64_t             vbd_vgroup;   /* vblock group ID (kvset id) */
-    atomic_int           vbd_vgidx;    /* vblock group index */
-    atomic_int           vbd_refcnt;   /* vbr_madvise_async() refcnt */
+    uint32_t vbd_off;                         /* byte offset of vblock data (always 0!) */
+    uint32_t vbd_wlen;     /* written byte length of vblock data (not including footer) */
+    uint32_t vbd_alen;     /* allocated byte length of vblock data (not including footer) */
+    uint32_t vbd_min_koff; /* min key offset */
+    uint32_t vbd_max_koff; /* max key offset */
+    uint16_t vbd_min_klen; /* min key length */
+    uint16_t vbd_max_klen; /* max key length */
+    uint64_t vbd_vgroup;   /* vblock group ID (kvset id) */
+    atomic_int vbd_vgidx;  /* vblock group index */
+    atomic_int vbd_refcnt; /* vbr_madvise_async() refcnt */
 };
 
 /**
@@ -67,25 +67,20 @@ struct vblock_desc {
  * @vlock_desc:    (output) vblock descriptor
  */
 merr_t
-vbr_desc_read(
-    const struct kvs_mblk_desc *mblk,
-    struct vblock_desc *vblk_desc);
+vbr_desc_read(const struct kvs_mblk_desc *mblk, struct vblock_desc *vblk_desc);
 
 merr_t
-vbr_desc_update_vgidx(
-    struct vblock_desc *vblock_desc,
-    uint               *vgroupc,
-    uint64_t           *vgroupv);
+vbr_desc_update_vgidx(struct vblock_desc *vblock_desc, uint *vgroupc, uint64_t *vgroupv);
 
 /**
  * vbr_madvise_async() - initiate async vblock readahead
  */
 bool
 vbr_madvise_async(
-    struct vblock_desc *     vbd,
-    uint                     off,
-    uint                     len,
-    int                      advice,
+    struct vblock_desc *vbd,
+    uint off,
+    uint len,
+    int advice,
     struct workqueue_struct *wq);
 
 /**
@@ -98,13 +93,13 @@ vbr_madvise_async(
  */
 void
 vbr_readahead(
-    struct vblock_desc *     vbd,
-    uint32_t                 off,
-    size_t                   vlen,
-    uint32_t                 ra_flags,
-    size_t                   ra_len,
-    uint32_t                 ra_histc,
-    struct ra_hist *         ra_histv,
+    struct vblock_desc *vbd,
+    uint32_t off,
+    size_t vlen,
+    uint32_t ra_flags,
+    size_t ra_len,
+    uint32_t ra_histc,
+    struct ra_hist *ra_histv,
     struct workqueue_struct *wq);
 
 /**

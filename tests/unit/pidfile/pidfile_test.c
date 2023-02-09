@@ -7,10 +7,10 @@
 
 #include <bsd/libutil.h>
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/error/merr.h>
 #include <hse/pidfile/pidfile.h>
+
+#include <hse/test/mtf/framework.h>
 
 const char *config_root;
 
@@ -18,7 +18,8 @@ static int
 collection_pre(struct mtf_test_info *ti)
 {
     if (ti->ti_coll->tci_argc - ti->ti_coll->tci_optind != 1) {
-        fprintf(stderr, "Usage: %s [test framework options] <configs-dir>\n", ti->ti_coll->tci_argv[0]);
+        fprintf(
+            stderr, "Usage: %s [test framework options] <configs-dir>\n", ti->ti_coll->tci_argv[0]);
         return -1;
     }
 

@@ -4,38 +4,35 @@
  */
 
 #include <stdint.h>
-
 #include <urcu-bp.h>
 
-#include <hse/util/platform.h>
 #include <hse/error/merr.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/alloc.h>
-#include <hse/util/slab.h>
-#include <hse/util/condvar.h>
 #include <hse/logging/logging.h>
+#include <hse/util/alloc.h>
+#include <hse/util/condvar.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #define MTF_MOCK_IMPL_c0
 
-#include <hse/ikvdb/ikvdb.h>
-#include <hse/ikvdb/kvdb_health.h>
 #include <hse/ikvdb/c0.h>
+#include <hse/ikvdb/c0_kvmultiset.h>
+#include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/c0sk.h>
 #include <hse/ikvdb/cn.h>
-#include <hse/ikvdb/c0_kvset.h>
-#include <hse/ikvdb/c0_kvmultiset.h>
-
-#include "kvdb/kvdb_keylock.h"
+#include <hse/ikvdb/ikvdb.h>
+#include <hse/ikvdb/kvdb_health.h>
 
 #include "c0_cursor.h"
+#include "kvdb/kvdb_keylock.h"
 
 struct rcu_head;
 struct cursor_summary;
 
 #define c0_h2r(handle) container_of(handle, struct c0_impl, c0_handle)
 
-struct c0 {
-};
+struct c0 {};
 
 /**
  * struct c0_impl - private representation of c0
@@ -48,13 +45,13 @@ struct c0 {
  * @c0_allow_writes: allow puts/dels
  */
 struct c0_impl {
-    struct c0    c0_handle;
+    struct c0 c0_handle;
     struct c0sk *c0_c0sk;
-    struct cn   *c0_cn;
-    uint32_t     c0_index;
-    uint32_t     c0_sfx_len;
-    int32_t      c0_pfx_len;
-    bool         c0_allow_writes;
+    struct cn *c0_cn;
+    uint32_t c0_index;
+    uint32_t c0_sfx_len;
+    int32_t c0_pfx_len;
+    bool c0_allow_writes;
 };
 
 HSE_COLD merr_t
@@ -126,12 +123,12 @@ c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uintptr_t seqnoref)
  */
 merr_t
 c0_get(
-    struct c0 *              handle,
+    struct c0 *handle,
     const struct kvs_ktuple *kt,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct kvs_buf *vbuf)
 {
     struct c0_impl *self;
 
@@ -144,14 +141,14 @@ c0_get(
 
 merr_t
 c0_pfx_probe(
-    struct c0 *              handle,
+    struct c0 *handle,
     const struct kvs_ktuple *kt,
-    uint64_t                 view_seqno,
-    uintptr_t                seqnoref,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf)
+    uint64_t view_seqno,
+    uintptr_t seqnoref,
+    enum key_lookup_res *res,
+    struct query_ctx *qctx,
+    struct kvs_buf *kbuf,
+    struct kvs_buf *vbuf)
 {
     struct c0_impl *self;
 
@@ -159,17 +156,8 @@ c0_pfx_probe(
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
     return c0sk_pfx_probe(
-        self->c0_c0sk,
-        self->c0_index,
-        self->c0_pfx_len,
-        self->c0_sfx_len,
-        kt,
-        view_seqno,
-        seqnoref,
-        res,
-        qctx,
-        kbuf,
-        vbuf);
+        self->c0_c0sk, self->c0_index, self->c0_pfx_len, self->c0_sfx_len, kt, view_seqno, seqnoref,
+        res, qctx, kbuf, vbuf);
 }
 
 merr_t
@@ -216,7 +204,7 @@ c0_open(struct ikvdb *kvdb, struct cn *cn, struct c0 **c0)
 merr_t
 c0_close(struct c0 *handle)
 {
-    merr_t          err = 0, tmp_err;
+    merr_t err = 0, tmp_err;
     struct c0_impl *self;
 
     if (!handle)
@@ -240,26 +228,19 @@ c0_close(struct c0 *handle)
 
 merr_t
 c0_cursor_create(
-    struct c0 *            handle,
-    uint64_t               seqno,
-    bool                   reverse,
-    const void *           prefix,
-    size_t                 pfx_len,
+    struct c0 *handle,
+    uint64_t seqno,
+    bool reverse,
+    const void *prefix,
+    size_t pfx_len,
     struct cursor_summary *summary,
-    struct c0_cursor **    c0cur)
+    struct c0_cursor **c0cur)
 {
     struct c0_impl *self = c0_h2r(handle);
-    merr_t          err;
+    merr_t err;
 
     err = c0sk_cursor_create(
-        self->c0_c0sk,
-        seqno,
-        self->c0_index,
-        reverse,
-        self->c0_pfx_len,
-        prefix,
-        pfx_len,
-        summary,
+        self->c0_c0sk, seqno, self->c0_index, reverse, self->c0_pfx_len, prefix, pfx_len, summary,
         c0cur);
     return ev(err);
 }
@@ -292,8 +273,8 @@ static bool
 c0cur_next(struct element_source *es, void **element)
 {
     struct c0_cursor *c0cur = container_of(es, struct c0_cursor, c0cur_es);
-    bool              eof;
-    merr_t            err;
+    bool eof;
+    merr_t err;
 
     err = c0_cursor_read(c0cur, &c0cur->c0cur_elem, &eof);
     if (ev(err) || eof)

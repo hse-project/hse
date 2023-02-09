@@ -29,12 +29,12 @@
  * @priv:       private ptr for use by owner
  */
 struct table {
-    uint   cur;
-    uint   capacity;
+    uint cur;
+    uint capacity;
     size_t elemsz;
-    char * data;
-    bool   zerofill;
-    void * priv;
+    char *data;
+    bool zerofill;
+    void *priv;
 };
 
 /**

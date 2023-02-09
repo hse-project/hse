@@ -9,19 +9,21 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-#include <sys/time.h>
 #include <unistd.h>
 
-#include <hse/cli/program.h>
+#include <sys/time.h>
+
 #include <hse/hse.h>
+#include <hse/version.h>
+
+#include <hse/cli/program.h>
 #include <hse/util/atomic.h>
 #include <hse/util/parse_num.h>
-#include <hse/version.h>
 
 #include <hse/tools/parm_groups.h>
 
@@ -128,8 +130,8 @@
  *     different numbers of keys makes this behavior less onerous.
  */
 
-#define MAX_KMAX  (2*1024)
-#define MAX_VMAX  RS_MAX_VALUE_LEN
+#define MAX_KMAX (2 * 1024)
+#define MAX_VMAX RS_MAX_VALUE_LEN
 
 /* Long test has three types of threads:
  * - The main thread the spawns other threads, prints periodic stats, and
@@ -139,31 +141,32 @@
  *   tombstones in order to bump up the sequence number).
  */
 #define MAX_TEST_THREADS 128
-#define MAX_AUX_THREADS    1
+#define MAX_AUX_THREADS  1
 
-#define MAX_THREADS     (MAX_TEST_THREADS + MAX_AUX_THREADS)
-
+#define MAX_THREADS (MAX_TEST_THREADS + MAX_AUX_THREADS)
 
 /* == Section: Command Line Processing ================ */
 
-static void syntax(const char *fmt, ...);
-static void usage(void);
+static void
+syntax(const char *fmt, ...);
+static void
+usage(void);
 
 enum opt_enum {
     opt_config = 'Z',
-    opt_keys	= 'c',
-    opt_help	= 'h',
-    opt_num_iters	= 'i',
-    opt_dryrun	= 'n',
-    opt_duration	= 's',
-    opt_threads	= 't',
-    opt_version	= 'V',
-    opt_verbose	= 'v',
-    opt_errcnt      = 'e',
-    opt_verify      = 'p',
-    opt_log_stdout  = 'l',
-    opt_cursor      = 'C',
-    opt_sync	= 'S',
+    opt_keys = 'c',
+    opt_help = 'h',
+    opt_num_iters = 'i',
+    opt_dryrun = 'n',
+    opt_duration = 's',
+    opt_threads = 't',
+    opt_version = 'V',
+    opt_verbose = 'v',
+    opt_errcnt = 'e',
+    opt_verify = 'p',
+    opt_log_stdout = 'l',
+    opt_cursor = 'C',
+    opt_sync = 'S',
 
     opt_seed = 1024,
     opt_once,
@@ -179,23 +182,27 @@ enum opt_enum {
 
     opt_seqnum_pfx,
 
-    opt_klen, opt_kmin, opt_kmax,
-    opt_vlen, opt_vmin, opt_vmax,
+    opt_klen,
+    opt_kmin,
+    opt_kmax,
+    opt_vlen,
+    opt_vmin,
+    opt_vmax,
 };
 
 enum phase {
-    PHASE_PUT_P    = 1 << 0,
-    PHASE_PUT_PU   = 1 << 1,
-    PHASE_DEL_P    = 1 << 2,
-    PHASE_DEL_PU   = 1 << 3,
-    PHASE_VER_P    = 1 << 4,
-    PHASE_VER_PU   = 1 << 5,
-    PHASE_VER_PD   = 1 << 6,
-    PHASE_VER_PUD  = 1 << 7,
-    PHASE_DEL_REM  = 1 << 8,
-    PHASE_VER_REM  = 1 << 9,
+    PHASE_PUT_P = 1 << 0,
+    PHASE_PUT_PU = 1 << 1,
+    PHASE_DEL_P = 1 << 2,
+    PHASE_DEL_PU = 1 << 3,
+    PHASE_VER_P = 1 << 4,
+    PHASE_VER_PU = 1 << 5,
+    PHASE_VER_PD = 1 << 6,
+    PHASE_VER_PUD = 1 << 7,
+    PHASE_DEL_REM = 1 << 8,
+    PHASE_VER_REM = 1 << 9,
 
-    PHASE_ALL      = -1,
+    PHASE_ALL = -1,
     PHASE_PUD_MASK = 15,
 };
 
@@ -219,7 +226,7 @@ struct opts {
     int mthread;
     enum phase mphase;
     bool cursor;
-    bool   distr_is_exp;
+    bool distr_is_exp;
     double distr_param;
 
     int32_t max_errors;
@@ -236,9 +243,9 @@ struct opts {
 };
 
 struct parm_groups *pg;
-struct svec         hse_gparm = { 0 };
-struct svec         db_oparms = { 0 };
-struct svec         kv_oparms = { 0 };
+struct svec hse_gparm = { 0 };
+struct svec db_oparms = { 0 };
+struct svec kv_oparms = { 0 };
 
 /* per-thread state */
 struct tstate {
@@ -250,9 +257,9 @@ struct tstate {
     uint64_t num_iters;
 
     /* if using cursors, there is a prefix of the thread id */
-    char    pfxbuf[2];
-    void   *pfx;
-    size_t  pfxlen;
+    char pfxbuf[2];
+    void *pfx;
+    size_t pfxlen;
 
     /* current iteration */
     uint64_t iter_cnt;
@@ -264,18 +271,17 @@ struct tstate {
     uint64_t del_cnt;
 
     /* thread management */
-    pthread_t   thread;
-    bool        running;
-    bool        joined;
+    pthread_t thread;
+    bool running;
+    bool joined;
 
     /* work buffers */
-    char    genkey[MAX_VMAX];  /* generated key */
-    char    exp_val[MAX_VMAX]; /* expected value */
-    char    act_val[MAX_VMAX]; /* actual retrieved value */
-    char    msgbuf[MAX_VMAX * 2 + 256];
-    char    msgbuf1[MAX_VMAX * 2 + 256];
+    char genkey[MAX_VMAX];  /* generated key */
+    char exp_val[MAX_VMAX]; /* expected value */
+    char act_val[MAX_VMAX]; /* actual retrieved value */
+    char msgbuf[MAX_VMAX * 2 + 256];
+    char msgbuf1[MAX_VMAX * 2 + 256];
 };
-
 
 struct test_stats {
     uint64_t puts;
@@ -287,22 +293,21 @@ struct test_stats {
 };
 
 struct test {
-    void               *kvdb_h;
-    void               *kvs_h;
-    struct rsgen        kgen;
-    struct rsgen        vgen;
-    uint64_t            start_time;
-    uint32_t            stat_rows_no_hdr;
-    uint32_t            running_threads;
-    pthread_barrier_t   bar_sync;
-    atomic_int          errors;
-    atomic_int          test_complete;
-    atomic_int          hard_stop;
-    uint8_t            *seqnum_pfx_key;
-    struct test_stats   tot;
-    struct test_stats   stats[MAX_THREADS];
-    struct tstate       ts[MAX_THREADS];
-
+    void *kvdb_h;
+    void *kvs_h;
+    struct rsgen kgen;
+    struct rsgen vgen;
+    uint64_t start_time;
+    uint32_t stat_rows_no_hdr;
+    uint32_t running_threads;
+    pthread_barrier_t bar_sync;
+    atomic_int errors;
+    atomic_int test_complete;
+    atomic_int hard_stop;
+    uint8_t *seqnum_pfx_key;
+    struct test_stats tot;
+    struct test_stats stats[MAX_THREADS];
+    struct tstate ts[MAX_THREADS];
 };
 
 struct keystat {
@@ -311,62 +316,55 @@ struct keystat {
     int ks_upds;
 };
 
-struct keystat  *keystats = NULL;
-
+struct keystat *keystats = NULL;
 
 struct opts opt;
 struct test test;
 
-struct option longopts[] = {
-    { "config",         required_argument,  NULL,  opt_config },
-    { "dryrun",         no_argument,        NULL,  opt_dryrun   },
-    { "duration",       required_argument,  NULL,  opt_duration },
-    { "exp",            required_argument,  NULL,  opt_exp   },
-    { "help",           no_argument,        NULL,  opt_help     },
-    { "num_iters",      required_argument,  NULL,  opt_num_iters },
-    { "keys",           required_argument,  NULL,  opt_keys     },
+struct option longopts[] = { { "config", required_argument, NULL, opt_config },
+                             { "dryrun", no_argument, NULL, opt_dryrun },
+                             { "duration", required_argument, NULL, opt_duration },
+                             { "exp", required_argument, NULL, opt_exp },
+                             { "help", no_argument, NULL, opt_help },
+                             { "num_iters", required_argument, NULL, opt_num_iters },
+                             { "keys", required_argument, NULL, opt_keys },
 
-    { "klen",           required_argument,  NULL,  opt_klen },
-    { "kmin",           required_argument,  NULL,  opt_kmin },
-    { "kmax",           required_argument,  NULL,  opt_kmax },
+                             { "klen", required_argument, NULL, opt_klen },
+                             { "kmin", required_argument, NULL, opt_kmin },
+                             { "kmax", required_argument, NULL, opt_kmax },
 
-    { "vlen",           required_argument,  NULL,  opt_vlen },
-    { "vmin",           required_argument,  NULL,  opt_vmin },
-    { "vmax",           required_argument,  NULL,  opt_vmax },
+                             { "vlen", required_argument, NULL, opt_vlen },
+                             { "vmin", required_argument, NULL, opt_vmin },
+                             { "vmax", required_argument, NULL, opt_vmax },
 
+                             { "poly", required_argument, NULL, opt_poly },
+                             { "seed", required_argument, NULL, opt_seed },
+                             { "once", no_argument, NULL, opt_once },
+                             { "threads", required_argument, NULL, opt_threads },
+                             { "verbose", optional_argument, NULL, opt_verbose },
+                             { "show", no_argument, NULL, opt_show },
+                             { "logs", no_argument, NULL, opt_log_stdout },
+                             { "version", no_argument, NULL, opt_version },
+                             { "errcnt", required_argument, NULL, opt_errcnt },
+                             { "verify", required_argument, NULL, opt_verify },
+                             { "cursor", no_argument, NULL, opt_cursor },
+                             { "sync", optional_argument, NULL, opt_sync },
+                             { "nostats", no_argument, NULL, opt_nostats },
+                             { "interactive", no_argument, NULL, opt_interactive },
 
-    { "poly",           required_argument,  NULL,  opt_poly  },
-    { "seed",           required_argument,  NULL,  opt_seed     },
-    { "once",           no_argument,        NULL,  opt_once },
-    { "threads",        required_argument,  NULL,  opt_threads  },
-    { "verbose",        optional_argument,  NULL,  opt_verbose  },
-    { "show",           no_argument,        NULL,  opt_show },
-    { "logs",           no_argument,        NULL,  opt_log_stdout  },
-    { "version",        no_argument,        NULL,  opt_version  },
-    { "errcnt",         required_argument,  NULL,  opt_errcnt  },
-    { "verify",         required_argument,  NULL,  opt_verify  },
-    { "cursor",         no_argument,        NULL,  opt_cursor },
-    { "sync",           optional_argument,  NULL,  opt_sync },
-    { "nostats",        no_argument,        NULL,  opt_nostats },
-    { "interactive",    no_argument,        NULL,  opt_interactive },
+                             { "mthread", required_argument, NULL, opt_mthread },
+                             { "mphase", required_argument, NULL, opt_mphase },
 
-    { "mthread",        required_argument,  NULL,  opt_mthread  },
-    { "mphase",         required_argument,  NULL,  opt_mphase  },
+                             { "seqnum-pfx", required_argument, NULL, opt_seqnum_pfx },
 
-    { "seqnum-pfx",     required_argument,  NULL,  opt_seqnum_pfx  },
+                             { 0, 0, 0, 0 } };
 
-
-    { 0, 0, 0, 0 }
-};
-
-static
-void
-opts_set_default(
-    struct opts *opt)
+static void
+opts_set_default(struct opts *opt)
 {
     memset(opt, 0, sizeof(*opt));
 
-    opt->keys = 32*1000*1000;
+    opt->keys = 32 * 1000 * 1000;
     opt->test_threads = 32;
     opt->seed = 0;
 
@@ -397,61 +395,58 @@ opts_set_default(
 }
 
 void
-opts_show(
-    struct opts *opt)
+opts_show(struct opts *opt)
 {
     printf("  mpool          =  %s\n", opt->mpool ?: "<none>");
     printf("  kvs            =  %s\n", opt->kvs ?: "<none>");
     printf("  num keys       =  %lu\n", opt->keys);
     printf("  duration       =  %lu\n", opt->duration);
     printf("  iterations     =  %lu\n", opt->num_iters);
-    printf("  min key len    =  %u\n",  opt->kmin);
-    printf("  max key len    =  %u\n",  opt->kmax);
-    printf("  min value len  =  %u\n",  opt->vmin);
-    printf("  max value len  =  %u\n",  opt->vmax);
-    printf("  seed           =  %u\n",  opt->seed);
-    printf("  distr          =  %s:%g\n",
-           (opt->distr_is_exp ? "exponential" : "polynomial"),
-           opt->distr_param);
-    printf("  threads        =  %u\n",  opt->test_threads);
-    printf("  verbose        =  %d\n",  opt->verbose);
-    printf("  logs           =  %d\n",  opt->log_stdout);
-    printf("  dryrun         =  %d\n",  opt->dryrun);
-    printf("  errcnt         =  %u\n",  opt->max_errors);
-    printf("  verify         =  %u\n",  opt->verify);
+    printf("  min key len    =  %u\n", opt->kmin);
+    printf("  max key len    =  %u\n", opt->kmax);
+    printf("  min value len  =  %u\n", opt->vmin);
+    printf("  max value len  =  %u\n", opt->vmax);
+    printf("  seed           =  %u\n", opt->seed);
+    printf(
+        "  distr          =  %s:%g\n", (opt->distr_is_exp ? "exponential" : "polynomial"),
+        opt->distr_param);
+    printf("  threads        =  %u\n", opt->test_threads);
+    printf("  verbose        =  %d\n", opt->verbose);
+    printf("  logs           =  %d\n", opt->log_stdout);
+    printf("  dryrun         =  %d\n", opt->dryrun);
+    printf("  errcnt         =  %u\n", opt->max_errors);
+    printf("  verify         =  %u\n", opt->verify);
     printf("  mphase         =  0x%x\n", opt->mphase);
-    printf("  mthread        =  %d\n",  opt->mthread);
-    printf("  cursor         =  %d\n",  opt->cursor);
-    printf("  sync           =  %d\n",  opt->sync);
-    printf("  stats          =  %d\n",  opt->stats);
-
+    printf("  mthread        =  %d\n", opt->mthread);
+    printf("  cursor         =  %d\n", opt->cursor);
+    printf("  sync           =  %d\n", opt->sync);
+    printf("  stats          =  %d\n", opt->stats);
 }
 
-#define GET_VALUE(TYPE, OPTARG, VALUE)					\
-    do {								\
-        if (parse_##TYPE(OPTARG, VALUE)) {			\
-            syntax((char *)"Unable to parse"		\
-                   " "#TYPE" number: "			\
-                   "'%s'", OPTARG);				\
-        }							\
+#define GET_VALUE(TYPE, OPTARG, VALUE)        \
+    do {                                      \
+        if (parse_##TYPE(OPTARG, VALUE)) {    \
+            syntax(                           \
+                (char *)"Unable to parse"     \
+                        " " #TYPE " number: " \
+                        "'%s'",               \
+                OPTARG);                      \
+        }                                     \
     } while (0)
 
-#define GET_DOUBLE(OPTARG, VALUE)					\
-    do {								\
-        if (1 != sscanf(OPTARG, "%lg", VALUE)) {		\
-            syntax((char *)"Unable to parse"		\
-                   " floating point number: "		\
-                   "'%s'", OPTARG);				\
-        }							\
+#define GET_DOUBLE(OPTARG, VALUE)                  \
+    do {                                           \
+        if (1 != sscanf(OPTARG, "%lg", VALUE)) {   \
+            syntax(                                \
+                (char *)"Unable to parse"          \
+                        " floating point number: " \
+                        "'%s'",                    \
+                OPTARG);                           \
+        }                                          \
     } while (0)
-
-
 
 void
-opts_parse(
-    int argc,
-    char **argv,
-    struct opts *opt)
+opts_parse(int argc, char **argv, struct opts *opt)
 {
     int done;
 
@@ -461,7 +456,7 @@ opts_parse(
     const struct option *longopt;
     char *pc = opstr;
 
-    *pc++ = ':';    /* Disable getopt error messages */
+    *pc++ = ':'; /* Disable getopt error messages */
 
     for (longopt = longopts; longopt->name; ++longopt) {
         if (!longopt->flag && isprint(longopt->val)) {
@@ -501,25 +496,51 @@ opts_parse(
                 opt->sync = -1;
             break;
 
-        case opt_help:         opt->help = true; break;
-        case opt_config:       opt->config = optarg; break;
-        case opt_dryrun:       opt->dryrun = true; break;
-        case opt_once:         opt->once = true; break;
-        case opt_show:         opt->show = true; break;
-        case opt_nostats:      opt->stats = false; break;
-        case opt_interactive:  opt->interactive = true; break;
-        case opt_log_stdout:   opt->log_stdout = true; break;
-        case opt_version:      opt->version = true; break;
+        case opt_help:
+            opt->help = true;
+            break;
+        case opt_config:
+            opt->config = optarg;
+            break;
+        case opt_dryrun:
+            opt->dryrun = true;
+            break;
+        case opt_once:
+            opt->once = true;
+            break;
+        case opt_show:
+            opt->show = true;
+            break;
+        case opt_nostats:
+            opt->stats = false;
+            break;
+        case opt_interactive:
+            opt->interactive = true;
+            break;
+        case opt_log_stdout:
+            opt->log_stdout = true;
+            break;
+        case opt_version:
+            opt->version = true;
+            break;
 
-        case opt_kmin:    GET_VALUE(u32, optarg, &opt->kmin);    break;
-        case opt_kmax:    GET_VALUE(u32, optarg, &opt->kmax);    break;
+        case opt_kmin:
+            GET_VALUE(u32, optarg, &opt->kmin);
+            break;
+        case opt_kmax:
+            GET_VALUE(u32, optarg, &opt->kmax);
+            break;
         case opt_klen:
             GET_VALUE(u32, optarg, &opt->kmax);
             opt->kmin = opt->kmax;
             break;
 
-        case opt_vmin:    GET_VALUE(u32, optarg, &opt->vmin);    break;
-        case opt_vmax:    GET_VALUE(u32, optarg, &opt->vmax);    break;
+        case opt_vmin:
+            GET_VALUE(u32, optarg, &opt->vmin);
+            break;
+        case opt_vmax:
+            GET_VALUE(u32, optarg, &opt->vmax);
+            break;
         case opt_vlen:
             GET_VALUE(u32, optarg, &opt->vmax);
             opt->vmin = opt->vmax;
@@ -529,11 +550,19 @@ opts_parse(
             GET_VALUE(u32, optarg, &opt->test_threads);
             break;
 
-        case opt_keys:    GET_VALUE(u64, optarg, &opt->keys);    break;
-        case opt_seed:    GET_VALUE(u32, optarg, &opt->seed);    break;
+        case opt_keys:
+            GET_VALUE(u64, optarg, &opt->keys);
+            break;
+        case opt_seed:
+            GET_VALUE(u32, optarg, &opt->seed);
+            break;
 
-        case opt_mphase:  GET_VALUE(s32, optarg, &opt->mphase);  break;
-        case opt_mthread: GET_VALUE(s32, optarg, &opt->mthread); break;
+        case opt_mphase:
+            GET_VALUE(s32, optarg, &opt->mphase);
+            break;
+        case opt_mthread:
+            GET_VALUE(s32, optarg, &opt->mthread);
+            break;
 
         case opt_seqnum_pfx:
             GET_VALUE(u32, optarg, &opt->seqnum_pfx);
@@ -570,28 +599,25 @@ opts_parse(
             break;
 
         case ':':
-            syntax("missing argument for option '%s'",
-                   argv[curind]);
+            syntax("missing argument for option '%s'", argv[curind]);
             break;
 
         case '?':
-            if (!strcmp(argv[optind-1], "-m") ||
-                !strcmp(argv[optind-1], "-k")) {
+            if (!strcmp(argv[optind - 1], "-m") || !strcmp(argv[optind - 1], "-k")) {
                 /* Accept for backward compatibility. */
                 break;
             }
             /* If the uknown arg starts with '-', then error.
              * Otherwise assume it is a positional paramater that
              * will be handled by the caller. */
-            if (*argv[optind-1] == '-')
-                syntax("invalid option '%s'", argv[optind-1]);
+            if (*argv[optind - 1] == '-')
+                syntax("invalid option '%s'", argv[optind - 1]);
             break;
 
         default:
             if (c == 0) {
                 if (!longopt[longidx].flag) {
-                    syntax("unhandled option '--%s'",
-                           longopts[longidx].name);
+                    syntax("unhandled option '--%s'", longopts[longidx].name);
                 }
             } else {
                 syntax("unhandled option '%s'", argv[curind]);
@@ -610,80 +636,81 @@ opts_parse(
 static void
 usage(void)
 {
-    printf("usage: %s [options] <kvdb> <kvs> [param=value ...]",
-           progname);
-    printf("%s\n",
-           "  -h, --help             show help (use -hv for more help)\n"
-           "  -t, --threads THREADS  specify the number of threads\n"
-           "  -c, --keys COUNT       put/get COUNT keys\n"
-           "  -i, --iterations ITER  run for given number of iterations\n"
-           "  -s, --duration SECS    specify the test duration in seconds\n"
-           "  -n, --dryrun           show operations w/o touching kvs\n"
-           "  -V, --version          print build version\n"
-           "  -v, --verbose[=LVL]    increase[or set] verbosity (0=quiet)\n"
-           "  -e, --errcnt N         stop after N errors, 0=infinite\n"
-           "  -l, --logs             mirror logs stdout\n"
-           "  -C, --cursor           use a cursor to verify\n"
-           "  -S, --sync[=THREAD]    given thread calls sync once/iter\n"
-           "                         use -S or -sync=-1 for all threads)\n"
-           "      --verify[=PCT]     set verify percentage\n"
-           "      --once             run each thread through 1 iteration\n"
-           "      --exp M            M > 0.0\n"
-           "      --poly DEGREE      DEGREE >= 0.0\n"
-           "      --klen LEN         fixed key length\n"
-           "      --kmin LEN         min key length\n"
-           "      --kmax LEN         max key length\n"
-           "      --vlen LEN         fixed value length\n"
-           "      --vmin LEN         min value length\n"
-           "      --vmax LEN         max value length\n"
-           "      --seed SEED\n"
-           "      --show             show test parameters and exit\n"
-           "      --nostats          do not show periodic stats\n"
-           "      --interactive      run interactively (use with -t 1)\n"
-           "      --seqnum-pfx LEN   issue frequent pfx delete operations\n"
-           "                         for the side-effect of increasing\n"
-           "                         KVDB sequnce number\n");
+    printf("usage: %s [options] <kvdb> <kvs> [param=value ...]", progname);
+    printf(
+        "%s\n",
+        "  -h, --help             show help (use -hv for more help)\n"
+        "  -t, --threads THREADS  specify the number of threads\n"
+        "  -c, --keys COUNT       put/get COUNT keys\n"
+        "  -i, --iterations ITER  run for given number of iterations\n"
+        "  -s, --duration SECS    specify the test duration in seconds\n"
+        "  -n, --dryrun           show operations w/o touching kvs\n"
+        "  -V, --version          print build version\n"
+        "  -v, --verbose[=LVL]    increase[or set] verbosity (0=quiet)\n"
+        "  -e, --errcnt N         stop after N errors, 0=infinite\n"
+        "  -l, --logs             mirror logs stdout\n"
+        "  -C, --cursor           use a cursor to verify\n"
+        "  -S, --sync[=THREAD]    given thread calls sync once/iter\n"
+        "                         use -S or -sync=-1 for all threads)\n"
+        "      --verify[=PCT]     set verify percentage\n"
+        "      --once             run each thread through 1 iteration\n"
+        "      --exp M            M > 0.0\n"
+        "      --poly DEGREE      DEGREE >= 0.0\n"
+        "      --klen LEN         fixed key length\n"
+        "      --kmin LEN         min key length\n"
+        "      --kmax LEN         max key length\n"
+        "      --vlen LEN         fixed value length\n"
+        "      --vmin LEN         min value length\n"
+        "      --vmax LEN         max value length\n"
+        "      --seed SEED\n"
+        "      --show             show test parameters and exit\n"
+        "      --nostats          do not show periodic stats\n"
+        "      --interactive      run interactively (use with -t 1)\n"
+        "      --seqnum-pfx LEN   issue frequent pfx delete operations\n"
+        "                         for the side-effect of increasing\n"
+        "                         KVDB sequnce number\n");
     if (!opt.verbose)
         return;
 
-    printf("%s\n",
-           "Set #threads, #keys, etc:\n"
-           "    --threads THREADS    // set number of threads\n"
-           "    --keys KEYS          // number of keys\n"
-           "\n"
-           "Set how to distribute keys among threads:\n"
-           "    --exp M              // M > 0.0\n"
-           "    --poly DEGREE        // DEGREE >= 0.0\n"
-           "\n"
-           "Define how long to run the test:\n"
-           "    If ITER is zero or not set, then run test for DURATION\n"
-           "    seconds, otherwise stop after thread 0 (which always\n"
-           "    has the most keys) has completed ITER iterations.\n"
-           "      --duration DURATION\n"
-           "      --iterations ITER\n"
-           "\n"
-           "Key and value sizes:\n"
-           "    These settings define the amount of random data used in\n"
-           "    keys and values.  The actual sizes will be a bit\n"
-           "    larger due to embedded 'magic' data used by the test.\n"
-           "      --kmin LEN, --kmax LEN // min/max key length\n"
-           "      --vmin LEN, --vmax LEN // min/max value length\n"
-           "\n"
-           "PRNG seed:\n"
-           "    --seed SEED\n"
-           "\n"
-           "Phases (for --mphase):\n"
-           "    PUT_P    = 1 << 0\n"
-           "    PUT_PU   = 1 << 1\n"
-           "    DEL_P    = 1 << 2\n"
-           "    DEL_PU   = 1 << 3\n"
-           "    VER_P    = 1 << 4\n"
-           "    VER_PU   = 1 << 5\n"
-           "    VER_PUD  = 1 << 6\n"
-           "    VER_PD   = 1 << 7\n"
-           "    DEL_REM  = 1 << 8\n"
-           "    VER_VREM = 1 << 9\n"
-           "\n");
+    printf(
+        "%s\n",
+        "Set #threads, #keys, etc:\n"
+        "    --threads THREADS    // set number of threads\n"
+        "    --keys KEYS          // number of keys\n"
+        "\n"
+        "Set how to distribute keys among threads:\n"
+        "    --exp M              // M > 0.0\n"
+        "    --poly DEGREE        // DEGREE >= 0.0\n"
+        "\n"
+        "Define how long to run the test:\n"
+        "    If ITER is zero or not set, then run test for DURATION\n"
+        "    seconds, otherwise stop after thread 0 (which always\n"
+        "    has the most keys) has completed ITER iterations.\n"
+        "      --duration DURATION\n"
+        "      --iterations ITER\n"
+        "\n"
+        "Key and value sizes:\n"
+        "    These settings define the amount of random data used in\n"
+        "    keys and values.  The actual sizes will be a bit\n"
+        "    larger due to embedded 'magic' data used by the test.\n"
+        "      --kmin LEN, --kmax LEN // min/max key length\n"
+        "      --vmin LEN, --vmax LEN // min/max value length\n"
+        "\n"
+        "PRNG seed:\n"
+        "    --seed SEED\n"
+        "\n"
+        "Phases (for --mphase):\n"
+        "    PUT_P    = 1 << 0\n"
+        "    PUT_PU   = 1 << 1\n"
+        "    DEL_P    = 1 << 2\n"
+        "    DEL_PU   = 1 << 3\n"
+        "    VER_P    = 1 << 4\n"
+        "    VER_PU   = 1 << 5\n"
+        "    VER_PUD  = 1 << 6\n"
+        "    VER_PD   = 1 << 7\n"
+        "    DEL_REM  = 1 << 8\n"
+        "    VER_VREM = 1 << 9\n"
+        "\n");
 }
 
 static void
@@ -700,7 +727,6 @@ syntax(const char *fmt, ...)
     exit(EX_USAGE);
 }
 
-
 /* get time of day as a count of micro seconds */
 uint64_t
 gtod_usec(void)
@@ -708,8 +734,7 @@ gtod_usec(void)
     struct timeval ctime;
 
     gettimeofday(&ctime, 0);
-    return (uint64_t)ctime.tv_sec * (uint64_t)1000000
-        + (uint64_t)ctime.tv_usec;
+    return (uint64_t)ctime.tv_sec * (uint64_t)1000000 + (uint64_t)ctime.tv_usec;
 }
 
 /**
@@ -733,15 +758,13 @@ poly_dist(double degree, uint32_t len, double *results)
     double total;
 
     if (degree < 0.0) {
-        fprintf(stderr,
-            "Error: invalid --poly value: %g (must be >= 0.0)\n",
-            degree);
+        fprintf(stderr, "Error: invalid --poly value: %g (must be >= 0.0)\n", degree);
         return -1;
     }
 
     total = 0.0;
     for (i = 0; i < len; i++) {
-        results[i] = pow((double)(i+1) / (double)len, degree);
+        results[i] = pow((double)(i + 1) / (double)len, degree);
         total += results[i];
     }
 
@@ -751,7 +774,6 @@ poly_dist(double degree, uint32_t len, double *results)
 
     return 0;
 }
-
 
 /**
  * Returns an array of values such that:
@@ -774,15 +796,13 @@ exp_dist(double m, uint32_t len, double *dist)
     double total;
 
     if (m <= 0.0) {
-        fprintf(stderr,
-            "Error: invalid --exp value: %g (must be > 0.0)\n",
-            m);
+        fprintf(stderr, "Error: invalid --exp value: %g (must be > 0.0)\n", m);
         return -1;
     }
 
     total = 0.0;
     for (i = 0; i < len; i++) {
-        dist[i] = exp((m * (i+1)) / (double)len) - 1.0;
+        dist[i] = exp((m * (i + 1)) / (double)len) - 1.0;
         total += dist[i];
     }
 
@@ -803,7 +823,9 @@ normalize_dist(double *distr, uint32_t len, uint64_t scale, uint64_t *results)
         double val = round(distr[i] * scale);
 
         if (val > (double)(UINT64_MAX)) {
-            fprintf(stderr, "Error: overflow: "
+            fprintf(
+                stderr,
+                "Error: overflow: "
                 "try a more uniform distribution\n");
             return -1;
         }
@@ -813,45 +835,40 @@ normalize_dist(double *distr, uint32_t len, uint64_t scale, uint64_t *results)
 
     if (tot != scale) {
         double adjust = (double)scale - (double)tot;
-        double val = (double)results[len-1] + adjust;
+        double val = (double)results[len - 1] + adjust;
 
         if (val > (double)(UINT64_MAX)) {
-            fprintf(stderr, "Error: overflow: "
+            fprintf(
+                stderr,
+                "Error: overflow: "
                 "try a more uniform distribution\n");
             return -1;
         }
-        results[len-1] = (uint64_t)val;
+        results[len - 1] = (uint64_t)val;
     }
 
     return 0;
-
 }
 
 uint64_t
-xkvdb_kvs_open(
-    struct test        *t,
-    unsigned int       *idxv,
-    const char         *mp,
-    const char         *kvs)
+xkvdb_kvs_open(struct test *t, unsigned int *idxv, const char *mp, const char *kvs)
 {
-    struct hse_kvdb    *kvdb_h;
-    struct hse_kvs     *kvs_h;
-    uint64_t            err;
+    struct hse_kvdb *kvdb_h;
+    struct hse_kvs *kvs_h;
+    uint64_t err;
 
     if (opt.dryrun)
         return 0;
 
     err = hse_kvdb_open(mp, db_oparms.strc, db_oparms.strv, &kvdb_h);
     if (err) {
-        fprintf(stderr, "%s: Unable to open kvdb %s",
-            progname, mp);
+        fprintf(stderr, "%s: Unable to open kvdb %s", progname, mp);
         exit(1);
     }
 
     err = hse_kvdb_kvs_open(kvdb_h, kvs, kv_oparms.strc, kv_oparms.strv, &kvs_h);
     if (err) {
-        fprintf(stderr, "%s: Unable to open kvs %s",
-            progname, mp);
+        fprintf(stderr, "%s: Unable to open kvs %s", progname, mp);
         exit(1);
     }
 
@@ -868,12 +885,7 @@ xkvdb_kvs_close(struct test *t)
 }
 
 uint64_t
-xkvs_put(
-    struct test  *t,
-    void         *key,
-    size_t        klen,
-    void         *val,
-    size_t        vlen)
+xkvs_put(struct test *t, void *key, size_t klen, void *val, size_t vlen)
 {
     if (opt.dryrun)
         return 0UL;
@@ -882,13 +894,7 @@ xkvs_put(
 }
 
 uint64_t
-xkvs_get(
-    struct test  *t,
-    void         *key,
-    size_t        klen,
-    bool         *found,
-    void         *val,
-    size_t       *vlen)
+xkvs_get(struct test *t, void *key, size_t klen, bool *found, void *val, size_t *vlen)
 {
     *found = false;
 
@@ -896,62 +902,44 @@ xkvs_get(
         return 0UL;
 
     *vlen = MAX_VMAX; /* assign here so valgrind knows it's initialized */
-    return hse_kvs_get(t->kvs_h, 0, NULL, key, klen, found,
-               val, *vlen, vlen);
+    return hse_kvs_get(t->kvs_h, 0, NULL, key, klen, found, val, *vlen, vlen);
 }
 
 uint64_t
-xkvs_del(
-    struct test  *t,
-    void         *key,
-    size_t        klen)
+xkvs_del(struct test *t, void *key, size_t klen)
 {
     return opt.dryrun ? 0UL : hse_kvs_delete(t->kvs_h, 0, NULL, key, klen);
 }
 
 uint64_t
-xkvs_prefix_delete(
-    struct test  *t,
-    void         *key,
-    size_t        klen)
+xkvs_prefix_delete(struct test *t, void *key, size_t klen)
 {
-    return opt.dryrun ? 0UL : hse_kvs_prefix_delete(t->kvs_h, 0, NULL,
-                            key, klen);
+    return opt.dryrun ? 0UL : hse_kvs_prefix_delete(t->kvs_h, 0, NULL, key, klen);
 }
 
 uint64_t
-xkvdb_scan_begin(
-    struct test    *t,
-    void           *pfx,
-    size_t          plen,
-    void          **cur)
+xkvdb_scan_begin(struct test *t, void *pfx, size_t plen, void **cur)
 {
-    void       *pfxkey = pfx ?: 0;
-    int         pfxlen = pfx ? plen : 0;
+    void *pfxkey = pfx ?: 0;
+    int pfxlen = pfx ? plen : 0;
 
     if (opt.dryrun)
         return 0UL;
     else
-        return hse_kvs_cursor_create(t->kvs_h, 0, NULL, pfxkey, pfxlen,
-                         (struct hse_kvs_cursor **)cur);
+        return hse_kvs_cursor_create(
+            t->kvs_h, 0, NULL, pfxkey, pfxlen, (struct hse_kvs_cursor **)cur);
 }
 
 uint64_t
-xkvdb_scan_read(
-    void       *cur,
-    void      **key,
-    size_t     *klen,
-    void      **val,
-    size_t     *vlen)
+xkvdb_scan_read(void *cur, void **key, size_t *klen, void **val, size_t *vlen)
 {
-    uint64_t    err;
-    bool        eof;
+    uint64_t err;
+    bool eof;
 
     if (opt.dryrun)
         return 0;
 
-    err = hse_kvs_cursor_read(cur, 0, (const void **)key, klen,
-                  (const void **)val, vlen, &eof);
+    err = hse_kvs_cursor_read(cur, 0, (const void **)key, klen, (const void **)val, vlen, &eof);
     if (err)
         return err;
 
@@ -962,13 +950,13 @@ xkvdb_scan_read(
 }
 
 uint64_t
-xkvdb_scan_end(
-    void                    *cur)
+xkvdb_scan_end(void *cur)
 {
     return opt.dryrun ? 0UL : hse_kvs_cursor_destroy(cur);
 }
 
-void bar_sync(void)
+void
+bar_sync(void)
 {
     int rc;
 
@@ -979,22 +967,16 @@ void bar_sync(void)
     }
 }
 
-
-
 char *
-hexstr(
-    char   *data,
-    size_t  data_len,
-    char   *out,
-    size_t  out_len)
+hexstr(char *data, size_t data_len, char *out, size_t out_len)
 {
     if (data_len * 2 + 1 < out_len) {
         const char nybble2xdigit[] = "0123456789abcdef";
         size_t i;
 
         for (i = 0; i < data_len; i++) {
-            out[i * 2] = nybble2xdigit[ ((uint8_t)data[i] >> 4) ];
-            out[i * 2 + 1] = nybble2xdigit[ ((uint8_t)data[i] & 0xfu) ];
+            out[i * 2] = nybble2xdigit[((uint8_t)data[i] >> 4)];
+            out[i * 2 + 1] = nybble2xdigit[((uint8_t)data[i] & 0xfu)];
         }
         out[data_len * 2] = '\000';
     } else {
@@ -1004,21 +986,21 @@ hexstr(
     return out;
 }
 
-
 void
 hard_stop(void)
 {
     atomic_set(&test.hard_stop, 1);
 }
 
-void *test_main(void *rock);
-void *seqnum_pfx_thread(void *rock);
-
+void *
+test_main(void *rock);
+void *
+seqnum_pfx_thread(void *rock);
 
 void
 start_threads(void)
 {
-    struct tstate  *ts = test.ts;
+    struct tstate *ts = test.ts;
 
     int rc;
     int i;
@@ -1043,7 +1025,7 @@ start_threads(void)
             exit(1);
 
         memset(test.seqnum_pfx_key, 'X', pfx_key_len);
-        test.seqnum_pfx_key[pfx_key_len-1] = 0;
+        test.seqnum_pfx_key[pfx_key_len - 1] = 0;
 
         ts->running = true;
         rc = pthread_create(&ts->thread, NULL, seqnum_pfx_thread, ts);
@@ -1058,10 +1040,10 @@ start_threads(void)
 void
 join_threads(void)
 {
-    uint64_t    last_report = gtod_usec();
-    unsigned    joined = 0;
-    uint64_t    now;
-    int         i;
+    uint64_t last_report = gtod_usec();
+    unsigned joined = 0;
+    uint64_t now;
+    int i;
 
     while (joined != test.running_threads) {
 
@@ -1071,7 +1053,7 @@ join_threads(void)
             if (!ts->joined) {
                 if (ts->running) {
                     void *retval;
-                    long one_sec = 1000*1000*1000;
+                    long one_sec = 1000 * 1000 * 1000;
                     long tenth_sec = one_sec / 10;
                     struct timespec time;
 
@@ -1081,10 +1063,7 @@ join_threads(void)
                         time.tv_nsec -= one_sec;
                         time.tv_sec += 1;
                     }
-                    if (0 == pthread_timedjoin_np(
-                            ts->thread,
-                            &retval,
-                            &time)) {
+                    if (0 == pthread_timedjoin_np(ts->thread, &retval, &time)) {
                         ts->joined = true;
                         joined++;
                     }
@@ -1098,7 +1077,8 @@ join_threads(void)
 
         now = gtod_usec();
         if (now - last_report > 1000000) {
-            fprintf(stderr,
+            fprintf(
+                stderr,
                 "Waiting for threads:"
                 " %u of %u threads have finished\n",
                 joined, test.running_threads);
@@ -1109,8 +1089,7 @@ join_threads(void)
 }
 
 void
-interact(
-    const char *action)
+interact(const char *action)
 {
     char input[64];
 
@@ -1129,29 +1108,22 @@ interact(
         if (!fgets(input, sizeof(input), stdin))
             break;
         len = strlen(input);
-        if (len == 0 || input[len-1] == '\n')
+        if (len == 0 || input[len - 1] == '\n')
             break;
     }
 }
 
 void
-do_puts(
-    struct tstate  *ts,
-    uint64_t        first_key,
-    uint64_t        num_keys,
-    char           *key_range_name,
-    char            tag)
+do_puts(struct tstate *ts, uint64_t first_key, uint64_t num_keys, char *key_range_name, char tag)
 {
     uint64_t keynum;
     uint32_t vlen;
     uint32_t klen;
     uint64_t rc;
-    int     i;
+    int i;
 
     if (opt.verbose > 2 || opt.interactive)
-        printf("T%03u I%lu: insert(%s) %lu keys\n",
-               ts->id, ts->iter_cnt,
-               key_range_name, num_keys);
+        printf("T%03u I%lu: insert(%s) %lu keys\n", ts->id, ts->iter_cnt, key_range_name, num_keys);
     interact(0);
 
     for (i = 0; i < num_keys; i++) {
@@ -1161,34 +1133,30 @@ do_puts(
 
         keynum = i + ts->key_space_offset + first_key;
 
-        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0,
-              ts->genkey, &klen);
+        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0, ts->genkey, &klen);
 
         if (opt.vmax)
-            rsgen_str(&test.vgen, ts->id, keynum, ts->iter_cnt, tag,
-                  ts->exp_val, &vlen);
+            rsgen_str(&test.vgen, ts->id, keynum, ts->iter_cnt, tag, ts->exp_val, &vlen);
         else
             vlen = 0;
 
         if (opt.verbose > 3)
-            printf("T%03d I%lu: hse_kvs_put(%s) "
-                   "key#%lu len=%u key=%s%s%s\n",
-                   ts->id, ts->iter_cnt, key_range_name,
-                   keynum, klen,
-                   hexstr(ts->genkey, klen, ts->msgbuf,
-                      sizeof(ts->msgbuf)),
-                   (opt.verbose <= 4 ? "" : " val="),
-                   (opt.verbose <= 4
-                ? "" :
-                hexstr(ts->exp_val, vlen, ts->msgbuf1,
-                       sizeof(ts->msgbuf1))));
+            printf(
+                "T%03d I%lu: hse_kvs_put(%s) "
+                "key#%lu len=%u key=%s%s%s\n",
+                ts->id, ts->iter_cnt, key_range_name, keynum, klen,
+                hexstr(ts->genkey, klen, ts->msgbuf, sizeof(ts->msgbuf)),
+                (opt.verbose <= 4 ? "" : " val="),
+                (opt.verbose <= 4 ? ""
+                                  : hexstr(ts->exp_val, vlen, ts->msgbuf1, sizeof(ts->msgbuf1))));
 
         rc = xkvs_put(&test, ts->genkey, klen, ts->exp_val, vlen);
         if (rc) {
-            fprintf(stderr, "%s: T%03d I%lu: %s %s %lu: "
+            fprintf(
+                stderr,
+                "%s: T%03d I%lu: %s %s %lu: "
                 "hse_kvs_put failed\n",
-                progname, ts->id, ts->iter_cnt, "put",
-                key_range_name, keynum);
+                progname, ts->id, ts->iter_cnt, "put", key_range_name, keynum);
             return;
         }
 
@@ -1205,21 +1173,15 @@ do_puts(
 }
 
 void
-do_deletes(
-    struct tstate  *ts,
-    uint64_t        first_key,
-    uint64_t        num_keys,
-    char           *key_range_name)
+do_deletes(struct tstate *ts, uint64_t first_key, uint64_t num_keys, char *key_range_name)
 {
-    uint64_t     i;
-    uint64_t     keynum;
-    uint32_t     klen;
-    uint64_t     rc;
+    uint64_t i;
+    uint64_t keynum;
+    uint32_t klen;
+    uint64_t rc;
 
     if (opt.verbose > 2 || opt.interactive)
-        printf("T%03u I%lu: delete(%s) %lu keys\n",
-               ts->id, ts->iter_cnt,
-               key_range_name, num_keys);
+        printf("T%03u I%lu: delete(%s) %lu keys\n", ts->id, ts->iter_cnt, key_range_name, num_keys);
     interact(0);
 
     for (i = 0; i < num_keys; i++) {
@@ -1228,23 +1190,22 @@ do_deletes(
 
         keynum = i + ts->key_space_offset + first_key;
 
-        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0,
-              ts->genkey, &klen);
+        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0, ts->genkey, &klen);
 
         if (opt.verbose > 3)
-            printf("T%03d I%lu: kvs_del(%s) "
-                   "key#%lu len=%u key=%s\n",
-                   ts->id, ts->iter_cnt, key_range_name,
-                   keynum, klen,
-                   hexstr(ts->genkey, klen,
-                      ts->msgbuf, sizeof(ts->msgbuf)));
+            printf(
+                "T%03d I%lu: kvs_del(%s) "
+                "key#%lu len=%u key=%s\n",
+                ts->id, ts->iter_cnt, key_range_name, keynum, klen,
+                hexstr(ts->genkey, klen, ts->msgbuf, sizeof(ts->msgbuf)));
 
         rc = xkvs_del(&test, ts->genkey, klen);
         if (rc) {
-            fprintf(stderr, "%s: T%03d I%lu: delete %s %lu: "
+            fprintf(
+                stderr,
+                "%s: T%03d I%lu: delete %s %lu: "
                 "kvs_del failed\n",
-                progname, ts->id, ts->iter_cnt,
-                key_range_name, keynum);
+                progname, ts->id, ts->iter_cnt, key_range_name, keynum);
             hard_stop();
             return;
         }
@@ -1257,42 +1218,42 @@ do_deletes(
 
 bool
 do_error(
-    struct tstate    *ts,
-    uint64_t          keynum,
-    char             *key_range_name,
-    const char       *errmsg,
-    void             *key,
-    uint32_t          klen,
-    void             *val,
-    uint32_t          vlen,
-    void             *exp,
-    uint32_t          explen,
-    int               verify_delete,
-    int               found)
+    struct tstate *ts,
+    uint64_t keynum,
+    char *key_range_name,
+    const char *errmsg,
+    void *key,
+    uint32_t klen,
+    void *val,
+    uint32_t vlen,
+    void *exp,
+    uint32_t explen,
+    int verify_delete,
+    int found)
 {
     int errors = atomic_fetch_add(&test.errors, 1) + 1;
 
-    fprintf(stderr, "Error #%d: T%03d I%lu: verify %s: %s\n",
-        errors, ts->id, ts->iter_cnt, key_range_name, errmsg);
+    fprintf(
+        stderr, "Error #%d: T%03d I%lu: verify %s: %s\n", errors, ts->id, ts->iter_cnt,
+        key_range_name, errmsg);
 
-    fprintf(stderr, "Error #%d: key#%lu len=%u: %s\n",
-        errors, keynum, klen, hexstr(key, klen,
-                         ts->msgbuf, sizeof(ts->msgbuf)));
+    fprintf(
+        stderr, "Error #%d: key#%lu len=%u: %s\n", errors, keynum, klen,
+        hexstr(key, klen, ts->msgbuf, sizeof(ts->msgbuf)));
 
     if (!verify_delete)
-        fprintf(stderr, "Error #%d: expected %u byte value: %s\n",
-            errors, explen, hexstr(exp, explen,
-            ts->msgbuf, sizeof(ts->msgbuf)));
+        fprintf(
+            stderr, "Error #%d: expected %u byte value: %s\n", errors, explen,
+            hexstr(exp, explen, ts->msgbuf, sizeof(ts->msgbuf)));
     else if (keystats)
-        fprintf(stderr, "keynum %lu puts %d upds %d dels %d\n", keynum,
-            keystats[keynum].ks_puts, keystats[keynum].ks_upds,
-            keystats[keynum].ks_dels);
+        fprintf(
+            stderr, "keynum %lu puts %d upds %d dels %d\n", keynum, keystats[keynum].ks_puts,
+            keystats[keynum].ks_upds, keystats[keynum].ks_dels);
 
     if (found)
-        fprintf(stderr, "Error #%d: retrieved %u byte value: %s\n",
-            errors, vlen, hexstr(val, vlen,
-                         ts->msgbuf, sizeof(ts->msgbuf)));
-
+        fprintf(
+            stderr, "Error #%d: retrieved %u byte value: %s\n", errors, vlen,
+            hexstr(val, vlen, ts->msgbuf, sizeof(ts->msgbuf)));
 
     return opt.max_errors > 0 && errors >= opt.max_errors;
 }
@@ -1331,28 +1292,24 @@ do_error(
  */
 
 void
-do_cursor_verify(
-    struct tstate  *ts,
-    uint64_t        d1_len,
-    uint64_t        u_len,
-    uint64_t        p_len)
+do_cursor_verify(struct tstate *ts, uint64_t d1_len, uint64_t u_len, uint64_t p_len)
 {
-    int        err;
-    void         *key = 0, *val = 0, *exp = 0;
-    size_t        klen, vlen;
-    uint          explen;
-    void         *cur;
-    const char   *errmsg;
-    uint64_t      keynum, iter, count;
-    uint32_t      phase;
+    int err;
+    void *key = 0, *val = 0, *exp = 0;
+    size_t klen, vlen;
+    uint explen;
+    void *cur;
+    const char *errmsg;
+    uint64_t keynum, iter, count;
+    uint32_t phase;
 
     /*
      * keys < key_first or > key_last are found deleted keys
      * keys < key_upd have a value tag U, else value tag P
      */
     uint64_t key_first = ts->key_space_offset + d1_len;
-    uint64_t key_last  = ts->key_space_offset + p_len - d1_len;
-    uint64_t key_upd   = ts->key_space_offset + u_len;
+    uint64_t key_last = ts->key_space_offset + p_len - d1_len;
+    uint64_t key_upd = ts->key_space_offset + u_len;
 
     /*
      * phases can alter this key map:
@@ -1373,8 +1330,7 @@ do_cursor_verify(
         key_upd = 0;
 
     if (opt.verbose > 2 || opt.interactive)
-        printf("T%03u I%lu: verify with cursor\n",
-               ts->id, ts->iter_cnt);
+        printf("T%03u I%lu: verify with cursor\n", ts->id, ts->iter_cnt);
     interact(0);
 
     /*
@@ -1384,10 +1340,11 @@ do_cursor_verify(
 
     err = xkvdb_scan_begin(&test, ts->pfx, ts->pfxlen, &cur);
     if (err) {
-        fprintf(stderr, "T%03d I%lu: Error: verify %s %lu: "
+        fprintf(
+            stderr,
+            "T%03d I%lu: Error: verify %s %lu: "
             "cannot begin scan: %d\n",
-            ts->id, ts->iter_cnt, "cursor", key_first,
-            err);
+            ts->id, ts->iter_cnt, "cursor", key_first, err);
         /* allow a scan to fail because all resources changing */
         if (err != EAGAIN)
             hard_stop();
@@ -1397,7 +1354,7 @@ do_cursor_verify(
     count = 0;
     for (;;) {
         uint16_t tid;
-        bool     vd = false;
+        bool vd = false;
 
         err = xkvdb_scan_read(cur, &key, &klen, &val, &vlen);
         if (err || klen == 0)
@@ -1422,12 +1379,11 @@ do_cursor_verify(
         } else if (keynum < key_first || keynum > key_last) {
             errmsg = "found deleted key";
             vd = true;
-        } else  {
+        } else {
             char tag = keynum < key_upd ? 'U' : 'P';
 
             exp = ts->exp_val;
-            rsgen_str(&test.vgen, ts->id, keynum, iter, tag,
-                  exp, &explen);
+            rsgen_str(&test.vgen, ts->id, keynum, iter, tag, exp, &explen);
         }
 
         if (!errmsg && iter != ts->iter_cnt)
@@ -1440,16 +1396,17 @@ do_cursor_verify(
         }
 
         if (errmsg && !opt.dryrun &&
-            do_error(ts, keynum, "cursor", errmsg,
-                        key, klen, val, vlen,
-                        exp, explen, vd, 1)) {
+            do_error(ts, keynum, "cursor", errmsg, key, klen, val, vlen, exp, explen, vd, 1))
+        {
             hard_stop();
             break;
         }
     }
 
     if (err) {
-        fprintf(stderr, "T%03d I%lu: Error: verify %s %lu: "
+        fprintf(
+            stderr,
+            "T%03d I%lu: Error: verify %s %lu: "
             "error during scan: %d\n",
             ts->id, ts->iter_cnt, "cursor", keynum, err);
         hard_stop();
@@ -1457,30 +1414,30 @@ do_cursor_verify(
 
     xkvdb_scan_end(cur);
 
-    if (!atomic_read(&test.hard_stop)
-        && count != key_last - key_first)
-        fprintf(stderr, "T%03d I%lu: Error: verify %s %lu: "
+    if (!atomic_read(&test.hard_stop) && count != key_last - key_first)
+        fprintf(
+            stderr,
+            "T%03d I%lu: Error: verify %s %lu: "
             "found %ld keys, expected %ld\n",
-            ts->id, ts->iter_cnt, "cursor", key_first,
-            count, p_len - d1_len * 2);
+            ts->id, ts->iter_cnt, "cursor", key_first, count, p_len - d1_len * 2);
 }
 
 void
 do_verifies(
-    struct tstate  *ts,
-    uint64_t        first_key,
-    uint64_t        num_keys,
-    char           *key_range_name,
-    char            tag)
+    struct tstate *ts,
+    uint64_t first_key,
+    uint64_t num_keys,
+    char *key_range_name,
+    char tag)
 {
-    uint64_t    rc;
-    void       *key, *exp;
-    size_t      klen, vlen;
-    uint        gen_klen;
-    uint        explen;
-    bool        found;
-    bool        verify_delete = (tag == 'D');
-    uint64_t    i, stop_at, keynum;
+    uint64_t rc;
+    void *key, *exp;
+    size_t klen, vlen;
+    uint gen_klen;
+    uint explen;
+    bool found;
+    bool verify_delete = (tag == 'D');
+    uint64_t i, stop_at, keynum;
     const char *errmsg;
 
     if (opt.verify == 0)
@@ -1490,7 +1447,7 @@ do_verifies(
         /* TODO: select a random sample to verify
          * instead of stopping after the first N
          * entries */
-        stop_at = (uint64_t)(num_keys * (opt.verify/100.0));
+        stop_at = (uint64_t)(num_keys * (opt.verify / 100.0));
         if (stop_at < 5)
             stop_at = 5;
         if (stop_at > num_keys)
@@ -1500,9 +1457,9 @@ do_verifies(
     }
 
     if (opt.verbose > 2 || opt.interactive)
-        printf("T%03u I%lu: verify(%s) %lu of %lu keys\n",
-               ts->id, ts->iter_cnt,
-               key_range_name, stop_at, num_keys);
+        printf(
+            "T%03u I%lu: verify(%s) %lu of %lu keys\n", ts->id, ts->iter_cnt, key_range_name,
+            stop_at, num_keys);
     interact(0);
 
     for (i = 0; i < stop_at; i++) {
@@ -1512,28 +1469,26 @@ do_verifies(
 
         keynum = i + ts->key_space_offset + first_key;
 
-        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0,
-              ts->genkey, &gen_klen);
+        rsgen_str(&test.kgen, ts->id, keynum, ts->iter_cnt, 0, ts->genkey, &gen_klen);
 
         klen = gen_klen;
         key = ts->genkey;
 
         if (opt.verbose > 3)
-            printf("T%03d I%lu: hse_kvs_get(%s) "
-                   "key#%lu len=%lu key=%s\n",
-                   ts->id, ts->iter_cnt, key_range_name,
-                   keynum, (size_t)klen,
-                   hexstr(ts->genkey, klen,
-                      ts->msgbuf, sizeof(ts->msgbuf)));
+            printf(
+                "T%03d I%lu: hse_kvs_get(%s) "
+                "key#%lu len=%lu key=%s\n",
+                ts->id, ts->iter_cnt, key_range_name, keynum, (size_t)klen,
+                hexstr(ts->genkey, klen, ts->msgbuf, sizeof(ts->msgbuf)));
 
         found = false;
-        rc = xkvs_get(&test, ts->genkey, klen, &found,
-                  ts->act_val, &vlen);
+        rc = xkvs_get(&test, ts->genkey, klen, &found, ts->act_val, &vlen);
         if (rc) {
-            fprintf(stderr, "T%03d I%lu: Error: verify %s %lu: "
+            fprintf(
+                stderr,
+                "T%03d I%lu: Error: verify %s %lu: "
                 "hse_kvs_get failed\n",
-                ts->id, ts->iter_cnt,
-                key_range_name, keynum);
+                ts->id, ts->iter_cnt, key_range_name, keynum);
             hard_stop();
             return;
         }
@@ -1541,15 +1496,14 @@ do_verifies(
         ts->get_cnt += 1;
 
         explen = 0;
-        exp    = 0;
+        exp = 0;
         errmsg = 0;
 
         if (verify_delete) {
             if (found)
                 errmsg = "found deleted key";
         } else {
-            rsgen_str(&test.vgen, ts->id, keynum, ts->iter_cnt, tag,
-                  ts->exp_val, &explen);
+            rsgen_str(&test.vgen, ts->id, keynum, ts->iter_cnt, tag, ts->exp_val, &explen);
             exp = ts->exp_val;
 
             if (!found)
@@ -1561,19 +1515,17 @@ do_verifies(
         }
 
         if (errmsg && !opt.dryrun &&
-            do_error(ts, keynum, key_range_name, errmsg,
-                    key, klen, ts->act_val, vlen,
-                    exp, explen, verify_delete, found))
+            do_error(
+                ts, keynum, key_range_name, errmsg, key, klen, ts->act_val, vlen, exp, explen,
+                verify_delete, found))
             hard_stop();
     }
 }
 
-
 void
-do_one_iteration(
-    struct tstate  *ts)
+do_one_iteration(struct tstate *ts)
 {
-    uint64_t     u_len, d1_len, d2_len;
+    uint64_t u_len, d1_len, d2_len;
 
     /* Setup ranges for this iteration as follows:
      *
@@ -1592,10 +1544,10 @@ do_one_iteration(
      * that's true there just aren't enough keys to populate each
      * range.  Set D2 range to be the same size as D1.
      */
-    u_len    = ts->num_keys / 10;
-    d1_len   = ts->num_keys / 20;
+    u_len = ts->num_keys / 10;
+    d1_len = ts->num_keys / 20;
     if (d1_len == 0) {
-        u_len  = ts->num_keys / 2;
+        u_len = ts->num_keys / 2;
         d1_len = ts->num_keys / 4;
     }
     d2_len = d1_len;
@@ -1651,37 +1603,29 @@ del_rem:
         if (opt.cursor)
             do_cursor_verify(ts, 0, 0, 0);
         else
-            do_verifies(ts, d1_len, ts->num_keys - d1_len - d2_len,
-                "REM", 'D');
+            do_verifies(ts, d1_len, ts->num_keys - d1_len - d2_len, "REM", 'D');
     }
 }
 
 bool
-test_done(
-    void)
+test_done(void)
 {
-    return atomic_read(&test.test_complete) ||
-        atomic_read(&test.hard_stop);
+    return atomic_read(&test.test_complete) || atomic_read(&test.hard_stop);
 }
 
-
 void *
-seqnum_pfx_thread(
-    void *rock)
+seqnum_pfx_thread(void *rock)
 {
-    struct tstate      *ts = (struct tstate *)rock;
-    uint64_t            rc;
+    struct tstate *ts = (struct tstate *)rock;
+    uint64_t rc;
 
     bar_sync();
 
     while (!test_done()) {
-        usleep(10*1000);
-        rc = xkvs_prefix_delete(&test, test.seqnum_pfx_key,
-                    opt.seqnum_pfx);
+        usleep(10 * 1000);
+        rc = xkvs_prefix_delete(&test, test.seqnum_pfx_key, opt.seqnum_pfx);
         if (rc) {
-            fprintf(stderr,
-                "%s: hse_kvs_prefix_delete failed\n",
-                progname);
+            fprintf(stderr, "%s: hse_kvs_prefix_delete failed\n", progname);
             hard_stop();
         }
     }
@@ -1690,16 +1634,15 @@ seqnum_pfx_thread(
     return NULL;
 }
 
-
 void *
-test_main(
-    void *rock)
+test_main(void *rock)
 {
-    int                 err = 0;
-    struct tstate      *ts = (struct tstate *)rock;
+    int err = 0;
+    struct tstate *ts = (struct tstate *)rock;
 
     if (ts->num_keys == 0) {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Error: thread %d has no keys!\n"
             "Try one or more of the following:\n"
             "  1. more keys\n"
@@ -1720,8 +1663,7 @@ test_main(
             ts->iter_cnt += 1;
         }
 
-        if (opt.once ||
-            (ts->num_iters > 0 && ts->iter_cnt == ts->num_iters))
+        if (opt.once || (ts->num_iters > 0 && ts->iter_cnt == ts->num_iters))
             atomic_set(&test.test_complete, 1);
 
     } while (!test_done());
@@ -1730,16 +1672,14 @@ test_main(
     return NULL;
 }
 
-
 int
-test_init(
-    void)
+test_init(void)
 {
-    double   *dist = 0;
+    double *dist = 0;
     uint64_t *keys = 0;
-    uint64_t  assigned_keys = 0;
-    uint32_t  i;
-    uint32_t  max_iter = 0;
+    uint64_t assigned_keys = 0;
+    uint32_t i;
+    uint32_t max_iter = 0;
 
     memset(&test, 0, sizeof(test));
 
@@ -1753,8 +1693,7 @@ test_init(
     test.running_threads = opt.test_threads;
     if (opt.seqnum_pfx)
         ++test.running_threads;
-    if (pthread_barrier_init(&test.bar_sync, NULL,
-                 (unsigned)test.running_threads+1)) {
+    if (pthread_barrier_init(&test.bar_sync, NULL, (unsigned)test.running_threads + 1)) {
         perror("Error: pthread_barrier_init");
         goto error;
     }
@@ -1777,14 +1716,15 @@ test_init(
     /* flip the distribution so thread 0 has the most keys */
     for (i = 0; i < opt.test_threads; i++) {
         struct tstate *ts = test.ts + i;
-        uint64_t nkeys = keys[opt.test_threads-1-i];
+        uint64_t nkeys = keys[opt.test_threads - 1 - i];
 
         ts->key_space_offset = assigned_keys;
-        ts->num_keys  = nkeys;
+        ts->num_keys = nkeys;
         assigned_keys += nkeys;
     }
     if (opt.keys != assigned_keys) {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Error: opt.keys (%lu) != assigned_keys (%lu)\n"
             "Bad logic in longtest!\n",
             opt.keys, assigned_keys);
@@ -1806,18 +1746,16 @@ test_init(
     max_iter *= 1 + keys[0] / keys[opt.test_threads - 1];
 
     /* initialize key and value generators */
-    if (rsgen_init(&test.kgen, opt.keys, max_iter,
-               false, opt.kmin, opt.kmax, opt.test_threads, opt.seed)) {
-        fprintf(stderr,
-            "Error: Invalid key length: %s\n",
-            test.kgen.rs_errmsg);
+    if (rsgen_init(
+            &test.kgen, opt.keys, max_iter, false, opt.kmin, opt.kmax, opt.test_threads, opt.seed))
+    {
+        fprintf(stderr, "Error: Invalid key length: %s\n", test.kgen.rs_errmsg);
         goto error;
     }
-    if (rsgen_init(&test.vgen, opt.keys, max_iter,
-               true, opt.vmin, opt.vmax, 0, opt.seed ^ 0x01010101)) {
-        fprintf(stderr,
-            "Error: Invalid value length: %s\n",
-            test.vgen.rs_errmsg);
+    if (rsgen_init(
+            &test.vgen, opt.keys, max_iter, true, opt.vmin, opt.vmax, 0, opt.seed ^ 0x01010101))
+    {
+        fprintf(stderr, "Error: Invalid value length: %s\n", test.vgen.rs_errmsg);
         goto error;
     }
 
@@ -1852,8 +1790,7 @@ error:
 }
 
 void
-test_fini(
-    void)
+test_fini(void)
 {
     rsgen_fini(&test.kgen);
     if (opt.vmax)
@@ -1863,21 +1800,19 @@ test_fini(
     keystats = NULL;
 }
 
-
 void
-test_stats_header(
-    void)
+test_stats_header(void)
 {
-    printf("stats: %8s %8s %8s %8s %8s %8s %8s\n",
-           "seconds", "put_ins", "put_upd", "put_del",
-           "puts", "gets", "ops");
+    printf(
+        "stats: %8s %8s %8s %8s %8s %8s %8s\n", "seconds", "put_ins", "put_upd", "put_del", "puts",
+        "gets", "ops");
 }
 
 void
 get_stats(
-    struct test_stats   curr[static MAX_THREADS],
-    struct test_stats  *tot,
-    uint64_t            *elapsed_time)
+    struct test_stats curr[static MAX_THREADS],
+    struct test_stats *tot,
+    uint64_t *elapsed_time)
 {
     uint32_t i;
 
@@ -1888,10 +1823,7 @@ get_stats(
         curr[i].dels = test.ts[i].del_cnt;
         curr[i].gets = test.ts[i].get_cnt;
         curr[i].iters = test.ts[i].iter_cnt;
-        curr[i].ops = (curr[i].puts +
-                   curr[i].upds +
-                   curr[i].gets +
-                   curr[i].dels);
+        curr[i].ops = (curr[i].puts + curr[i].upds + curr[i].gets + curr[i].dels);
     }
 
     *elapsed_time = gtod_usec() - test.start_time;
@@ -1899,18 +1831,17 @@ get_stats(
     /* compute totals */
     memset(tot, 0, sizeof(*tot));
     for (i = 0; i < opt.test_threads; i++) {
-        tot->puts  += curr[i].puts;
-        tot->upds  += curr[i].upds;
-        tot->dels  += curr[i].dels;
-        tot->gets  += curr[i].gets;
+        tot->puts += curr[i].puts;
+        tot->upds += curr[i].upds;
+        tot->dels += curr[i].dels;
+        tot->gets += curr[i].gets;
         tot->iters += curr[i].iters;
-        tot->ops   += curr[i].ops;
+        tot->ops += curr[i].ops;
     }
 }
 
 void
-test_stats(
-    void)
+test_stats(void)
 {
     uint64_t elapsed_time;
 
@@ -1921,20 +1852,20 @@ test_stats(
     get_stats(curr, &tot, &elapsed_time);
 
     /* compute delta */
-    delta.puts  = tot.puts  - test.tot.puts;
-    delta.upds  = tot.upds  - test.tot.upds;
-    delta.dels  = tot.dels  - test.tot.dels;
-    delta.gets  = tot.gets  - test.tot.gets;
+    delta.puts = tot.puts - test.tot.puts;
+    delta.upds = tot.upds - test.tot.upds;
+    delta.dels = tot.dels - test.tot.dels;
+    delta.gets = tot.gets - test.tot.gets;
     delta.iters = tot.iters - test.tot.iters;
-    delta.ops   = tot.ops   - test.tot.ops;
+    delta.ops = tot.ops - test.tot.ops;
 
     /* update totals for next time */
-    test.tot.puts  = tot.puts;
-    test.tot.upds  = tot.upds;
-    test.tot.dels  = tot.dels;
-    test.tot.gets  = tot.gets;
+    test.tot.puts = tot.puts;
+    test.tot.upds = tot.upds;
+    test.tot.dels = tot.dels;
+    test.tot.gets = tot.gets;
     test.tot.iters = tot.iters;
-    test.tot.ops   = tot.ops;
+    test.tot.ops = tot.ops;
 
     /* report */
     if (test.stat_rows_no_hdr > 20)
@@ -1945,57 +1876,43 @@ test_stats(
 
     test.stat_rows_no_hdr++;
 
-    printf("stats: %8.3f %8lu %8lu %8lu %8lu %8lu %8lu\n",
-           elapsed_time * 1e-6,
-           delta.puts, delta.upds, delta.dels,
-           delta.puts + delta.upds + delta.dels,
-           delta.gets,
-           delta.ops);
+    printf(
+        "stats: %8.3f %8lu %8lu %8lu %8lu %8lu %8lu\n", elapsed_time * 1e-6, delta.puts, delta.upds,
+        delta.dels, delta.puts + delta.upds + delta.dels, delta.gets, delta.ops);
 }
 
 void
-test_summary(
-    void)
+test_summary(void)
 {
-    int      i;
+    int i;
     uint64_t elapsed_time;
 
-    struct test_stats   curr[MAX_THREADS];
-    struct test_stats   tot;
-    struct test_stats  *s;
+    struct test_stats curr[MAX_THREADS];
+    struct test_stats tot;
+    struct test_stats *s;
 
     get_stats(curr, &tot, &elapsed_time);
 
     printf("Op counts by thread:\n");
-    printf("summary: %8s %8s %8s %8s %8s %8s %8s %8s\n",
-           "thread", "iters",
-           "put_ins", "put_upd", "put_del",
-           "puts",
-           "gets",
-           "ops");
+    printf(
+        "summary: %8s %8s %8s %8s %8s %8s %8s %8s\n", "thread", "iters", "put_ins", "put_upd",
+        "put_del", "puts", "gets", "ops");
 
     for (i = 0; i < opt.test_threads; i++) {
         s = curr + i;
-        printf("summary: %8d %8lu %8lu %8lu %8lu %8lu %8lu %8lu\n",
-               i, s->iters,
-               s->puts, s->upds, s->dels,
-               s->puts + s->upds + s->dels,
-               s->gets,
-               s->puts + s->upds + s->dels + s->gets);
+        printf(
+            "summary: %8d %8lu %8lu %8lu %8lu %8lu %8lu %8lu\n", i, s->iters, s->puts, s->upds,
+            s->dels, s->puts + s->upds + s->dels, s->gets, s->puts + s->upds + s->dels + s->gets);
     }
 
     s = &tot;
-    printf("summary: %8s %8lu %8lu %8lu %8lu %8lu %8lu %8lu\n",
-           "Total", s->iters,
-           s->puts, s->upds, s->dels,
-           s->puts + s->upds + s->dels,
-           s->gets,
-           s->puts + s->upds + s->dels + s->gets);
+    printf(
+        "summary: %8s %8lu %8lu %8lu %8lu %8lu %8lu %8lu\n", "Total", s->iters, s->puts, s->upds,
+        s->dels, s->puts + s->upds + s->dels, s->gets, s->puts + s->upds + s->dels + s->gets);
 }
 
 bool
-test_threads_running(
-    void)
+test_threads_running(void)
 {
     int i;
 
@@ -2006,19 +1923,17 @@ test_threads_running(
 }
 
 int
-test_run(
-    void)
+test_run(void)
 {
-    int             errors;
-    uint64_t        rc;
-    uint64_t        elapsed_time;
-    uint64_t        last_report = 0;
-    unsigned int    idxv;
+    int errors;
+    uint64_t rc;
+    uint64_t elapsed_time;
+    uint64_t last_report = 0;
+    unsigned int idxv;
 
     rc = xkvdb_kvs_open(&test, &idxv, opt.mpool, opt.kvs);
     if (rc) {
-        fprintf(stderr, "%s: kvs_open(%s,%s) failed\n",
-            progname, opt.mpool, opt.kvs);
+        fprintf(stderr, "%s: kvs_open(%s,%s) failed\n", progname, opt.mpool, opt.kvs);
         return -1;
     }
 
@@ -2029,19 +1944,19 @@ test_run(
     while (test_threads_running()) {
 
         elapsed_time = gtod_usec() - test.start_time;
-        if (opt.duration && elapsed_time > opt.duration*1000*1000)
+        if (opt.duration && elapsed_time > opt.duration * 1000 * 1000)
             atomic_set(&test.test_complete, 1);
 
         if (opt.stats) {
             if (!last_report)
                 last_report = elapsed_time;
-            else if (elapsed_time - last_report > 1000*1000) {
+            else if (elapsed_time - last_report > 1000 * 1000) {
                 last_report = elapsed_time;
                 test_stats();
             }
         }
 
-        usleep(10*1000);
+        usleep(10 * 1000);
     }
 
     join_threads();
@@ -2054,8 +1969,7 @@ test_run(
 
     rc = xkvdb_kvs_close(&test);
     if (rc) {
-        fprintf(stderr, "%s: kvs_close %s/%s failed\n",
-            progname, opt.mpool, opt.kvs);
+        fprintf(stderr, "%s: kvs_close %s/%s failed\n", progname, opt.mpool, opt.kvs);
     }
 
     errors = atomic_read(&test.errors);
@@ -2068,8 +1982,8 @@ test_run(
 int
 main(int argc, char **argv)
 {
-    int     err = 0;
-    int     i;
+    int err = 0;
+    int i;
 
     progname_set(argv[0]);
 
@@ -2091,7 +2005,7 @@ main(int argc, char **argv)
         syntax("Missing required parameters");
 
     opt.mpool = argv[optind++];
-    opt.kvs   = argv[optind++];
+    opt.kvs = argv[optind++];
 
     if (opt.interactive && opt.test_threads != 1)
         syntax("Interactive mode only supported with one thread");
@@ -2104,17 +2018,17 @@ main(int argc, char **argv)
 
     /* threads */
     if (opt.test_threads == 0 || opt.test_threads > MAX_TEST_THREADS)
-        syntax("Invalid thread count: %u (valid range: 0..%u)",
-               opt.test_threads, MAX_TEST_THREADS);
+        syntax("Invalid thread count: %u (valid range: 0..%u)", opt.test_threads, MAX_TEST_THREADS);
     if (opt.mthread != -1)
         if (opt.mthread < 0 || opt.mthread >= opt.test_threads)
             syntax("Invalid mthread value: %d\n", opt.mthread);
 
     /* key len */
     if (opt.kmax > MAX_KMAX)
-        syntax("Invalid key len range: %u..%u\n"
-               "Max key len is %u\n",
-               opt.kmin, opt.kmax, MAX_KMAX);
+        syntax(
+            "Invalid key len range: %u..%u\n"
+            "Max key len is %u\n",
+            opt.kmin, opt.kmax, MAX_KMAX);
     if (opt.kmin > opt.kmax)
         opt.kmin = opt.kmax;
 
@@ -2124,7 +2038,7 @@ main(int argc, char **argv)
             syntax("cursor verify requires kmin <= kmax <= 8");
 
         if (opt.verbose >= 1) {
-            size_t  sz = sizeof(*keystats) * opt.keys;
+            size_t sz = sizeof(*keystats) * opt.keys;
 
             keystats = malloc(sz);
             if (keystats)
@@ -2136,9 +2050,10 @@ main(int argc, char **argv)
 
     /* value len */
     if (opt.vmax > MAX_VMAX)
-        syntax("Invalid value len range: %u..%u\n"
-               "Max vlen is %u\n",
-               opt.vmin, opt.vmax, MAX_VMAX);
+        syntax(
+            "Invalid value len range: %u..%u\n"
+            "Max vlen is %u\n",
+            opt.vmin, opt.vmax, MAX_VMAX);
     if (opt.vmin > opt.vmax)
         opt.vmin = opt.vmax;
 
@@ -2148,21 +2063,22 @@ main(int argc, char **argv)
 
     err = pg_parse_argv(pg, argc, argv, &optind);
     switch (err) {
-        case 0:
-            if (optind < argc) {
-                fprintf(stderr, "unknown parameter: %s", argv[optind]);
-                exit(EX_USAGE);
-            }
-            break;
-        case EINVAL:
-            fprintf(stderr, "missing group name (e.g. %s) before parameter %s\n",
-                PG_KVDB_OPEN, argv[optind]);
+    case 0:
+        if (optind < argc) {
+            fprintf(stderr, "unknown parameter: %s", argv[optind]);
             exit(EX_USAGE);
-            break;
-        default:
-            fprintf(stderr, "error processing parameter %s\n", argv[optind]);
-            exit(EX_OSERR);
-            break;
+        }
+        break;
+    case EINVAL:
+        fprintf(
+            stderr, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN,
+            argv[optind]);
+        exit(EX_USAGE);
+        break;
+    default:
+        fprintf(stderr, "error processing parameter %s\n", argv[optind]);
+        exit(EX_OSERR);
+        break;
     }
 
     err = err ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
@@ -2208,7 +2124,7 @@ main(int argc, char **argv)
      * they get going, the unmount will wait for completion.
      */
     if (opt.keys == 0)
-        usleep(100*1000);
+        usleep(100 * 1000);
 
 done:
     test_fini();

@@ -11,9 +11,8 @@
 #include <stdint.h>
 #include <syslog.h>
 
-#include <hse/util/compiler.h>
-
 #include <hse/error/merr.h>
+#include <hse/util/compiler.h>
 
 /* clang-format off */
 

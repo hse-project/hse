@@ -10,48 +10,48 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <hse/cli/program.h>
 #include <hse/hse.h>
+
+#include <hse/cli/program.h>
 #include <hse/ikvdb/diag_kvdb.h>
 #include <hse/ikvdb/ikvdb.h>
 #include <hse/ikvdb/omf_kmd.h>
-#include <hse/mpool/mpool_structs.h>
 #include <hse/mpool/mpool.h>
-#include <hse/util/parse_num.h>
+#include <hse/mpool/mpool_structs.h>
 #include <hse/util/fmt.h>
+#include <hse/util/parse_num.h>
 
 #include "cn/omf.h"
 #include "cn/wbt_internal.h"
-
 #include "cndb_reader.h"
 #include "cndb_record.h"
+#include "commands.h"
 #include "fatal.h"
 #include "globals.h"
-#include "commands.h"
 
 bool dumping_mblock;
 
 /* command line options for kvset sub-command */
 struct opts {
-    uint64_t kvset_id;          // CNDB ID of kvset to dump
+    uint64_t kvset_id; // CNDB ID of kvset to dump
     uint32_t klen;
     uint32_t min_max_klen;
     uint32_t wbt_detail;
     bool bloom_detail;
     bool penc;
-    const char *home;           // KVDB home dir
+    const char *home; // KVDB home dir
 };
 
 static struct opts opts;
 
 struct dump_mblock {
     struct mblock_props props;
-    const void         *data;
+    const void *data;
 };
 
 struct dump_kvset {
-    struct cndb_rec     rec;
-    struct dump_mblock  hblk;
+    struct cndb_rec rec;
+    struct dump_mblock hblk;
     struct dump_mblock *kblkv;
     struct dump_mblock *vblkv;
 };
@@ -64,15 +64,14 @@ help(void)
     else
         printf("usage: %s %s [options] <kvdb_home> <kvset_id>\n", progname, KVSET_COMMAND_NAME);
 
-    printf(
-        "  -h            print help\n"
-        "  -b            show bloom filter details\n"
-        "  -k N          show at most N bytes of wbt keys\n"
-        "  -K N          show at most N bytes of kblock min/max keys\n"
-        "  -p            show keys/values in percent encoded format\n"
-        "  -v            verbose\n"
-        "  -w N          set wbtree detail (0 <= N <= 3)\n"
-        "  <kvdb_home>   KVDB home directory\n");
+    printf("  -h            print help\n"
+           "  -b            show bloom filter details\n"
+           "  -k N          show at most N bytes of wbt keys\n"
+           "  -K N          show at most N bytes of kblock min/max keys\n"
+           "  -p            show keys/values in percent encoded format\n"
+           "  -v            verbose\n"
+           "  -w N          set wbtree detail (0 <= N <= 3)\n"
+           "  <kvdb_home>   KVDB home directory\n");
     if (dumping_mblock)
         printf("  <mblock_id>   mblock ID (from the CNDB log)\n");
     else
@@ -84,12 +83,16 @@ help(void)
     }
 
     if (dumping_mblock)
-        printf("\nDump an mblock on standard output. The type of mblock (hblock, kblock,\n"
+        printf(
+            "\nDump an mblock on standard output. The type of mblock (hblock, kblock,\n"
             "or vblock) is determined automatically.  Mblock IDs can be seen in the\n"
-            "output of '%s %s'.\n", progname, CNDB_COMMAND_NAME);
+            "output of '%s %s'.\n",
+            progname, CNDB_COMMAND_NAME);
     else
-        printf("\nDump a KVSET on standard output. Kvset IDs can be seen in the\n"
-            "output of '%s %s'.\n", progname, CNDB_COMMAND_NAME);
+        printf(
+            "\nDump a KVSET on standard output. Kvset IDs can be seen in the\n"
+            "output of '%s %s'.\n",
+            progname, CNDB_COMMAND_NAME);
 }
 
 static void
@@ -163,8 +166,13 @@ parse_args(int argc, char **argv)
 }
 
 static char *
-fmt_data(void **buf_ptr, size_t *bufsz_ptr, const void *data, size_t data_len,
-    size_t limit, bool pct_encode)
+fmt_data(
+    void **buf_ptr,
+    size_t *bufsz_ptr,
+    const void *data,
+    size_t data_len,
+    size_t limit,
+    bool pct_encode)
 {
     char *buf = *buf_ptr;
     size_t bufsz = *bufsz_ptr;
@@ -190,8 +198,9 @@ fmt_data(void **buf_ptr, size_t *bufsz_ptr, const void *data, size_t data_len,
 static void
 dump_props(const struct mblock_props *p)
 {
-    printf("mbid 0x%lx alen %9u wlen %9u mclass %u\n",
-        p->mpr_objid, p->mpr_alloc_cap, p->mpr_write_len, p->mpr_mclass);
+    printf(
+        "mbid 0x%lx alen %9u wlen %9u mclass %u\n", p->mpr_objid, p->mpr_alloc_cap,
+        p->mpr_write_len, p->mpr_mclass);
 }
 
 static void
@@ -225,22 +234,22 @@ dump_kvset_props(struct dump_kvset *kvset)
 
 struct kmd_vref {
     enum kmd_vtype vtype;
-    size_t         vtype_off;
-    uint           vbidx;
-    uint           vboff;
-    uint           vlen;
-    uint64_t       seq;
-    uint           cnt;
-    char           vinfo[128];
+    size_t vtype_off;
+    uint vbidx;
+    uint vboff;
+    uint vlen;
+    uint64_t seq;
+    uint cnt;
+    char vinfo[128];
 };
 
-#define pgoff(x)         ((x)*PAGE_SIZE)
+#define pgoff(x) ((x)*PAGE_SIZE)
 
 static bool
 val_get_next(const void *kmd, size_t *off, struct kmd_vref *vref)
 {
     const void *vdata;
-    uint32_t    vlen;
+    uint32_t vlen;
 
     vref->vbidx = vref->vboff = vref->vlen = 0;
 
@@ -254,8 +263,9 @@ val_get_next(const void *kmd, size_t *off, struct kmd_vref *vref)
     switch (vref->vtype) {
     case VTYPE_UCVAL:
         kmd_val(kmd, off, &vref->vbidx, &vref->vboff, &vref->vlen);
-        snprintf( vref->vinfo, sizeof(vref->vinfo), "UCVAL clen %u vbidx %u vboff %u",
-            vref->vlen, vref->vbidx, vref->vboff);
+        snprintf(
+            vref->vinfo, sizeof(vref->vinfo), "UCVAL clen %u vbidx %u vboff %u", vref->vlen,
+            vref->vbidx, vref->vboff);
         break;
     case VTYPE_IVAL:
         kmd_ival(kmd, off, &vdata, &vlen);
@@ -303,12 +313,13 @@ wbt_dump_node(const struct wbt_node_hdr_omf *wbn, uint version, const void *kmd,
     internal_node = omf_wbn_magic(wbn) == WBT_INE_NODE_MAGIC;
     hdr_sz = sizeof(struct wbt_node_hdr_omf);
     pfx_len = omf_wbn_pfx_len(wbn);
-    pfx = ((void*)wbn) + hdr_sz;
+    pfx = ((void *)wbn) + hdr_sz;
 
-    ine = (struct wbt_ine_omf *)(((void*)wbn) + hdr_sz + pfx_len);
-    lfe = (struct wbt_lfe_omf *)(((void*)wbn) + hdr_sz + pfx_len);
+    ine = (struct wbt_ine_omf *)(((void *)wbn) + hdr_sz + pfx_len);
+    lfe = (struct wbt_lfe_omf *)(((void *)wbn) + hdr_sz + pfx_len);
 
-    printf("    %c: pg %d  magic 0x%04x  nkeys %u  kmdoff %u  pfx_len %u  pfx %s\n",
+    printf(
+        "    %c: pg %d  magic 0x%04x  nkeys %u  kmdoff %u  pfx_len %u  pfx %s\n",
         fmt_wtype(omf_wbn_magic(wbn), pgno == root), pgno, omf_wbn_magic(wbn),
         omf_wbn_num_keys(wbn), omf_wbn_kmd(wbn), pfx_len,
         fmt_data(&buf, &bufsz, pfx, pfx_len, opts.klen, opts.penc));
@@ -322,15 +333,12 @@ wbt_dump_node(const struct wbt_node_hdr_omf *wbn, uint version, const void *kmd,
             wbt_ine_key(wbn, ine, &kdata, &klen);
 
             printf(
-                "      ine %-4d left %d  key %d,%d %s\n",
-                (int)((void *)ine - (void*)wbn),
-                omf_ine_left_child(ine),
-                omf_ine_koff(ine),
-                klen,
+                "      ine %-4d left %d  key %d,%d %s\n", (int)((void *)ine - (void *)wbn),
+                omf_ine_left_child(ine), omf_ine_koff(ine), klen,
                 fmt_data(&buf, &bufsz, kdata, klen, opts.klen, opts.penc));
         } else {
             size_t off;
-            uint   j, cnt, lfe_kmd, koff, klen;
+            uint j, cnt, lfe_kmd, koff, klen;
 
             struct kmd_vref vref;
 
@@ -345,24 +353,25 @@ wbt_dump_node(const struct wbt_node_hdr_omf *wbn, uint version, const void *kmd,
             j = 1;
             while (val_get_next(kmd, &off, &vref)) {
                 if (j == 1)
-                    printf("      key: %u/%u lfe %-4u koff %-4u klen %-2u kmd %u key %s",
-                        i, nkeys, (uint)((void *)lfe - (void*)wbn), koff, klen, lfe_kmd,
+                    printf(
+                        "      key: %u/%u lfe %-4u koff %-4u klen %-2u kmd %u key %s", i, nkeys,
+                        (uint)((void *)lfe - (void *)wbn), koff, klen, lfe_kmd,
                         fmt_data(&buf, &bufsz, kdata, klen, opts.klen, opts.penc));
                 if (j > 1)
                     printf("\n        ");
                 else
                     printf(" ");
-                printf("val: %u/%u kmd %lu seq %lu %s\n",
-                    j, cnt, (ulong)off, vref.seq, vref.vinfo);
+                printf("val: %u/%u kmd %lu seq %lu %s\n", j, cnt, (ulong)off, vref.seq, vref.vinfo);
                 j++;
             }
         }
     }
     if (internal_node) {
-        printf("      ine %-4d right %d\n", (int)((void *)ine - (void*)wbn), omf_ine_left_child(ine));
+        printf(
+            "      ine %-4d right %d\n", (int)((void *)ine - (void *)wbn), omf_ine_left_child(ine));
     }
 
-  out:
+out:
     free(buf);
 }
 
@@ -400,8 +409,9 @@ wbt_dump_nodes(const struct dump_mblock *mblk, const void *kmd, uint root)
 
             indent = column == 0 ? 4 : 0;
             sep = column == 0 ? "" : " ";
-            printf("%*s%s%c %4d %3d", indent, "", sep,
-                fmt_wtype(magic, pgno == root), pgno, omf_wbn_num_keys(wbn));
+            printf(
+                "%*s%s%c %4d %3d", indent, "", sep, fmt_wtype(magic, pgno == root), pgno,
+                omf_wbn_num_keys(wbn));
             omagic = magic;
             column++;
         }
@@ -418,9 +428,10 @@ wbt_dump_impl(struct dump_mblock *mblk, const struct wbt_hdr_omf *wbt)
     uint wbt_doff = omf_kbh_wbt_doff_pg(kbh);
     const uint8_t *kmd = p + pgoff(wbt_doff + omf_wbt_root(wbt) + 1);
 
-    printf("  wbthdr: magic 0x%08x  ver %d  root %d  leaf %d  leaf_cnt %d kmd_pgc %d\n",
-        omf_wbt_magic(wbt), omf_wbt_version(wbt), omf_wbt_root(wbt),
-        omf_wbt_leaf(wbt), omf_wbt_leaf_cnt(wbt), omf_wbt_kmd_pgc(wbt));
+    printf(
+        "  wbthdr: magic 0x%08x  ver %d  root %d  leaf %d  leaf_cnt %d kmd_pgc %d\n",
+        omf_wbt_magic(wbt), omf_wbt_version(wbt), omf_wbt_root(wbt), omf_wbt_leaf(wbt),
+        omf_wbt_leaf_cnt(wbt), omf_wbt_kmd_pgc(wbt));
 
     if (opts.wbt_detail > 0)
         wbt_dump_nodes(mblk, kmd, omf_wbt_root(wbt));
@@ -446,7 +457,7 @@ bloom_bits_in_block(const void *mem, size_t blksz)
 {
     const long *p = mem;
     const long *end = p + blksz / sizeof(*p);
-    int         cnt = 0;
+    int cnt = 0;
 
     while (p < end)
         cnt += __builtin_popcountl(*p++);
@@ -472,7 +483,7 @@ bloom_dump(struct dump_mblock *mblk)
 {
     const void *p = mblk->data;
     const struct kblock_hdr_omf *kbh = p;
-    const struct bloom_hdr_omf  *bh = p + omf_kbh_blm_hoff(kbh);
+    const struct bloom_hdr_omf *bh = p + omf_kbh_blm_hoff(kbh);
     const uint8_t *bitmap;
     size_t bitmapsz;
     size_t bktsz, bitsperbkt;
@@ -488,13 +499,8 @@ bloom_dump(struct dump_mblock *mblk)
     printf(
         "  bloom hdr: magic 0x%08x  ver %u bktsz %lu  rotl %u  "
         "hashes %u  bitmapsz %u  modulus %u\n",
-        omf_bh_magic(bh),
-        omf_bh_version(bh),
-        bktsz,
-        omf_bh_rotl(bh),
-        omf_bh_n_hashes(bh),
-        omf_bh_bitmapsz(bh),
-        omf_bh_modulus(bh));
+        omf_bh_magic(bh), omf_bh_version(bh), bktsz, omf_bh_rotl(bh), omf_bh_n_hashes(bh),
+        omf_bh_bitmapsz(bh), omf_bh_modulus(bh));
 
     doff = omf_kbh_blm_doff_pg(kbh) * PAGE_SIZE;
     dlen = omf_kbh_blm_dlen_pg(kbh) * PAGE_SIZE;
@@ -537,29 +543,37 @@ bloom_dump(struct dump_mblock *mblk)
     printf("  bloom empty buckets: %5u\n", cntempty);
     printf("  bloom full buckets:  %5u\n", cntfull);
 
-    printf("  bloom dist    min:  %6.3lf (%u / %zu)\n",
-        (double)cntv[0] / bitsperbkt, cntv[0], bitsperbkt);
+    printf(
+        "  bloom dist    min:  %6.3lf (%u / %zu)\n", (double)cntv[0] / bitsperbkt, cntv[0],
+        bitsperbkt);
 
-    printf("  bloom dist    .3%%:  %6.3lf (%u / %zu)\n",
-        (double)cntv[bktmax * 3 / 1000] / bitsperbkt, cntv[bktmax * 3 / 1000], bitsperbkt);
+    printf(
+        "  bloom dist    .3%%:  %6.3lf (%u / %zu)\n", (double)cntv[bktmax * 3 / 1000] / bitsperbkt,
+        cntv[bktmax * 3 / 1000], bitsperbkt);
 
-    printf("  bloom dist   2.1%%:  %6.3lf (%u / %zu)\n",
-        (double)cntv[bktmax * 21 / 1000] / bitsperbkt, cntv[bktmax * 21 / 1000], bitsperbkt);
+    printf(
+        "  bloom dist   2.1%%:  %6.3lf (%u / %zu)\n", (double)cntv[bktmax * 21 / 1000] / bitsperbkt,
+        cntv[bktmax * 21 / 1000], bitsperbkt);
 
-    printf("  bloom dist median:  %6.3lf (%u / %zu)\n",
-        (double)cntv[bktmax / 2] / bitsperbkt, cntv[bktmax / 2], bitsperbkt);
+    printf(
+        "  bloom dist median:  %6.3lf (%u / %zu)\n", (double)cntv[bktmax / 2] / bitsperbkt,
+        cntv[bktmax / 2], bitsperbkt);
 
-    printf("  bloom dist   mean:  %6.3lf (%u / %zu)\n",
-        (double)(cntsum / bktmax) / bitsperbkt, (cntsum / bktmax), bitsperbkt);
+    printf(
+        "  bloom dist   mean:  %6.3lf (%u / %zu)\n", (double)(cntsum / bktmax) / bitsperbkt,
+        (cntsum / bktmax), bitsperbkt);
 
-    printf("  bloom dist  97.9%%:  %6.3lf (%u / %zu)\n",
+    printf(
+        "  bloom dist  97.9%%:  %6.3lf (%u / %zu)\n",
         (double)cntv[bktmax * 979 / 1000] / bitsperbkt, cntv[bktmax * 979 / 1000], bitsperbkt);
 
-    printf("  bloom dist  99.7%%:  %6.3lf (%u / %zu)\n",
+    printf(
+        "  bloom dist  99.7%%:  %6.3lf (%u / %zu)\n",
         (double)cntv[bktmax * 997 / 1000] / bitsperbkt, cntv[bktmax * 997 / 1000], bitsperbkt);
 
-    printf("  bloom dist    max:  %6.3lf (%u / %zu)\n",
-        (double)cntv[bktmax - 1] / bitsperbkt, cntv[bktmax - 1], bitsperbkt);
+    printf(
+        "  bloom dist    max:  %6.3lf (%u / %zu)\n", (double)cntv[bktmax - 1] / bitsperbkt,
+        cntv[bktmax - 1], bitsperbkt);
 
     if (opts.bloom_detail) {
         printf("  bloom buckets sorted by bit pop:\n");
@@ -588,28 +602,26 @@ hblock_dump(struct dump_mblock *mblk)
 
     dump_props(&mblk->props);
 
-    printf("  magic 0x%08x  ver %d  minseq %lu  maxseq  %lu  ptombs %u  kblocks %u  vblocks %u\n",
-        omf_hbh_magic(hbh), omf_hbh_version(hbh),
-        omf_hbh_min_seqno(hbh), omf_hbh_min_seqno(hbh),
+    printf(
+        "  magic 0x%08x  ver %d  minseq %lu  maxseq  %lu  ptombs %u  kblocks %u  vblocks %u\n",
+        omf_hbh_magic(hbh), omf_hbh_version(hbh), omf_hbh_min_seqno(hbh), omf_hbh_min_seqno(hbh),
         omf_hbh_num_ptombs(hbh), omf_hbh_num_kblocks(hbh), omf_hbh_num_vblocks(hbh));
 
-    pg  = omf_hbh_vgmap_off_pg(hbh);
+    pg = omf_hbh_vgmap_off_pg(hbh);
     pgc = omf_hbh_vgmap_len_pg(hbh);
     printf("  vgmap pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
 
-    pg  = omf_hbh_hlog_off_pg(hbh);
+    pg = omf_hbh_hlog_off_pg(hbh);
     pgc = omf_hbh_hlog_len_pg(hbh);
     printf("  hlog  pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
 
-    pg  = omf_hbh_ptree_data_off_pg(hbh);
+    pg = omf_hbh_ptree_data_off_pg(hbh);
     pgc = omf_hbh_ptree_data_len_pg(hbh);
     printf("  ptree pages [%u..%u], pgc %u\n", pg, pg + pgc - 1, pgc);
 
-    printf("  max_ptomb byte off/len %u %u, min_ptomb off/len %u %u\n",
-        omf_hbh_max_pfx_off(hbh),
-        omf_hbh_max_pfx_len(hbh),
-        omf_hbh_min_pfx_off(hbh),
-        omf_hbh_min_pfx_len(hbh));
+    printf(
+        "  max_ptomb byte off/len %u %u, min_ptomb off/len %u %u\n", omf_hbh_max_pfx_off(hbh),
+        omf_hbh_max_pfx_len(hbh), omf_hbh_min_pfx_off(hbh), omf_hbh_min_pfx_len(hbh));
 
     /* TODO: dump the ptomb tree */
 }
@@ -619,51 +631,43 @@ kblock_dump(struct dump_mblock *mblk)
 {
     const void *p = mblk->data;
     const struct kblock_hdr_omf *kbh = p;
-    const struct wbt_hdr_omf *   wbt = p + omf_kbh_wbt_hoff(kbh);
-    const struct bloom_hdr_omf  *bh = p + omf_kbh_blm_hoff(kbh);
+    const struct wbt_hdr_omf *wbt = p + omf_kbh_wbt_hoff(kbh);
+    const struct bloom_hdr_omf *bh = p + omf_kbh_blm_hoff(kbh);
 
     void *buf = NULL;
     size_t bufsz = 0;
 
     printf("\nkblock: ");
     dump_props(&mblk->props);
-    printf("  magic 0x%08x  ver %d  nkey %d  ntomb %d\n",
-        omf_kbh_magic(kbh), omf_kbh_version(kbh), omf_kbh_entries(kbh), omf_kbh_tombs(kbh));
+    printf(
+        "  magic 0x%08x  ver %d  nkey %d  ntomb %d\n", omf_kbh_magic(kbh), omf_kbh_version(kbh),
+        omf_kbh_entries(kbh), omf_kbh_tombs(kbh));
 
-    printf("  metrics: keys %u tombs %u key_bytes %u val_bytes %lu\n",
-        omf_kbh_entries(kbh),
-        omf_kbh_tombs(kbh),
-        omf_kbh_key_bytes(kbh),
-        omf_kbh_val_bytes(kbh));
+    printf(
+        "  metrics: keys %u tombs %u key_bytes %u val_bytes %lu\n", omf_kbh_entries(kbh),
+        omf_kbh_tombs(kbh), omf_kbh_key_bytes(kbh), omf_kbh_val_bytes(kbh));
 
-    printf("  wbt: hdr %d %d  data_pg %d %d  ver %u\n",
-        omf_kbh_wbt_hoff(kbh),
-        omf_kbh_wbt_hlen(kbh),
-        omf_kbh_wbt_doff_pg(kbh),
-        omf_kbh_wbt_dlen_pg(kbh),
-        omf_wbt_version(wbt));
+    printf(
+        "  wbt: hdr %d %d  data_pg %d %d  ver %u\n", omf_kbh_wbt_hoff(kbh), omf_kbh_wbt_hlen(kbh),
+        omf_kbh_wbt_doff_pg(kbh), omf_kbh_wbt_dlen_pg(kbh), omf_wbt_version(wbt));
 
-    printf("  bloom: hdr %d %d  data_pg %d %d  ver %u\n",
-        omf_kbh_blm_hoff(kbh),
-        omf_kbh_blm_hlen(kbh),
-        omf_kbh_blm_doff_pg(kbh),
-        omf_kbh_blm_dlen_pg(kbh),
-        omf_bh_version(bh));
+    printf(
+        "  bloom: hdr %d %d  data_pg %d %d  ver %u\n", omf_kbh_blm_hoff(kbh), omf_kbh_blm_hlen(kbh),
+        omf_kbh_blm_doff_pg(kbh), omf_kbh_blm_dlen_pg(kbh), omf_bh_version(bh));
 
-    printf("  kmd: start_pg %u\n",
-        omf_kbh_wbt_doff_pg(kbh) + omf_wbt_root(wbt) + 1);
+    printf("  kmd: start_pg %u\n", omf_kbh_wbt_doff_pg(kbh) + omf_wbt_root(wbt) + 1);
 
-    printf("  keymin: off %u len %u key %s\n",
-        omf_kbh_min_koff(kbh),
-        omf_kbh_min_klen(kbh),
-        fmt_data(&buf, &bufsz, p + omf_kbh_min_koff(kbh), omf_kbh_min_klen(kbh),
-            opts.min_max_klen, opts.penc));
+    printf(
+        "  keymin: off %u len %u key %s\n", omf_kbh_min_koff(kbh), omf_kbh_min_klen(kbh),
+        fmt_data(
+            &buf, &bufsz, p + omf_kbh_min_koff(kbh), omf_kbh_min_klen(kbh), opts.min_max_klen,
+            opts.penc));
 
-    printf("  keymax: off %u len %u key %s\n",
-        omf_kbh_max_koff(kbh),
-        omf_kbh_max_klen(kbh),
-        fmt_data(&buf, &bufsz, p + omf_kbh_max_koff(kbh), omf_kbh_max_klen(kbh),
-            opts.min_max_klen, opts.penc));
+    printf(
+        "  keymax: off %u len %u key %s\n", omf_kbh_max_koff(kbh), omf_kbh_max_klen(kbh),
+        fmt_data(
+            &buf, &bufsz, p + omf_kbh_max_koff(kbh), omf_kbh_max_klen(kbh), opts.min_max_klen,
+            opts.penc));
 
     bloom_dump(mblk);
     wbt_dump(mblk);
@@ -709,12 +713,12 @@ vblock_dump(struct dump_mblock *mblk)
 
     printf("  vgroup: %lu\n", vgroup);
 
-    printf("  min_key: off %u len %u key %s\n",
-        min_koff, min_klen,
+    printf(
+        "  min_key: off %u len %u key %s\n", min_koff, min_klen,
         fmt_data(&buf, &bufsz, mblk->data + min_koff, min_klen, opts.klen, opts.penc));
 
-    printf("  max_key: off %u len %u key %s\n",
-        max_koff, max_klen,
+    printf(
+        "  max_key: off %u len %u key %s\n", max_koff, max_klen,
         fmt_data(&buf, &bufsz, mblk->data + max_koff, max_klen, opts.klen, opts.penc));
 
     free(buf);
@@ -852,7 +856,6 @@ dkvset_fini(struct dump_kvset *kvset)
     }
 
     cndb_rec_fini(&kvset->rec);
-
 }
 
 void

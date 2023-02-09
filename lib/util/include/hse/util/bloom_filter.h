@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include <sys/param.h>
 
 #include <hse/util/arch.h>
@@ -158,11 +159,11 @@ bf_element_estimate(struct bf_bithash_desc desc, size_t size_in_bytes);
 
 void
 bf_filter_init(
-    struct bloom_filter *  filter,
+    struct bloom_filter *filter,
     struct bf_bithash_desc desc,
-    uint32_t                    exp_elmts,
-    uint8_t *                   storage,
-    size_t                 storage_sz);
+    uint32_t exp_elmts,
+    uint8_t *storage,
+    size_t storage_sz);
 
 void
 bf_filter_insert_by_hash(struct bloom_filter *filter, uint64_t hash);

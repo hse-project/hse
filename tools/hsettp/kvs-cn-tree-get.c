@@ -21,24 +21,8 @@
 #pragma GCC visibility push(default)
 
 const char *kvs_cn_tree_get_headers[] = {
-    "T",
-    "NODE",
-    "IDX",
-    "DGEN",
-    "COMP",
-    "KEYS",
-    "TOMBS",
-    "PTOMBS",
-    "HWLEN",
-    "KWLEN",
-    "VWLEN",
-    "VGARB",
-    "HBLKS",
-    "KBLKS",
-    "VBLKS",
-    "VGRPS",
-    "RULE",
-    "STATE...",
+    "T",     "NODE",  "IDX",   "DGEN",  "COMP",  "KEYS",  "TOMBS", "PTOMBS", "HWLEN",
+    "KWLEN", "VWLEN", "VGARB", "HBLKS", "KBLKS", "VBLKS", "VGRPS", "RULE",   "STATE...",
 };
 
 #define NUM_HEADERS (sizeof(kvs_cn_tree_get_headers) / sizeof(kvs_cn_tree_get_headers[0]))
@@ -46,24 +30,10 @@ const char *kvs_cn_tree_get_headers[] = {
 size_t kvs_cn_tree_get_columnc = NUM_HEADERS;
 
 enum tprint_justify kvs_cn_tree_get_justify[NUM_HEADERS] = {
-    TP_JUSTIFY_LEFT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_RIGHT,
-    TP_JUSTIFY_LEFT,
+    TP_JUSTIFY_LEFT,  TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT,
+    TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT,
+    TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT,
+    TP_JUSTIFY_RIGHT, TP_JUSTIFY_RIGHT, TP_JUSTIFY_LEFT,
 };
 
 /* strv_base[] is an easily extensible list of common strings used
@@ -74,13 +44,8 @@ enum tprint_justify kvs_cn_tree_get_justify[NUM_HEADERS] = {
  * The alignment of strv_base[] must be a power-of-two greater than
  * or equal to its size in order for strv_contains() to work properly.
  */
-static char strv_base[] HSE_ALIGNED(16) = {
-    'k', '\000',
-    'n', '\000',
-    't', '\000',
-    '-', '\000',
-    '-', '\n', '\000'
-};
+static char strv_base[] HSE_ALIGNED(16) = { 'k', '\000', 'n', '\000', 't',   '\000',
+                                            '-', '\000', '-', '\n',   '\000' };
 
 /* Named constant strings from strv_base[] for use
  * in building the tabular output array.
@@ -102,10 +67,7 @@ strv_contains(void *addr)
 }
 
 static merr_t
-parse_common(
-    char **const values,
-    cJSON *const elem,
-    unsigned int *const offset)
+parse_common(char ** const values, cJSON * const elem, unsigned int * const offset)
 {
     cJSON *item;
 
@@ -204,7 +166,7 @@ parse_common(
 }
 
 void
-kvs_cn_tree_get_free_values(const int len, char **const values)
+kvs_cn_tree_get_free_values(const int len, char ** const values)
 {
     if (len < 1 || !values)
         return;
@@ -225,7 +187,7 @@ kvs_cn_tree_get_free_values(const int len, char **const values)
  * pointers obtained via dlsym() by setup_tabular_custom().
  */
 merr_t
-kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const values)
+kvs_cn_tree_get_parse_values(cJSON * const body, int * const len, char *** const values)
 {
     merr_t err;
     char buf[128];
@@ -358,8 +320,9 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
                     assert(cJSON_IsNumber(entry));
                     time = cJSON_GetNumberValue(entry);
 
-                    rc = snprintf(buf, sizeof(buf), "- %u %s,%s %s %u%% %lu:%02lu",
-                                  id, action, rule, wmesg, progress, (time / 60) % 60, time % 60);
+                    rc = snprintf(
+                        buf, sizeof(buf), "- %u %s,%s %s %u%% %lu:%02lu", id, action, rule, wmesg,
+                        progress, (time / 60) % 60, time % 60);
                     assert(rc > 0);
                     (*values)[offset] = strdup(buf);
                     if (!(*values)[offset])
@@ -462,8 +425,8 @@ kvs_cn_tree_get_parse_values(cJSON *const body, int *const len, char ***const va
     entry = cJSON_GetObjectItemCaseSensitive(body, "name");
     assert(cJSON_IsString(entry));
 
-    rc = snprintf(buf, sizeof(buf), "- %lu %s %.3lf",
-        cnid, cJSON_GetStringValue(entry), samp_curr / 1000);
+    rc = snprintf(
+        buf, sizeof(buf), "- %lu %s %.3lf", cnid, cJSON_GetStringValue(entry), samp_curr / 1000);
     assert(rc > 0);
     (*values)[offset] = strdup(buf);
     if (!(*values)[offset])

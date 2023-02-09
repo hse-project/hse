@@ -12,13 +12,13 @@
 
 hse_err_t
 fxt_kvs_setup(
-    struct hse_kvdb *  kvdb,
-    const char *       kvs_name,
-    size_t             rparamc,
-    const char *const *rparamv,
-    size_t             cparamc,
-    const char *const *cparamv,
-    struct hse_kvs **  kvs);
+    struct hse_kvdb *kvdb,
+    const char *kvs_name,
+    size_t rparamc,
+    const char * const *rparamv,
+    size_t cparamc,
+    const char * const *cparamv,
+    struct hse_kvs **kvs);
 
 hse_err_t
 fxt_kvs_teardown(struct hse_kvdb *kvdb, const char *kvs_name, struct hse_kvs *kvs);

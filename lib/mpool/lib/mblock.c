@@ -3,22 +3,22 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
-#include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
+#include <hse/util/event_counter.h>
 
-#include "mpool_internal.h"
-#include "mclass.h"
-#include "mblock_fset.h"
 #include "mblock_file.h"
+#include "mblock_fset.h"
+#include "mclass.h"
+#include "mpool_internal.h"
 
 struct mpool;
 
 merr_t
 mpool_mblock_alloc(
-    struct mpool        *mp,
-    enum hse_mclass      mclass,
-    uint32_t             flags,
-    uint64_t            *mbid,
+    struct mpool *mp,
+    enum hse_mclass mclass,
+    uint32_t flags,
+    uint64_t *mbid,
     struct mblock_props *props)
 {
     struct media_class *mc;
@@ -48,7 +48,7 @@ merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum hse_mclass   mclass;
+    enum hse_mclass mclass;
 
     if (!mp)
         return merr(EINVAL);
@@ -65,7 +65,7 @@ merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum hse_mclass   mclass;
+    enum hse_mclass mclass;
 
     if (!mp)
         return merr(EINVAL);
@@ -108,7 +108,7 @@ merr_t
 mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     struct media_class *mc;
-    enum hse_mclass   mclass;
+    enum hse_mclass mclass;
 
     if (!mp || !iov)
         return merr(EINVAL);
@@ -125,7 +125,7 @@ merr_t
 mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
     struct media_class *mc;
-    enum hse_mclass   mclass;
+    enum hse_mclass mclass;
 
     if (!mp || !iov)
         return merr(EINVAL);

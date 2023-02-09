@@ -5,13 +5,13 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/conditions.h>
-#include <hse/test/mock/api.h>
-
 #include <hse/util/arch.h>
 #include <hse/util/assert.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
+
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/conditions.h>
 
 union rc {
     uint64_t i;
@@ -38,7 +38,7 @@ struct mocked_api {
  * This allows similar APIs to be shared; e.g. malloc, calloc, etc. .
  */
 
-static struct mocked_api  mock_tab[max_mapi_idx];
+static struct mocked_api mock_tab[max_mapi_idx];
 static struct mocked_api *mock_ptrs[max_mapi_idx];
 
 bool mapi_enabled;
@@ -164,7 +164,14 @@ mapi_inject_set(
 }
 
 void
-mapi_inject_set_ptr(uint32_t api, uint32_t start1, uint32_t stop1, void *rc1, uint32_t start2, uint32_t stop2, void *rc2)
+mapi_inject_set_ptr(
+    uint32_t api,
+    uint32_t start1,
+    uint32_t stop1,
+    void *rc1,
+    uint32_t start2,
+    uint32_t stop2,
+    void *rc2)
 {
     struct mocked_api *m;
 
@@ -215,7 +222,7 @@ static bool
 inject_check(uint32_t api, union rc *urc)
 {
     struct mocked_api *m;
-    uint64_t                calls;
+    uint64_t calls;
 
     if (!valid_api(api))
         return false;
@@ -243,7 +250,7 @@ bool
 mapi_inject_check_ptr(uint32_t api, void **pp)
 {
     union rc urc;
-    bool     rc;
+    bool rc;
 
     rc = inject_check(api, &urc);
     if (rc && pp)
@@ -258,7 +265,7 @@ bool
 mapi_inject_check(uint32_t api, uint64_t *i)
 {
     union rc urc;
-    bool     rc;
+    bool rc;
 
     rc = inject_check(api, &urc);
     if (rc && i)
@@ -277,14 +284,14 @@ mapi_inject_list(struct mapi_injection *inject, bool set)
 
         if (set) {
             switch (inject->rc_cookie) {
-                case MAPI_RC_COOKIE_SCALAR:
-                    mapi_inject(api, inject->rc_scalar);
-                    break;
-                case MAPI_RC_COOKIE_PTR:
-                    mapi_inject_ptr(api, inject->rc_ptr);
-                    break;
-                default:
-                    assert(0); /* incorrectly initialized array */
+            case MAPI_RC_COOKIE_SCALAR:
+                mapi_inject(api, inject->rc_scalar);
+                break;
+            case MAPI_RC_COOKIE_PTR:
+                mapi_inject_ptr(api, inject->rc_ptr);
+                break;
+            default:
+                assert(0); /* incorrectly initialized array */
             }
         } else {
             mapi_inject_unset(api);

@@ -17,7 +17,11 @@ void *
 bkv_collection_rock_get(struct bkv_collection *bkvc);
 
 merr_t
-bkv_collection_create(struct bkv_collection **collection, size_t cnt, bkv_collection_cb *cb, void *cbarg);
+bkv_collection_create(
+    struct bkv_collection **collection,
+    size_t cnt,
+    bkv_collection_cb *cb,
+    void *cbarg);
 
 void
 bkv_collection_destroy(struct bkv_collection *bkvc);

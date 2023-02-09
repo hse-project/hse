@@ -3,18 +3,17 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <stdint.h>
-
 #include <rbtree.h>
-
-#include <hse/test/mtf/framework.h>
+#include <stdint.h>
 
 #include <hse/error/merr.h>
 #include <hse/logging/logging.h>
-#include <hse/util/slab.h>
-#include <hse/util/time.h>
 #include <hse/util/data_tree.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/slab.h>
+#include <hse/util/time.h>
+
+#include <hse/test/mtf/framework.h>
 
 int
 ev_test_pre(struct mtf_test_info *lcl_ti)
@@ -50,23 +49,16 @@ check_level(void *data, void *ctx)
 MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
 {
     merr_t err;
-    int    line, level;
+    int line, level;
 
     const char *phile = basename(__FILE__);
-    char        path[DT_PATH_MAX];
+    char path[DT_PATH_MAX];
 
     /* clang-format off */
     ev_warn(1); line = __LINE__;
     /* clang-format on */
 
-    snprintf(
-        path,
-        sizeof(path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(path, sizeof(path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     level = LOG_WARNING;
     err = dt_access(path, check_level, &level);
@@ -126,11 +118,11 @@ check_odometer(void *data, void *ctx)
  */
 MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
 {
-    merr_t                err;
-    char                  direct_path[DT_PATH_MAX];
-    const char *          phile = basename(__FILE__);
-    int                   line;
-    int                   odometer;
+    merr_t err;
+    char direct_path[DT_PATH_MAX];
+    const char *phile = basename(__FILE__);
+    int line;
+    int odometer;
 
     /* Create an EC using the macro. */
     /* clang-format off */
@@ -138,14 +130,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     odometer = 1;
     err = dt_access(direct_path, check_odometer, &odometer);
@@ -159,14 +144,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     }
 
     /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     odometer = 10;
     err = dt_access(direct_path, check_odometer, &odometer);
@@ -178,11 +156,11 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
 MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
 {
     struct event_counter *ec;
-    char        direct_path[DT_PATH_MAX];
+    char direct_path[DT_PATH_MAX];
     const char *phile = basename(__FILE__);
-    ulong       prev;
-    int         line;
-    int         i;
+    ulong prev;
+    int line;
+    int i;
 
     /* Loop 10 times over the macro. Sleep a little between each
      * invocation, and watch that the timestamp advances correctly.
@@ -197,13 +175,7 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
 
         /* Try to find the EC with a direct find */
         snprintf(
-            direct_path,
-            sizeof(direct_path),
-            "%s/%s/%s/%d",
-            EV_DT_PATH,
-            phile,
-            __func__,
-            line);
+            direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
         err = dt_access(direct_path, check_odometer, &odometer);
         ASSERT_EQ(0, merr_errno(err));
@@ -223,10 +195,7 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
 }
 
 merr_t
-validate(
-    cJSON *const root,
-    const char *path,
-    struct event_counter *const ec)
+validate(cJSON * const root, const char *path, struct event_counter * const ec)
 {
     cJSON *item;
     cJSON *elem;
@@ -297,14 +266,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     /* Generate an emit command with dt_iterate_cmd */
     count = dt_count(direct_path);
@@ -325,11 +287,10 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
  */
 MTF_DEFINE_UTEST(event_counter, ev_counts)
 {
-    char   fuzzy_path[DT_PATH_MAX];
+    char fuzzy_path[DT_PATH_MAX];
     size_t count;
 
-    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s",
-             EV_DT_PATH, basename(__FILE__), __func__);
+    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s", EV_DT_PATH, basename(__FILE__), __func__);
 
     /* Create an EC using the macro. */
     ev(1);
@@ -351,10 +312,10 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
  */
 MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 {
-    merr_t             err;
-    const char *       phile = basename(__FILE__);
-    char               direct_path[DT_PATH_MAX];
-    int                line;
+    merr_t err;
+    const char *phile = basename(__FILE__);
+    char direct_path[DT_PATH_MAX];
+    int line;
 
     /* Create an EC using the macro. */
     /* clang-format off */
@@ -362,14 +323,7 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     /* Try to remove the EC */
     err = dt_remove(direct_path);
@@ -381,7 +335,7 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 }
 
 #define EV_EMIT_OVERFLOW_BUF_SIZE 20
-#define FALSE_OFFSET 100
+#define FALSE_OFFSET              100
 
 /* Test emit overflow protection
  */
@@ -405,14 +359,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
-    snprintf(
-        direct_path,
-        sizeof(direct_path),
-        "%s/%s/%s/%d",
-        EV_DT_PATH,
-        phile,
-        __func__,
-        line);
+    snprintf(direct_path, sizeof(direct_path), "%s/%s/%s/%d", EV_DT_PATH, phile, __func__, line);
 
     /* Generate an emit command with dt_iterate_cmd */
     count = dt_count(direct_path);

@@ -3,10 +3,10 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/util/platform.h>
-#include <hse/util/compiler.h>
-
 #include <bsd/string.h>
+
+#include <hse/util/compiler.h>
+#include <hse/util/platform.h>
 
 int
 vsnprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, va_list args)
@@ -26,7 +26,7 @@ vsnprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, v
 int
 snprintf_append(char *buf, size_t buf_sz, size_t *offset, const char *format, ...)
 {
-    int     ret;
+    int ret;
     va_list args;
 
     va_start(args, format);
@@ -46,8 +46,8 @@ void
 sprintbuf(char *buf, size_t *remainder, size_t *offset, const char *format, ...)
 {
     va_list args;
-    size_t  pre_offset = *offset;
-    size_t  consumed;
+    size_t pre_offset = *offset;
+    size_t consumed;
 
     va_start(args, format);
     vsnprintf_append(buf, *remainder, offset, format, args);
@@ -76,9 +76,9 @@ int
 u64_to_string(void *dst, size_t dstsz, uint64_t value)
 {
     const uint base = 10;
-    char *     right = dst;
-    char *     left;
-    int        len;
+    char *right = dst;
+    char *left;
+    int len;
 
     if (dstsz < 21) /* max digits + 1 in 64 bits (base 10) */
         return 0;

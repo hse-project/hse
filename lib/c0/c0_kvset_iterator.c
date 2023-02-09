@@ -5,12 +5,12 @@
 
 #include <stdint.h>
 
-#include <hse/util/platform.h>
-#include <hse/util/event_counter.h>
-#include <hse/util/slab.h>
+#include <hse/ikvdb/c0_kvset_iterator.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/tuple.h>
-#include <hse/ikvdb/c0_kvset_iterator.h>
+#include <hse/util/event_counter.h>
+#include <hse/util/platform.h>
+#include <hse/util/slab.h>
 
 #define c0_kvset_iterator_es_h2r(handle) container_of(handle, struct c0_kvset_iterator, c0it_handle)
 
@@ -29,13 +29,14 @@ bool
 c0_kvset_iterator_next(struct element_source *source, void **element)
 {
     struct c0_kvset_iterator *iter = c0_kvset_iterator_es_h2r(source);
-    struct bonsai_kv *        bkv;
+    struct bonsai_kv *bkv;
 
     bkv = iter->c0it_next;
 
     if (bkv == &iter->c0it_root->br_kv ||
         ((iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX) &&
-         key_immediate_index(&bkv->bkv_key_imm) > iter->c0it_index)) {
+         key_immediate_index(&bkv->bkv_key_imm) > iter->c0it_index))
+    {
         source->es_eof = true;
         return false;
     }
@@ -59,13 +60,14 @@ bool
 c0_kvset_iterator_rnext(struct element_source *source, void **element)
 {
     struct c0_kvset_iterator *iter = c0_kvset_iterator_es_h2r(source);
-    struct bonsai_kv *        bkv;
+    struct bonsai_kv *bkv;
 
     bkv = iter->c0it_next;
 
     if (bkv == &iter->c0it_root->br_kv ||
         ((iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX) &&
-         key_immediate_index(&bkv->bkv_key_imm) < iter->c0it_index)) {
+         key_immediate_index(&bkv->bkv_key_imm) < iter->c0it_index))
+    {
         source->es_eof = true;
         return false;
     }
@@ -89,7 +91,7 @@ bool
 c0_kvset_iterator_unget(struct element_source *source)
 {
     struct c0_kvset_iterator *iter = c0_kvset_iterator_es_h2r(source);
-    struct bonsai_kv *        bkv;
+    struct bonsai_kv *bkv;
 
     source->es_eof = false;
 
@@ -97,7 +99,8 @@ c0_kvset_iterator_unget(struct element_source *source)
 
     if (bkv == &iter->c0it_root->br_kv ||
         ((iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX) &&
-         key_immediate_index(&bkv->bkv_key_imm) > iter->c0it_index)) {
+         key_immediate_index(&bkv->bkv_key_imm) > iter->c0it_index))
+    {
         source->es_eof = true;
         return false;
     }
@@ -112,7 +115,7 @@ bool
 c0_kvset_iterator_runget(struct element_source *source)
 {
     struct c0_kvset_iterator *iter = c0_kvset_iterator_es_h2r(source);
-    struct bonsai_kv *        bkv;
+    struct bonsai_kv *bkv;
 
     source->es_eof = false;
 
@@ -120,7 +123,8 @@ c0_kvset_iterator_runget(struct element_source *source)
 
     if (bkv == &iter->c0it_root->br_kv ||
         ((iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX) &&
-         key_immediate_index(&bkv->bkv_key_imm) < iter->c0it_index)) {
+         key_immediate_index(&bkv->bkv_key_imm) < iter->c0it_index))
+    {
         source->es_eof = true;
         return false;
     }
@@ -148,9 +152,9 @@ c0_kvset_iterator_runget(struct element_source *source)
 void
 c0_kvset_iterator_init(
     struct c0_kvset_iterator *iter,
-    struct bonsai_root *      root,
-    uint                      flags,
-    int                       index)
+    struct bonsai_root *root,
+    uint flags,
+    int index)
 {
     iter->c0it_root = root;
     iter->c0it_flags = flags;
@@ -170,12 +174,12 @@ c0_kvset_iterator_init(
 void
 c0_kvset_iterator_seek(
     struct c0_kvset_iterator *iter,
-    const void *              seek,
-    uint32_t                  seeklen,
-    struct kvs_ktuple *       kt)
+    const void *seek,
+    uint32_t seeklen,
+    struct kvs_ktuple *kt)
 {
     struct bonsai_skey skey;
-    struct bonsai_kv * kv = NULL;
+    struct bonsai_kv *kv = NULL;
 
     bool found;
 
@@ -234,7 +238,7 @@ c0_kvset_iterator_eof(struct c0_kvset_iterator *iter)
 {
     struct bonsai_kv *next = iter->c0it_next;
     struct bonsai_kv *prev = iter->c0it_prev;
-    bool              empty = c0_kvset_iterator_empty(iter);
+    bool empty = c0_kvset_iterator_empty(iter);
 
     if (!(iter->c0it_flags & C0_KVSET_ITER_FLAG_REVERSE))
         return empty && prev->bkv_next == next;

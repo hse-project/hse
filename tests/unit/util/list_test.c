@@ -3,9 +3,9 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/test/mtf/framework.h>
-
 #include <hse/util/list.h>
+
+#include <hse/test/mtf/framework.h>
 
 int
 list_test_pre(struct mtf_test_info *lcl_ti)
@@ -25,10 +25,10 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(list, list_test_pre, list_test_post);
 
 MTF_DEFINE_UTEST(list, list_splice_test)
 {
-    struct list_head  list1;
-    struct list_head  list2;
-    struct list_head  elem1;
-    struct list_head  elem2;
+    struct list_head list1;
+    struct list_head list2;
+    struct list_head elem1;
+    struct list_head elem2;
     struct list_head *pos;
 
     int cnt;
@@ -49,7 +49,7 @@ MTF_DEFINE_UTEST(list, list_splice_test)
     list_splice(&list1, &list2);
 
     /* There should be two elements in the list now. */
-    list_for_each (pos, &list2)
+    list_for_each(pos, &list2)
         ++cnt;
 
     ASSERT_EQ(2, cnt);

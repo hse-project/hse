@@ -12,9 +12,9 @@
 
 #include <hse/ikvdb/vcomp_params.h>
 #include <hse/util/atomic.h>
+#include <hse/util/compression.h>
 #include <hse/util/list.h>
 #include <hse/util/mutex.h>
-#include <hse/util/compression.h>
 
 struct ikvs;
 struct ikvdb_impl;
@@ -34,16 +34,16 @@ struct kvdb_kvs;
  * @kk_name:         kvs name.
  */
 struct kvdb_kvs {
-    struct ikvs            *kk_ikvs;
-    struct viewset         *kk_viewset;
-    struct ikvdb_impl      *kk_parent;
-    enum vcomp_default      kk_vcomp_default;
-    uint32_t                kk_vcompbnd;
+    struct ikvs *kk_ikvs;
+    struct viewset *kk_viewset;
+    struct ikvdb_impl *kk_parent;
+    enum vcomp_default kk_vcomp_default;
+    uint32_t kk_vcompbnd;
     compress_op_compress_t *kk_vcompress;
-    uint64_t                kk_cnid;
-    struct kvs_cparams     *kk_cparams;
-    uint32_t                kk_flags;
-    atomic_int              kk_refcnt;
+    uint64_t kk_cnid;
+    struct kvs_cparams *kk_cparams;
+    uint32_t kk_flags;
+    atomic_int kk_refcnt;
 
     char kk_name[HSE_KVS_NAME_LEN_MAX];
 };

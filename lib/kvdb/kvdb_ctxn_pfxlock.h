@@ -23,8 +23,8 @@ kvdb_ctxn_pfxlock_fini(void) HSE_COLD;
 
 merr_t
 kvdb_ctxn_pfxlock_create(
-    struct kvdb_pfxlock *      kvdb_pfxlock,
-    uint64_t                   view_seqno,
+    struct kvdb_pfxlock *kvdb_pfxlock,
+    uint64_t view_seqno,
     struct kvdb_ctxn_pfxlock **kpl_out);
 
 void

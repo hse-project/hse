@@ -5,29 +5,27 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/alloc_tester.h>
-
-#include <hse/error/merr.h>
-#include <hse/logging/logging.h>
-
 #include <hse/limits.h>
 
-#include <hse/ikvdb/kvs_rparams.h>
+#include <hse/error/merr.h>
 #include <hse/ikvdb/kvs_cparams.h>
+#include <hse/ikvdb/kvs_rparams.h>
 #include <hse/ikvdb/kvset_builder.h>
 #include <hse/ikvdb/limits.h>
 #include <hse/ikvdb/mclass_policy.h>
 #include <hse/ikvdb/tuple.h>
+#include <hse/logging/logging.h>
 
+#include <hse/test/mock/alloc_tester.h>
+#include <hse/test/mock/mock_mpool.h>
+#include <hse/test/mtf/framework.h>
+
+#include "cn/blk_list.h"
+#include "cn/bloom_reader.h"
 #include "cn/hblock_builder.h"
 #include "cn/kblock_builder.h"
 #include "cn/kblock_reader.h"
 #include "cn/omf.h"
-#include "cn/blk_list.h"
-#include "cn/bloom_reader.h"
-
-#include <hse/test/mock/mock_mpool.h>
 
 const struct kvs_rparams mocked_rp_default = {
     .cn_bloom_create = 1,
@@ -47,9 +45,9 @@ struct kvs_cparams mocked_cp;
 uint8_t key_buf_pfxed[HSE_KVS_KEY_LEN_MAX];
 void *key_buf;
 void *kmd_buf;
-int   salt;
+int salt;
 
-#define BIG_KLEN 1000
+#define BIG_KLEN   1000
 #define BIG_KMDLEN 100000
 
 #define WORK_BUF_SIZE (100 * 1024)
@@ -62,20 +60,20 @@ static int
 check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
 {
     switch (expected_errno) {
-        case -2:
-            /* no check, just return */
-            return err;
-        case -1:
-            /* any error */
-            ASSERT_TRUE_RET(err, -1);
-            break;
-        case 0:
-            /* no error */
-            ASSERT_EQ_RET(err, 0, -1);
-            break;
-        default:
-            /* specific error */
-            ASSERT_EQ_RET(merr_errno(err), expected_errno, -1);
+    case -2:
+        /* no check, just return */
+        return err;
+    case -1:
+        /* any error */
+        ASSERT_TRUE_RET(err, -1);
+        break;
+    case 0:
+        /* no error */
+        ASSERT_EQ_RET(err, 0, -1);
+        break;
+    default:
+        /* specific error */
+        ASSERT_EQ_RET(merr_errno(err), expected_errno, -1);
     }
 
     return 0;
@@ -83,12 +81,12 @@ check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
 
 static int
 add_entry(
-    struct mtf_test_info * lcl_ti,
+    struct mtf_test_info *lcl_ti,
     struct kblock_builder *kbb,
-    uint                   klen,
-    uint                   pfx_len,
-    uint                   kmdlen,
-    int                    expected_errno)
+    uint klen,
+    uint pfx_len,
+    uint kmdlen,
+    int expected_errno)
 {
     merr_t err;
     const void *kmd;
@@ -120,19 +118,20 @@ add_entry(
 
 static int
 add_entries(
-    struct mtf_test_info * lcl_ti,
+    struct mtf_test_info *lcl_ti,
     struct kblock_builder *kbb,
-    uint                   kcnt,
-    uint                   klen,
-    uint                   pfx_len,
-    uint                   kmdlen,
-    int                    expected_errno)
+    uint kcnt,
+    uint klen,
+    uint pfx_len,
+    uint kmdlen,
+    int expected_errno)
 {
     merr_t err = 0;
-    uint   i;
+    uint i;
 
-    log_info("Add entries: %u keys * (%u klen + %u kmd) = %u bytes",
-             kcnt, klen, kmdlen, kcnt * (klen + kmdlen));
+    log_info(
+        "Add entries: %u keys * (%u klen + %u kmd) = %u bytes", kcnt, klen, kmdlen,
+        kcnt * (klen + kmdlen));
 
     for (i = 0; !err && i < kcnt; i++)
         err = add_entry(lcl_ti, kbb, klen, pfx_len, kmdlen, -2);
@@ -214,9 +213,9 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, initial_setup, final_teardown);
 /* Test: successful creation of kblock builder. */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
 {
-    merr_t                 err;
+    merr_t err;
     struct kblock_builder *kbb;
-    int                    i;
+    int i;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
@@ -236,7 +235,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create_fail_nomem, test_setup)
     struct kblock_builder *kbb;
 
     merr_t err = 0;
-    int    rc;
+    int rc;
 
     /* kbb_create requires 6 memory allocations. Expose each one and
      * verify we tested them all.
@@ -264,10 +263,10 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create_fail_nomem, test_setup)
 /* Test: simple kbb_add_entry success case */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_success, test_setup)
 {
-    merr_t                 err;
+    merr_t err;
     struct kblock_builder *kbb;
-    uint                   klen = 100;
-    uint                   kmdlen = 9;
+    uint klen = 100;
+    uint kmdlen = 9;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
@@ -282,11 +281,11 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_success, test_setup)
  */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_nomem, test_setup)
 {
-    uint                   api;
-    merr_t                 err;
+    uint api;
+    merr_t err;
     struct kblock_builder *kbb;
-    uint                   klen = 10;
-    uint                   kmdlen = 10;
+    uint klen = 10;
+    uint kmdlen = 10;
 
     api = mapi_idx_malloc;
 
@@ -325,8 +324,8 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_nomem, test_setup)
  */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_fail_mblock_alloc, test_setup)
 {
-    uint32_t               api;
-    merr_t                 err;
+    uint32_t api;
+    merr_t err;
     struct kblock_builder *kbb;
 
     api = mapi_idx_mpool_mblock_alloc;
@@ -348,10 +347,10 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_fail_mblock_alloc, test_setup)
 
 MTF_DEFINE_UTEST_PRE(test, t_kbb_finish, test_setup)
 {
-    uint                   i, api;
-    merr_t                 err = 0;
+    uint i, api;
+    merr_t err = 0;
     struct kblock_builder *kbb = 0;
-    struct blk_list        blks;
+    struct blk_list blks;
 
     /* with bloom */
     err = kbb_create(KBB_CREATE_ARGS);
@@ -405,9 +404,9 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
 {
     uint api[] = { mapi_idx_wbb_freeze, mapi_idx_mpool_mblock_alloc, mapi_idx_mpool_mblock_write };
     uint i, num_allocs;
-    merr_t                 err = 0;
+    merr_t err = 0;
     struct kblock_builder *kbb = 0;
-    struct blk_list        blks;
+    struct blk_list blks;
 
     for (i = 0; i < NELEM(api); i++) {
 
@@ -462,8 +461,8 @@ int
 fill_test(struct mtf_test_info *lcl_ti, uint kcnt, uint klen, uint kmdlen)
 {
     struct kblock_builder *kbb = 0;
-    merr_t                 err = 0;
-    uint                   ac, wc, cc;
+    merr_t err = 0;
+    uint ac, wc, cc;
 
     ac = mapi_calls(mapi_idx_mpool_mblock_alloc);
     wc = mapi_calls(mapi_idx_mpool_mblock_write);
@@ -489,9 +488,9 @@ fill_test(struct mtf_test_info *lcl_ti, uint kcnt, uint klen, uint kmdlen)
 /* kbb_finish w/ no keys */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_empty1, test_setup)
 {
-    merr_t                 err = 0;
+    merr_t err = 0;
     struct kblock_builder *kbb = 0;
-    struct blk_list        blks;
+    struct blk_list blks;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(0, merr_errno(err));
@@ -509,9 +508,9 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_empty1, test_setup)
 /* kbb_finish w/ no keys */
 MTF_DEFINE_UTEST_PRE(test, finish_again, test_setup)
 {
-    merr_t                 err = 0;
+    merr_t err = 0;
     struct kblock_builder *kbb = 0;
-    struct blk_list        blks;
+    struct blk_list blks;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(0, merr_errno(err));
@@ -556,9 +555,9 @@ MTF_DEFINE_UTEST_PRE(test, t_hash_set, test_setup)
     struct kblock_builder *kbb = 0;
 
     merr_t err = 0;
-    uint   klen = 1;
-    uint   kcnt = 16 * 1024; /* matches HSP_HASH_MAX_KEYS */
-    uint   kmdlen = 9;
+    uint klen = 1;
+    uint kcnt = 16 * 1024; /* matches HSP_HASH_MAX_KEYS */
+    uint kmdlen = 9;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);

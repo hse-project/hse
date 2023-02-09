@@ -5,8 +5,8 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <hse/error/merr.h>
 #include <hse/util/parse_num.h>
@@ -19,7 +19,7 @@ parse_s64_range(
     int64_t max_accept,
     int64_t *result)
 {
-    char * endptr;
+    char *endptr;
     merr_t err = 0;
 
     errno = 0;
@@ -79,7 +79,7 @@ parse_u64_range(
     uint64_t max_accept,
     uint64_t *result)
 {
-    char * endptr;
+    char *endptr;
     merr_t err = 0;
 
     errno = 0;
@@ -134,7 +134,7 @@ done:
 merr_t
 parse_size_range(const char *str, uint64_t min_accept, uint64_t max_accept, uint64_t *result)
 {
-    char * endptr;
+    char *endptr;
     merr_t err;
 
     err = parse_u64_range(str, &endptr, 0, 0, result);
@@ -151,27 +151,27 @@ parse_size_range(const char *str, uint64_t min_accept, uint64_t max_accept, uint
         uint64_t scale;
 
         switch (tolower(*endptr)) {
-            case 'k':
-                scale = 1ull << 10;
-                break;
-            case 'm':
-                scale = 1ull << 20;
-                break;
-            case 'g':
-                scale = 1ull << 30;
-                break;
-            case 't':
-                scale = 1ull << 40;
-                break;
-            case 'p':
-                scale = 1ull << 50;
-                break;
-            case 'e':
-                scale = 1ull << 60;
-                break;
-            default:
-                err = merr(EINVAL);
-                goto done;
+        case 'k':
+            scale = 1ull << 10;
+            break;
+        case 'm':
+            scale = 1ull << 20;
+            break;
+        case 'g':
+            scale = 1ull << 30;
+            break;
+        case 't':
+            scale = 1ull << 40;
+            break;
+        case 'p':
+            scale = 1ull << 50;
+            break;
+        case 'e':
+            scale = 1ull << 60;
+            break;
+        default:
+            err = merr(EINVAL);
+            goto done;
         }
 
         endptr += 1;

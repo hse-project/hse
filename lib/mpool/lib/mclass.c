@@ -4,29 +4,28 @@
  */
 
 #include <ftw.h>
-#include <sys/sysmacros.h>
 
 #include <bsd/string.h>
+#include <sys/sysmacros.h>
 
-#include <hse/util/event_counter.h>
 #include <hse/logging/logging.h>
-#include <hse/util/workqueue.h>
+#include <hse/mpool/mpool_structs.h>
 #include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/log2.h>
 #include <hse/util/minmax.h>
 #include <hse/util/platform.h>
+#include <hse/util/workqueue.h>
 
-#include <hse/mpool/mpool_structs.h>
-
+#include "io.h"
+#include "mblock_fset.h"
 #include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
-#include "mblock_fset.h"
-#include "io.h"
 
-#define MPOOL_RA_PAGES_MIN      0
-#define MPOOL_RA_PAGES_MAX      ((1024 * 1024) / PAGE_SIZE)
-#define MPOOL_RA_PAGES_DFLT     ((128 * 1024) / PAGE_SIZE)
+#define MPOOL_RA_PAGES_MIN  0
+#define MPOOL_RA_PAGES_MAX  ((1024 * 1024) / PAGE_SIZE)
+#define MPOOL_RA_PAGES_DFLT ((128 * 1024) / PAGE_SIZE)
 
 /**
  * struct media_class - mclass instance
@@ -40,15 +39,15 @@
  * @upath:    mclass user-provided path
  */
 struct media_class {
-    DIR *               dirp;
+    DIR *dirp;
     struct mblock_fset *mbfsp;
-    size_t              mblocksz;
-    enum mclass_id      mcid;
-    bool                gclose;
-    bool                directio;
-    uint16_t            ra_pages;
-    char *              dpath;
-    char *              upath;
+    size_t mblocksz;
+    enum mclass_id mcid;
+    bool gclose;
+    bool directio;
+    uint16_t ra_pages;
+    char *dpath;
+    char *upath;
 };
 
 static merr_t
@@ -87,7 +86,8 @@ get_ra_pages(DIR *dirp, uint16_t *ra_pages)
         val = strtoul(line, NULL, 10);
         if (!ev(errno)) {
             val >>= (ilog2(PAGE_SIZE) - 10);
-            *ra_pages = (uint16_t)clamp_t(unsigned long, val, MPOOL_RA_PAGES_MIN, MPOOL_RA_PAGES_MAX);
+            *ra_pages =
+                (uint16_t)clamp_t(unsigned long, val, MPOOL_RA_PAGES_MIN, MPOOL_RA_PAGES_MAX);
         }
     }
 
@@ -96,10 +96,10 @@ get_ra_pages(DIR *dirp, uint16_t *ra_pages)
 
 merr_t
 mclass_open(
-    enum hse_mclass           mclass,
+    enum hse_mclass mclass,
     const struct mclass_params *params,
-    int                         flags,
-    struct media_class **       handle)
+    int flags,
+    struct media_class **handle)
 {
     struct media_class *mc;
     merr_t err;
@@ -194,9 +194,9 @@ static int pathc_per_thr, pathidx, filecnt;
 
 static struct mp_destroy_work {
     struct work_struct work;
-    char             **path;
-    int                pathc;
-    int                curpc;
+    char **path;
+    int pathc;
+    int curpc;
 } **mpdw;
 
 static void
@@ -267,7 +267,7 @@ static void
 mclass_destroy_setup(struct workqueue_struct *wq)
 {
     size_t worksz, sz;
-    int    pathc, workc, fcnt;
+    int pathc, workc, fcnt;
 
     workc = MP_DESTROY_THREADS;
     pathc = filecnt / workc;
@@ -287,7 +287,7 @@ mclass_destroy_setup(struct workqueue_struct *wq)
 
     for (int i = 0; i < workc; i++) {
         struct mp_destroy_work *w;
-        char                   *p;
+        char *p;
 
         w = (struct mp_destroy_work *)((char *)(mpdw + workc) + (i * worksz));
         mpdw[i] = w;
@@ -365,7 +365,7 @@ mclass_dpath(const struct media_class *mc)
 }
 
 const char *
-mclass_upath(const struct media_class *const mc)
+mclass_upath(const struct media_class * const mc)
 {
     return mc ? mc->upath : NULL;
 }
@@ -488,7 +488,7 @@ mclass_info_get(const struct media_class *mc, struct hse_mclass_info *info)
 }
 
 void
-mclass_props_get(const struct media_class *const mc, struct mpool_mclass_props *const props)
+mclass_props_get(const struct media_class * const mc, struct mpool_mclass_props * const props)
 {
     props->mc_fmaxsz = mblock_fset_fmaxsz_get(mc->mbfsp);
     props->mc_mblocksz = mc->mblocksz;

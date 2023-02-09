@@ -3,8 +3,8 @@
  * SPDX-FileCopyrightText: Copyright 2015 Micron Technology, Inc.
  */
 
-#include <hse/util/platform.h>
 #include <hse/util/condvar.h>
+#include <hse/util/platform.h>
 
 void
 cv_init(struct cv *cv)

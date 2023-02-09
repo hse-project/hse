@@ -3,13 +3,12 @@
  * SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
  */
 
+#include <rbtree.h>
 #include <stdint.h>
 
+#include <hse/util/event_counter.h>
 #include <hse/util/platform.h>
 #include <hse/util/slab.h>
-#include <hse/util/event_counter.h>
-
-#include <rbtree.h>
 
 #include "kvdb_ctxn_pfxlock.h"
 

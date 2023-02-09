@@ -26,15 +26,15 @@ struct c0_kvmultiset_cursor {
         struct c0_kvmultiset *c0mc_kvms;
         struct c0_kvmultiset_cursor *c0mc_next;
     };
-    struct bin_heap *     c0mc_bh;
-    int                   c0mc_iterc;
-    int                   c0mc_skidx;
-    int                   c0mc_reverse;
-    const void *          c0mc_pfx;
-    size_t                c0mc_pfx_len;
-    size_t                c0mc_ct_pfx_len;
+    struct bin_heap *c0mc_bh;
+    int c0mc_iterc;
+    int c0mc_skidx;
+    int c0mc_reverse;
+    const void *c0mc_pfx;
+    size_t c0mc_pfx_len;
+    size_t c0mc_ct_pfx_len;
     /* HSE_REVISIT: split apart like c0_cursor_arrays */
-    struct element_source *  c0mc_esrcv[HSE_C0_INGEST_WIDTH_MAX];
+    struct element_source *c0mc_esrcv[HSE_C0_INGEST_WIDTH_MAX];
     struct c0_kvset_iterator c0mc_iterv[HSE_C0_INGEST_WIDTH_MAX];
 };
 
@@ -67,32 +67,32 @@ struct c0_kvmultiset_cursor {
  * @c0cur_ptomb_es:     cached ptomb's element source
  */
 struct c0_cursor {
-    struct element_source         c0cur_es;
-    struct bin_heap *             c0cur_bh;
-    struct c0sk *                 c0cur_c0sk;
-    struct cursor_summary *       c0cur_summary;
-    struct kvs_cursor_element     c0cur_elem;
-    uint64_t                      c0cur_seqno;
-    uint64_t                      c0cur_inv_gen;
-    uint32_t                      c0cur_inv_cnt;
-    merr_t                        c0cur_merr;
-    int                           c0cur_debug;
-    int                           c0cur_reverse;
-    int                           c0cur_skidx;
-    uint32_t                      c0cur_ct_pfx_len;
-    int                           c0cur_pfx_len;
-    int                           c0cur_cnt;
-    int                           c0cur_alloc_cnt;
-    const void *                  c0cur_prefix;
-    struct kvdb_ctxn *            c0cur_ctxn;
-    struct c0_kvmultiset_cursor  *c0cur_free;
-    struct element_source       **c0cur_esrcv;
+    struct element_source c0cur_es;
+    struct bin_heap *c0cur_bh;
+    struct c0sk *c0cur_c0sk;
+    struct cursor_summary *c0cur_summary;
+    struct kvs_cursor_element c0cur_elem;
+    uint64_t c0cur_seqno;
+    uint64_t c0cur_inv_gen;
+    uint32_t c0cur_inv_cnt;
+    merr_t c0cur_merr;
+    int c0cur_debug;
+    int c0cur_reverse;
+    int c0cur_skidx;
+    uint32_t c0cur_ct_pfx_len;
+    int c0cur_pfx_len;
+    int c0cur_cnt;
+    int c0cur_alloc_cnt;
+    const void *c0cur_prefix;
+    struct kvdb_ctxn *c0cur_ctxn;
+    struct c0_kvmultiset_cursor *c0cur_free;
+    struct element_source **c0cur_esrcv;
     struct c0_kvmultiset_cursor **c0cur_curv;
-    void *                        c0cur_ptomb_key;
-    size_t                        c0cur_ptomb_klen;
-    uint64_t                      c0cur_ptomb_seq;
-    struct element_source *       c0cur_ptomb_es;
-    struct kc_filter *            c0cur_filter;
+    void *c0cur_ptomb_key;
+    size_t c0cur_ptomb_klen;
+    uint64_t c0cur_ptomb_seq;
+    struct element_source *c0cur_ptomb_es;
+    struct kc_filter *c0cur_filter;
 };
 
 #endif

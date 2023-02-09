@@ -5,14 +5,14 @@
 
 #include <stdint.h>
 
-#include <hse/test/mtf/framework.h>
-#include <hse/test/mock/api.h>
-#include <hse/test/mock/alloc_tester.h>
-
 #include <hse/logging/logging.h>
-#include <hse/util/timer.h>
 #include <hse/util/minmax.h>
+#include <hse/util/timer.h>
 #include <hse/util/token_bucket.h>
+
+#include <hse/test/mock/alloc_tester.h>
+#include <hse/test/mock/api.h>
+#include <hse/test/mtf/framework.h>
 
 #define K (1024L)
 #define M (1024L * 1024)
@@ -37,11 +37,9 @@ tbkt_check_delay(struct mtf_test_info *lcl_ti, uint64_t delay, uint tolerance_pc
     result = (lo <= delay) && (delay <= hi);
 
     if (debug || !result) {
-        log_debug("check %lu <= %lu <= %lu: %s",
-                  (ulong)lo,
-                  (ulong)delay,
-                  (ulong)hi,
-                  result ? "pass" : "FAILED");
+        log_debug(
+            "check %lu <= %lu <= %lu: %s", (ulong)lo, (ulong)delay, (ulong)hi,
+            result ? "pass" : "FAILED");
     }
 
     ASSERT_LE_RET(lo, delay, -1);
@@ -55,11 +53,11 @@ static int
 tbkt_test(struct mtf_test_info *lcl_ti, uint64_t burst, uint64_t rate)
 {
     struct tbkt tb;
-    uint64_t    grow, req, req_tot;
-    uint64_t    delay, now;
-    int         debug = 1;
-    int         i;
-    uint        tolerance = 10;
+    uint64_t grow, req, req_tot;
+    uint64_t delay, now;
+    int debug = 1;
+    int i;
+    uint tolerance = 10;
 
     ASSERT_GE_RET((uint64_t)burst, (uint64_t)0, -1);
     ASSERT_GT_RET((uint64_t)rate, (uint64_t)0, -1);
@@ -107,14 +105,13 @@ tbkt_test(struct mtf_test_info *lcl_ti, uint64_t burst, uint64_t rate)
 
 MTF_DEFINE_UTEST(test, t_token_bucket)
 {
-    uint64_t bursts[] = {
-        0, 1 * K, 12 * K, 123 * K, 1 * M, 12 * M, 123 * M, 1 * G, 2 * G, 3 * G, 100 * G
-    };
+    uint64_t bursts[] = { 0,       1 * K, 12 * K, 123 * K, 1 * M,  12 * M,
+                          123 * M, 1 * G, 2 * G,  3 * G,   100 * G };
 
     uint64_t rates[] = { 1 * M, 10 * M, 50 * M, 1 * G, 5 * G };
 
     uint bx, rx;
-    int  rc;
+    int rc;
 
     for (bx = 0; bx < NELEM(bursts); bx++) {
         for (rx = 0; rx < NELEM(rates); rx++) {

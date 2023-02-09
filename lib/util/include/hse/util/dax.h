@@ -6,8 +6,8 @@
 #ifndef HSE_PLATFORM_DAX_H
 #define HSE_PLATFORM_DAX_H
 
-#include <hse/util/base.h>
 #include <hse/error/merr.h>
+#include <hse/util/base.h>
 
 /* MTF_MOCK_DECL(dax) */
 
