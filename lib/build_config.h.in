@@ -6,7 +6,9 @@
 #ifndef HSE_BUILD_CONFIG_H
 #define HSE_BUILD_CONFIG_H
 
+// clang-format off
 #define BUILD_CONFIG (@build_config@)
+// clang-format on
 
 #mesondefine SUPPORTS_ATTR_ALIGNED
 #mesondefine SUPPORTS_ATTR_ALWAYS_INLINE
