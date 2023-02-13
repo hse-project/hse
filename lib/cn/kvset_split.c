@@ -653,7 +653,7 @@ vblocks_split(
 
         if (!move_left) {
             /* Add the vblocks in [boundary, end] to the right kvset */
-            boundary = overlapping_access ? split : split + 1;
+            boundary = (overlapping_access || move_right) ? split : split + 1;
             for (uint16_t j = boundary; j <= end; j++) {
                 uint32_t alen;
                 uint64_t mbid;
@@ -724,7 +724,7 @@ vblocks_split(
         if (!move_right) {
             /* Add vblocks in [start, boundary] to the left kvset */
             vbcnt = 0; /* reset vbcnt for the left kvset */
-            boundary = split;
+            boundary = min(split, end);
             for (uint16_t j = start; j <= boundary; j++) {
                 uint32_t alen;
                 uint64_t mbid;
