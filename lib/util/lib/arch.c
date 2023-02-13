@@ -15,7 +15,9 @@
  * for s390x based VMs with low CPU counts, but likely we'll want to
  * revisit this for other architectures or use cases.
  */
-#include <syscall.h>
+#include <unistd.h>
+
+#include <sys/syscall.h>
 
 #include <hse/util/atomic.h>
 
