@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+#
+# SPDX-FileCopyrightText: Copyright 2023 Micron Technology, Inc.
+
+name: ClangFormat
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - "v[0-9]+.[0-9]+"
+    paths:
+      - "**.c"
+      - "**.h"
+      - "**.h.in"
+      - "!subprojects/*"
+      - .github/workflows/clang-format.yaml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/hse-project/ci-images/fedora-37:${{ github.base_ref }}
+
+    steps:
+      - name: Checkout HSE
+        uses: actions/checkout@v3
+
+      - name: Run clang-format
+        run: |
+          ./scripts/dev/clang-format.sh -c "$GITHUB_WORKSPACE"
+
+      - name: Generate diff
+        if: failure()
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch origin --depth=1 "$GITHUB_BASE_REF" "$GITHUB_HEAD_REF"
+
+          git diff -U0 --no-color --relative \
+            "origin/$GITHUB_BASE_REF" "origin/$GITHUB_HEAD_REF" |
+              clang-format-diff -p1 -sort-includes -regex \
+              '(cli|include|lib|samples|tests|tools)\/.*\.(c|h|h\.in)$' |
+                tee clang-format.patch
+
+      - name: Upload diff
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: diff
+          path: clang-format.patch
