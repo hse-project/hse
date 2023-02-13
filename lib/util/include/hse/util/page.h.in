@@ -6,8 +6,11 @@
 #ifndef HSE_PLATFORM_PAGE_H
 #define HSE_PLATFORM_PAGE_H
 
+// clang-format off
 #define PAGE_SIZE @PAGE_SIZE@UL
-#define PAGE_MASK (~(PAGE_SIZE - 1))
+// clang-format on
+
+#define PAGE_MASK    (~(PAGE_SIZE - 1))
 #define SECTOR_SHIFT 9
 
 /* Align @x upward to @mask. Value of @mask should be one less
