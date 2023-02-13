@@ -4,6 +4,7 @@
  */
 
 #include <stdint.h>
+
 #include <sys/mman.h>
 
 #include <hse/limits.h>
@@ -16,6 +17,7 @@
 #include <hse/mpool/mpool.h>
 #include <hse/util/assert.h>
 #include <hse/util/event_counter.h>
+#include <hse/util/fmt.h>
 #include <hse/util/keycmp.h>
 #include <hse/util/perfc.h>
 
@@ -396,7 +398,8 @@ kblocks_split(
 
 struct vgroup_split_metadata {
     bool overlaps; /**< Whether the vgroup overlaps the split key. */
-    uint16_t vblk_idx; /**< Where the left kvset's vblocks end and the right kvset's vblocks begin */
+    uint16_t
+        vblk_idx; /**< Where the left kvset's vblocks end and the right kvset's vblocks begin */
     off_t offset; /**< Offset into the vblock where the access first occurs */
 };
 
@@ -452,35 +455,11 @@ get_vblk_split_index(
     return v;
 }
 
-static void
-find_max_key_among_overlapping_vblocks(
-    const uint32_t nvgroups,
-    const struct vgroup_split_metadata *metadatav,
-    struct kvset *const ks,
-    struct key_obj *max_key)
-{
-    for (uint32_t i = 0; i < nvgroups; i++) {
-        struct key_obj curr_key = { 0 };
-        const struct vblock_desc *vbd;
-        const struct vgroup_split_metadata *metadata = metadatav + i;
-
-        if (!metadata->overlaps)
-            continue;
-
-        vbd = kvset_get_nth_vblock_desc(ks, metadata->vblk_idx);
-
-        key2kobj(&curr_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff, vbd->vbd_max_klen);
-
-        if (key_obj_cmp(max_key, &curr_key) < 0)
-            *max_key = curr_key;
-    }
-}
-
 static merr_t
 mark_vgroup_accesses(
     const uint32_t nvgroups,
     struct vgroup_split_metadata *metadatav,
-    struct kvset *const ks,
+    struct kvset * const ks,
     const struct key_obj *split_key,
     const struct key_obj *max_key)
 {
@@ -527,8 +506,9 @@ mark_vgroup_accesses(
         if (key_obj_cmp(&curr_key, max_key) > 0)
             break;
 
-        while (kvset_iter_next_vref(iter, &vc, &seqno, &vtype, &vbidx, &vboff, &vdata, &vlen,
-                &complen)) {
+        while (kvset_iter_next_vref(
+            iter, &vc, &seqno, &vtype, &vbidx, &vboff, &vdata, &vlen, &complen))
+        {
             uint64_t vgidx;
             const struct vblock_desc *vbd;
             struct vgroup_split_metadata *metadata;
@@ -545,7 +525,7 @@ mark_vgroup_accesses(
                 metadata = metadatav + vgidx;
                 if (metadata->offset == -1) {
                     metadata->offset = vboff;
-
+                    log_debug("vgidx=%lu vbidx=%u offset=%u", vgidx, vbidx, vboff);
                     /* Exit because we have marked the offset for all vgroups */
                     if (++accesses == nvgroups)
                         goto out;
@@ -580,6 +560,7 @@ vblocks_split(
     struct kvset_split_res *result)
 {
     struct key_obj max_key;
+    char buf[HSE_KVS_KEY_LEN_MAX + 1];
     struct vgroup_split_metadata *metadatav;
     struct vgmap *vgmap_src = ks->ks_vgmap;
     struct vgmap *vgmap_left = work[LEFT].vgmap;
@@ -594,21 +575,18 @@ vblocks_split(
     uint64_t perfc_rwb = 0;
     merr_t err;
 
-    log_debug("splitting");
+    log_debug("splitting %d vgroups", nvgroups);
 
     if (move_left && move_right) {
         assert(nvgroups == 0);
         return 0;
     }
 
-    metadatav = calloc(nvgroups, sizeof(*metadatav));
+    metadatav = malloc(nvgroups * sizeof(*metadatav));
     if (ev(!metadatav))
         return merr(ENOMEM);
-    for (uint32_t i = 0; i < nvgroups; i++) {
-        /* Negative offset implies overlapping vblock was not accessed */
-        metadatav[i].offset = -1;
-    }
 
+    max_key = *split_key;
     for (uint32_t i = 0; i < nvgroups; i++) {
         uint16_t start, end;
         struct vgroup_split_metadata *metadata = metadatav + i;
@@ -617,22 +595,44 @@ vblocks_split(
         start = vgmap_vbidx_out_start(ks, i);
         end = vgmap_vbidx_out_end(ks, i);
 
+        /* Negative offset implies overlapping vblock was not accessed */
+        metadata->offset = -1;
         if (move_left || move_right) {
+            log_debug("move_left=%d move_right=%d", move_left, move_right);
             metadata->vblk_idx = move_right ? start : end;
             metadata->overlaps = false;
         } else {
-            metadata->vblk_idx = get_vblk_split_index(ks, start, end, split_key,
-                &metadata->overlaps);
+            metadata->vblk_idx =
+                get_vblk_split_index(ks, start, end, split_key, &metadata->overlaps);
+            if (metadata->overlaps) {
+                struct key_obj curr_key;
+                const struct vblock_desc *vbd;
+
+                vbd = kvset_get_nth_vblock_desc(ks, metadata->vblk_idx);
+
+                key2kobj(
+                    &curr_key, vbd->vbd_mblkdesc->map_base + vbd->vbd_max_koff, vbd->vbd_max_klen);
+
+                fmt_hexp(
+                    buf, sizeof(buf), curr_key.ko_sfx, curr_key.ko_sfx_len, "0x", 4, "-", "\0");
+                log_debug("vgidx=%u vblkidx=%u maxkey=%s", i, metadata->vblk_idx, buf);
+                if (key_obj_cmp(&max_key, &curr_key) < 0)
+                    max_key = curr_key;
+            }
         }
         assert(metadata->vblk_idx >= start && metadata->vblk_idx <= end + 1);
     }
 
-    max_key = *split_key;
-    find_max_key_among_overlapping_vblocks(nvgroups, metadatav, ks, &max_key);
+    fmt_hexp(buf, sizeof(buf), split_key->ko_sfx, split_key->ko_sfx_len, "0x", 4, "-", "\0");
+    log_debug("split key: %s", buf);
+    fmt_hexp(buf, sizeof(buf), max_key.ko_sfx, max_key.ko_sfx_len, "0x", 4, "-", "\0");
+    log_debug("max key: %s", buf);
 
-    err = mark_vgroup_accesses(nvgroups, metadatav, ks, split_key, &max_key);
-    if (ev(err))
-        goto out;
+    if (!(move_left || move_right)) {
+        err = mark_vgroup_accesses(nvgroups, metadatav, ks, split_key, &max_key);
+        if (ev(err))
+            goto out;
+    }
 
     for (uint32_t i = 0; i < nvgroups; i++) {
         uint32_t vbcnt = 0;
@@ -647,123 +647,144 @@ vblocks_split(
         end = vgmap_vbidx_out_end(ks, i);
         split = metadata->vblk_idx;
 
-        log_debug("start=%u end=%u split=%u overlaps=%d offset=%jd overlapping_access=%d", start, end, split, metadata->overlaps, metadata->offset, overlapping_access);
+        log_debug(
+            "start=%u end=%u split=%u overlaps=%d offset=%jd overlapping_access=%d", start, end,
+            split, metadata->overlaps, metadata->offset, overlapping_access);
 
-        /* Add the vblocks in [boundary, end] to the right kvset */
-        boundary = split;
-        for (uint16_t j = boundary; j <= end; j++) {
-            uint32_t alen;
-            uint64_t mbid;
+        if (!move_left) {
+            /* Add the vblocks in [boundary, end] to the right kvset */
+            boundary = overlapping_access ? split : split + 1;
+            for (uint16_t j = boundary; j <= end; j++) {
+                uint32_t alen;
+                uint64_t mbid;
 
-            mbid = kvset_get_nth_vblock_id(ks, j);
+                mbid = kvset_get_nth_vblock_id(ks, j);
 
-            if (j == split && overlapping_access) {
-                off_t off;
-                uint64_t clone_mbid;
-                struct mblock_props props;
+                if (j == split && overlapping_access) {
+                    off_t off;
+                    uint64_t clone_mbid;
+                    struct mblock_props props;
 
-                off = metadata->offset;
-                off = off < PAGE_SIZE ? 0 : roundup(off - PAGE_SIZE, PAGE_SIZE);
+                    /* We want clone more than enough data in the event the
+                     * offset doesn't fall right on a page boundary.
+                     */
+                    off = metadata->offset;
+                    off = off < PAGE_SIZE ? 0 : roundup(off - PAGE_SIZE, PAGE_SIZE);
 
-                err = mpool_mblock_clone(ks->ks_mp, mbid, off, 0, &clone_mbid);
-                if (!err) {
-                    err = blk_list_append(&blks_right->vblks, clone_mbid);
-                    if (!err)
-                        err = blk_list_append(result->ks[RIGHT].blks_commit, clone_mbid);
+                    err = mpool_mblock_clone(ks->ks_mp, mbid, off, 0, &clone_mbid);
+                    if (!err) {
+                        err = blk_list_append(&blks_right->vblks, clone_mbid);
+                        if (!err)
+                            err = blk_list_append(result->ks[RIGHT].blks_commit, clone_mbid);
+                    }
+
+                    if (err)
+                        goto out;
+
+                    log_debug("Cloned mblock (0x%" PRIx64 ") starting at offset %jd", mbid, off);
+
+                    err = mpool_mblock_props_get(ks->ks_mp, clone_mbid, &props);
+                    if (ev(err))
+                        goto out;
+
+                    perfc_rwc++;
+                    if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) ||
+                        perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
+                        perfc_rwb += props.mpr_write_len - off;
+
+                    alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
+                    log_debug(
+                        "right: cloned id=0x%lx vgidx=%u vblkidx=%u alen=%u", clone_mbid, i, j,
+                        alen);
+                } else {
+                    err = blk_list_append(&blks_right->vblks, mbid);
+                    if (err)
+                        goto out;
+
+                    alen = kvset_get_nth_vblock_alen(ks, j);
+                    log_debug(
+                        "right: moved id=0x%lx vgidx=%u vblkidx=%u alen=%u", mbid, i, j, alen);
                 }
 
+                vbcnt++;
+                blks_right->bl_vtotal += alen;
+            }
+
+            if (vbcnt > 0) {
+                vbidx_right += vbcnt;
+
+                err = vgmap_vbidx_set(vgmap_src, end, vgmap_right, vbidx_right - 1, vgidx_right);
                 if (err)
                     goto out;
 
-                log_debug("Cloned mblock (0x%" PRIx64 ") starting at offset %jd", mbid, off);
+                vgidx_right++;
+            }
+        }
 
-                err = mpool_mblock_props_get(ks->ks_mp, clone_mbid, &props);
+        if (!move_right) {
+            /* Add vblocks in [start, boundary] to the left kvset */
+            vbcnt = 0; /* reset vbcnt for the left kvset */
+            boundary = split;
+            for (uint16_t j = start; j <= boundary; j++) {
+                uint32_t alen;
+                uint64_t mbid;
+
+                mbid = kvset_get_nth_vblock_id(ks, j);
+
+                if (j == split && overlapping_access) {
+                    off_t off;
+                    uint32_t wlen;
+                    struct mblock_props props;
+
+                    /* Offset must be page aligned. Punching the rest of the
+                     * vblock from the page aligned offset up to the vblock
+                     * footer.
+                     */
+                    off = roundup(metadata->offset, PAGE_SIZE);
+                    wlen = kvset_get_nth_vblock_wlen(ks, j) - off;
+
+                    err = mpool_mblock_punch(ks->ks_mp, mbid, off, wlen);
+                    if (ev(err))
+                        goto out;
+
+                    log_debug(
+                        "Punched mblock (0x%" PRIx64 ") starting at offset %jd for %u bytes", mbid,
+                        off, wlen);
+
+                    err = mpool_mblock_props_get(ks->ks_mp, mbid, &props);
+                    if (ev(err))
+                        goto out;
+
+                    alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
+                    log_debug(
+                        "left: punched id=0x%lx vgidx=%u vblkidx=%u alen=%u", mbid, i, j, alen);
+                } else {
+                    alen = kvset_get_nth_vblock_alen(ks, j);
+                    log_debug("left: moved id=0x%lx vgidx=%u vblkidx=%u alen=%u", mbid, i, j, alen);
+                }
+
+                err = blk_list_append(&blks_left->vblks, mbid);
                 if (ev(err))
                     goto out;
 
-                perfc_rwc++;
-                if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) ||
-                        perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
-                    perfc_rwb += props.mpr_write_len - off;
+                vbcnt++;
+                blks_left->bl_vtotal += alen;
+            }
 
-                alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
-            } else {
-                err = blk_list_append(&blks_right->vblks, mbid);
+            if (vbcnt > 0) {
+                vbidx_left += vbcnt;
+
+                err = vgmap_vbidx_set(vgmap_src, boundary, vgmap_left, vbidx_left - 1, vgidx_left);
                 if (err)
                     goto out;
 
-                alen = kvset_get_nth_vblock_alen(ks, j);
+                vgidx_left++;
             }
-
-            vbcnt++;
-            blks_right->bl_vtotal += alen;
-        }
-
-        if (vbcnt > 0) {
-            vbidx_right += vbcnt;
-
-            err = vgmap_vbidx_set(vgmap_src, end, vgmap_right, vbidx_right - 1, vgidx_right);
-            if (err)
-                goto out;
-
-            vgidx_right++;
-        }
-
-        /* Add vblocks in [start, boundary] to the left kvset
-         */
-        vbcnt = 0; /* reset vbcnt for the right kvset */
-        boundary = overlapping_access ? split : split - 1;
-        for (uint16_t j = start; j <= boundary; j++) {
-            uint32_t alen;
-            uint64_t mbid;
-
-            mbid = kvset_get_nth_vblock_id(ks, j);
-
-            if (j == split) {
-                off_t off;
-                uint32_t wlen;
-                struct mblock_props props;
-
-                /* Offset must be page aligned. Punching the rest of the vblock
-                 * from the page aligned offset up to the vblock footer.
-                 */
-                off = roundup(metadata->offset, PAGE_SIZE);
-                wlen = kvset_get_nth_vblock_wlen(ks, j) - off;
-
-                err = mpool_mblock_punch(ks->ks_mp, mbid, off, wlen);
-                if (ev(err))
-                    goto out;
-
-                log_debug("Punched mblock (0x%" PRIx64 ") starting at offset %jd for %u bytes",
-                    mbid, off, wlen);
-
-                err = mpool_mblock_props_get(ks->ks_mp, mbid, &props);
-                if (ev(err))
-                    goto out;
-
-                alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
-            } else {
-                alen = kvset_get_nth_vblock_alen(ks, j);
-            }
-
-            err = blk_list_append(&blks_left->vblks, mbid);
-            if (ev(err))
-                goto out;
-
-            vbcnt++;
-            blks_left->bl_vtotal += alen;
-        }
-
-        if (vbcnt > 0) {
-            vbidx_left += vbcnt;
-
-            err = vgmap_vbidx_set(vgmap_src, boundary, vgmap_left, vbidx_left - 1, vgidx_left);
-            if (err)
-                goto out;
-
-            vgidx_left++;
         }
     }
+
+    log_debug("left: vtotal=%lu vused=%lu", blks_left->bl_vtotal, blks_left->bl_vused);
+    log_debug("right: vtotal=%lu vused=%lu", blks_right->bl_vtotal, blks_right->bl_vused);
 
     /* Sanity check, so that we don't fall into these asserts elsewhere later
      * on.
