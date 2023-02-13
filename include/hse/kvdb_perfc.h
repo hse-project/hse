@@ -115,6 +115,7 @@ enum kvdb_perfc_sidx_kvdb_metrics {
 };
 
 enum kvdb_perfc_sidx_api_throttle {
+    PERFC_BA_THSR_KVDB,
     PERFC_BA_THSR_CNROOT,
     PERFC_BA_THSR_C0SK,
     PERFC_BA_THSR_WAL,

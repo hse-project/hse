@@ -33,6 +33,12 @@ init(void)
     for (i = 0; i < sc; i++)
         sv[i] = throttle_sensor(t, i);
     throttle_init_params(t, &kvdb_rp);
+
+    /* throttle_update() is periodicaly called by the jiffy timer,
+     * so we must unregister it so that these tests can directly
+     * call it.
+     */
+    hse_timer_cb_register(NULL, NULL, 0);
 }
 
 int

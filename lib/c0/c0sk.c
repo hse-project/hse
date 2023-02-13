@@ -505,7 +505,10 @@ c0sk_open(
 
     stashp = HSE_LIKELY(atomic_read(&c0sk->c0sk_replaying) == 0) ? &c0sk->c0sk_stash : NULL;
 
-    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_kvdb_seq, stashp, &c0kvms);
+    /* Start with the minimum width to elicit a c0 spill as soon as possible, thereby
+     * allowing the throttle put-rate limit to be quickly determined.
+     */
+    err = c0kvms_create(HSE_C0_INGEST_WIDTH_MIN, c0sk->c0sk_kvdb_seq, stashp, &c0kvms);
     if (err)
         goto errout;
 

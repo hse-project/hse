@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include <sys/resource.h>
+
 #include <hse/kvdb_perfc.h>
 
 #include <hse/ikvdb/ikvdb.h>
@@ -14,6 +16,7 @@
 #include <hse/ikvdb/throttle_perfc.h>
 #include <hse/logging/logging.h>
 #include <hse/util/assert.h>
+#include <hse/util/event_counter.h>
 #include <hse/util/minmax.h>
 #include <hse/util/page.h>
 #include <hse/util/perfc.h>
@@ -21,6 +24,7 @@
 /* clang-format off */
 
 static struct perfc_name throttle_sen_perfc[] _dt_section = {
+    NE(PERFC_BA_THSR_KVDB,     1, "kvdb put-rate sensor",       "thsr_kvdb"),
     NE(PERFC_BA_THSR_CNROOT,   1, "csched root sensor",         "thsr_cnroot"),
     NE(PERFC_BA_THSR_C0SK,     1, "c0sk ingest queue sensor",   "thsr_c0sk"),
     NE(PERFC_BA_THSR_WAL,      1, "wal buffer length sensor",   "thsr_wal"),
@@ -38,22 +42,34 @@ NE_CHECK(throttle_sleep_perfc, PERFC_EN_THR_MAX, "perfc table/enum mismatch");
 
 /* clang-format on */
 
+thread_local struct throttle_tls hse_throttle_tls;
+
 void
 throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_alias)
 {
     char group[128];
-    int i;
 
     assert(IS_ALIGNED((uintptr_t)self, __alignof__(*self)));
 
     snprintf(group, sizeof(group), "kvdbs/%s", kvdb_alias);
 
     memset(self, 0, sizeof(*self));
-    spin_lock_init(&self->thr_lock);
     self->thr_rp = rp;
 
-    for (i = 0; i < THROTTLE_SENSOR_CNT; i++)
+    atomic_set(&self->thr_cntrgen, 0);
+    self->thr_tprev = get_time_ns();
+
+    for (uint i = 0; i < THROTTLE_SENSOR_CNT; i++) {
+        struct throttle_sensor *ts = self->thr_sensorv + i;
+
+        ts->ts_cntrgenp = &self->thr_cntrgen;
+        ts->ts_pspbptp = &self->thr_c0fill_pspbpt;
+
+        for (uint j = 0; j < NELEM(ts->ts_cntrv); ++j)
+            atomic_set(&ts->ts_cntrv[j], 0);
+
         atomic_set(&self->thr_sensorv[i].ts_sensor, 0);
+    }
 
     perfc_alloc(throttle_sen_perfc, group, "set", rp->perfc_level, &self->thr_sensor_perfc);
     perfc_alloc(throttle_sleep_perfc, group, "set", rp->perfc_level, &self->thr_sleep_perfc);
@@ -62,9 +78,18 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp, const char *kvdb_a
 void
 throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 {
-    uint32_t time_ms;
-
     self->thr_delay = rp->throttle_init_policy;
+
+    self->thr_c0fill_avg = throttle_raw_to_rate(self->thr_delay);
+    if (self->thr_c0fill_avg > rp->throttle_rate_limit)
+        self->thr_c0fill_avg = rp->throttle_rate_limit;
+    self->thr_c0fill_tdcnt = 32 * 1024;
+    self->thr_c0fill_pspbpt = (NSEC_PER_SEC * self->thr_c0fill_tdcnt) / self->thr_c0fill_avg;
+
+    self->thr_c0spill_peak = (self->thr_c0fill_avg * 100) / 85;
+    self->thr_c0spill_avg = self->thr_c0spill_peak;
+    self->thr_c0spill_avgv[0] = self->thr_c0spill_peak;
+    self->thr_c0spill_avgv[1] = self->thr_c0spill_peak;
 
     if (self->thr_rp->throttle_debug_intvl_s == 0) {
         log_warn(
@@ -76,40 +101,48 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_state = THROTTLE_NO_CHANGE;
     self->thr_update_ms = rp->throttle_update_ns / 1000000;
 
-    self->thr_inject_cycles = THROTTLE_INJECT_MS / self->thr_update_ms +
-        (THROTTLE_INJECT_MS % self->thr_update_ms ? 1 : 0);
+    if (self->thr_update_ms < NSEC_PER_JIFFY / 1000000)
+        self->thr_update_ms = NSEC_PER_JIFFY / 1000000;
+
+    if (self->thr_update_ms > THROTTLE_INJECT_MS)
+        self->thr_update_ms = THROTTLE_INJECT_MS;
+
+    if (self->thr_update_ms > THROTTLE_REDUCE_MS)
+        self->thr_update_ms = THROTTLE_REDUCE_MS;
+
+    if (self->thr_update_ms > THROTTLE_SKIP_MS)
+        self->thr_update_ms = THROTTLE_SKIP_MS;
+
+    if (self->thr_update_ms > THROTTLE_DELTA_MS)
+        self->thr_update_ms = THROTTLE_DELTA_MS;
+
+    self->thr_inject_cycles = THROTTLE_INJECT_MS / self->thr_update_ms;
 
     /* Evaluate if we can go faster every 5 seconds) */
-    time_ms = THROTTLE_REDUCE_CYCLES * self->thr_update_ms;
-    time_ms = max_t(uint, time_ms, 5000);
-    time_ms = min_t(uint, time_ms, 15000);
-    self->thr_reduce_cycles = time_ms / self->thr_update_ms;
+    self->thr_reduce_cycles = THROTTLE_REDUCE_MS / self->thr_update_ms;
 
     /* Skip the first few ms worth of measurements while computing mavg
-     * after changing the sleep value. */
-    time_ms = THROTTLE_SKIP_CYCLES * self->thr_update_ms;
-    time_ms = max_t(uint, time_ms, 250);
-    time_ms = min_t(uint, time_ms, 1000);
-    self->thr_skip_cycles = time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
+     * after changing the sleep value.
+     */
+    self->thr_skip_cycles = THROTTLE_SKIP_MS / self->thr_update_ms;
 
     /* This is the minimum additional time to wait after reducing the sleep
      * value for sensors to respond.
      */
-    time_ms = THROTTLE_DELTA_CYCLES * self->thr_update_ms;
-    time_ms = max_t(uint, time_ms, 800);
-    time_ms = min_t(uint, time_ms, 4000);
-    self->thr_delta_cycles =
-        time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
+    self->thr_delta_cycles = THROTTLE_DELTA_MS / self->thr_update_ms;
 
     log_info(
-        "delay %d u_ms %d rcycles %d icycles %d scycles %d dcycles %d", self->thr_delay,
-        self->thr_update_ms, self->thr_reduce_cycles, self->thr_inject_cycles,
+        "delay %d u_ms %d rcycles %d icycles %d scycles %d dcycles %d", //dnl
+        self->thr_delay, self->thr_update_ms, self->thr_reduce_cycles, self->thr_inject_cycles,
         self->thr_skip_cycles, self->thr_delta_cycles);
+
+    hse_timer_cb_register(throttle_update, self, self->thr_update_ms);
 }
 
 void
 throttle_fini(struct throttle *self)
 {
+    hse_timer_cb_register(NULL, NULL, 0);
     perfc_free(&self->thr_sleep_perfc);
     perfc_free(&self->thr_sensor_perfc);
 }
@@ -140,28 +173,39 @@ throttle_increase(struct throttle *self, uint value)
     uint delta = 0;
 
     assert(self->thr_state == THROTTLE_INCREASE);
+    assert(self->thr_delay > 0);
 
-    if (value >= 2000) {
-        if (self->thr_delay_idelta)
-            delta = 2 * self->thr_delay_idelta;
-        else
-            delta = self->thr_delay / 15;
+    /* The throttle decrease step size increases exponentially
+     * with each step of 100 of the sensor value above 1000.
+     */
+    if (value >= 1000) {
+        if (value >= 2000) {
+            if (self->thr_delay_idelta)
+                delta = 2 * self->thr_delay_idelta;
+            else
+                delta = self->thr_delay / 15;
 
-        delta = max_t(uint, delta, 1);
+            delta = max_t(uint, delta, 1);
 
-        if (!self->thr_delay)
-            delta = THROTTLE_DELAY_MIN;
+        } else if (value >= 1800) {
+            delta = max_t(uint, self->thr_delay / 16, 1);
+        } else if (value > 1500) {
+            delta = max_t(uint, self->thr_delay / 32, 1);
+        } else if (value > 1400) {
+            delta = max_t(uint, self->thr_delay / 64, 1);
+        } else if (value > 1300) {
+            delta = max_t(uint, self->thr_delay / 128, 1);
+        } else if (value > 1200) {
+            delta = max_t(uint, self->thr_delay / 256, 1);
+        } else if (value > 1100) {
+            delta = max_t(uint, self->thr_delay / 512, 1);
+        } else if (value >= 1000) {
+            delta = max_t(uint, self->thr_delay / 1024, 1);
+        }
 
-        self->thr_skip_cnt = 40;
-    } else if (value >= 1800) {
-        delta = max_t(uint, self->thr_delay / 10, 1);
-        self->thr_skip_cnt = 40;
-    } else if (value > 1100) {
-        delta = max_t(uint, self->thr_delay / 20, 1);
-        self->thr_skip_cnt = 32;
-    } else if (value >= 1000) {
-        delta = max_t(uint, self->thr_delay / 100, 1);
-        self->thr_skip_cnt = 24;
+        /* Apply smaller steps more frequently than larger steps.
+         */
+        self->thr_skip_cnt = (self->thr_skip_cycles * (value - 1000)) / 1000;
     }
 
     /* Reset the moving average when the sleep time is adjusted. */
@@ -203,7 +247,7 @@ throttle_decrease(struct throttle *self, uint svalue)
     ulong debug = self->thr_rp->throttle_debug;
     int delta = self->thr_delay_prev - self->thr_delay_test;
 
-    assert(delta > 0);
+    assert(delta >= 0);
 
     /* Inject a reduced delay for inject_cnt cycles */
     if (self->thr_inject_cnt > 0) {
@@ -281,40 +325,217 @@ throttle_switch_state(struct throttle *self, enum throttle_state state, uint max
     }
 }
 
-uint
-throttle_update(struct throttle *self)
+void
+throttle_update(void *arg)
 {
+    struct throttle *self = arg;
+    const struct kvdb_rparams *rp = self->thr_rp;
     struct throttle_mavg *mavg = &self->thr_mavg;
-    uint32_t max_val = 0;
-    uint64_t debug = self->thr_rp->throttle_debug;
+    uint64_t fill_rate = 0, c0spill_rate = 0;
+    uint64_t now, tdelta, gen, pspbpt, rate;
+    uint c0spill_tdcnt = 0;
+    uint c0spill_sval = 0;
+    uint fill_tdcnt = 0;
+    uint c0sk_sval = 0;
+    uint max_sval = 0;
+
+    /* Advance the put-counter generation, then read the number of bytes
+     * put and number of threads active in the last generation.  We use
+     * this info to compute the current and average app thread put-rate.
+     */
+    gen = atomic_inc_return(&self->thr_cntrgen);
+    gen %= NELEM(((struct throttle_sensor *)0)->ts_cntrv);
+
+    now = get_time_ns();
+    tdelta = now - self->thr_tprev;
+    self->thr_tprev = now;
 
     for (int i = 0; i < THROTTLE_SENSOR_CNT; i++) {
-        uint32_t tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
-        uint32_t cidx = UINT_MAX;
+        struct throttle_sensor *ts = self->thr_sensorv + i;
+        atomic_uint_fast64_t *cntrp;
+        uint64_t cntr_val;
+        uint32_t cidx;
+        uint sval;
 
-        tmp = min_t(uint, tmp, 2 * THROTTLE_SENSOR_SCALE);
+        cntrp = &ts->ts_cntrv[gen];
+        cntr_val = atomic_read(cntrp);
+        atomic_sub_rel(cntrp, cntr_val);
+
+        sval = atomic_read(&ts->ts_sensor);
+        sval = min_t(uint, sval, 2 * THROTTLE_SENSOR_SCALE);
 
         switch (i) {
+        case THROTTLE_SENSOR_KVDB:
+            cidx = PERFC_BA_THSR_KVDB;
+            fill_rate = ((cntr_val >> 20) * NSEC_PER_SEC) / tdelta;
+            fill_tdcnt = cntr_val & 0xfffffu;
+            break;
+
         case THROTTLE_SENSOR_CNROOT:
             cidx = PERFC_BA_THSR_CNROOT;
             break;
+
         case THROTTLE_SENSOR_C0SK:
             cidx = PERFC_BA_THSR_C0SK;
+            c0spill_rate = ((cntr_val >> 20) * NSEC_PER_SEC) / tdelta;
+            c0spill_tdcnt = cntr_val & 0xfffffu;
+            c0sk_sval = sval;
+
+            self->thr_c0spill_sval =
+                (self->thr_c0spill_sval * 255 + min_t(uint, sval, 1051) * 1024) / 256;
+            c0spill_sval = self->thr_c0spill_sval / 1024;
+            assert(c0spill_sval <= 1051);
+            if (sval < c0spill_sval)
+                sval = c0spill_sval;
             break;
+
         case THROTTLE_SENSOR_WAL:
             cidx = PERFC_BA_THSR_WAL;
             break;
+
+        default:
+            assert(0);
+            continue;
         }
 
-        /* Ignore csched sensor while calculating mavg. */
-        if (tmp > max_val)
-            max_val = tmp;
+        if (sval > max_sval)
+            max_sval = sval;
 
-        assert(cidx != UINT_MAX);
-        perfc_set(&self->thr_sensor_perfc, cidx, tmp);
+        perfc_set(&self->thr_sensor_perfc, cidx, sval);
     }
 
-    perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAX, max_val);
+    perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAX, max_sval);
+
+    self->thr_c0fill_tdcnt = (self->thr_c0fill_tdcnt * 31 + fill_tdcnt * 1024) / 32;
+    self->thr_c0fill_avg = (self->thr_c0fill_avg * 31 + fill_rate) / 32;
+
+    if (c0spill_rate > 0) {
+        uint idx = (c0spill_tdcnt > 1);
+
+        if (c0spill_rate > self->thr_c0spill_peak) {
+            self->thr_c0spill_peak = c0spill_rate;
+            self->thr_c0spill_avg = (self->thr_c0spill_avg + c0spill_rate) / 2;
+            self->thr_report = now;
+        } else {
+            uint64_t div = (c0sk_sval < 900) ? 1024 : 128;
+
+            self->thr_c0spill_avg = (self->thr_c0spill_avg * (div - 1) + c0spill_rate) / div;
+        }
+
+        self->thr_c0spill_avgv[idx] = (self->thr_c0spill_avgv[idx] * 31 + c0spill_rate) / 32;
+
+        if (c0sk_sval >= 951 && c0sk_sval < 1000) {
+            if (self->thr_c0spill_avg > self->thr_c0spill_high) {
+                self->thr_c0spill_high = self->thr_c0spill_avg;
+                self->thr_report = now;
+            }
+        }
+    }
+
+    rate = throttle_raw_to_rate(self->thr_delay);
+
+    if (self->thr_c0fill_tdcnt > 0) {
+        uint64_t clamp, lwm;
+
+        clamp = self->thr_c0spill_high ? self->thr_c0spill_high : self->thr_c0spill_peak;
+
+        /* Reduce limit to allow for WAL, c0 spill, and cN spill
+         * all simultaneously writing to media.
+         */
+        if (clamp < rp->throttle_rate_fastmedia) {
+            if (c0sk_sval < 1000) {
+                uint64_t avg = self->thr_c0spill_avg;
+                uint x = (c0sk_sval / 100) + 1;
+
+                clamp = ((avg * x) + (clamp * (10 - x))) / 10;
+            }
+        }
+
+        if (clamp > rp->throttle_rate_limit)
+            clamp = rp->throttle_rate_limit;
+
+        if (c0sk_sval > 1000) {
+            clamp = clamp * (1851 - c0sk_sval) / 1000;
+
+            if (clamp > self->thr_c0spill_high && self->thr_c0spill_high > 0) {
+                clamp = self->thr_c0spill_high;
+                self->thr_report = now;
+                ev_debug(1);
+            }
+
+            if (c0sk_sval >= 1051 && rate > clamp) {
+                clamp = rate;
+                ev_debug(1);
+            }
+            ev_debug(1);
+        }
+
+        clamp = max_t(uint64_t, clamp, 10000000);
+        lwm = (clamp * 75) / 100;
+
+        if (now >= self->thr_report) {
+            const uint64_t report_ns = NSEC_PER_SEC * 1;
+
+            self->thr_report = roundup(now + report_ns, report_ns) - report_ns;
+
+            log_info(
+                "%4u %3u  avg %4lu -> %lu (%lu,%lu)  c0 %lu %lu %4lu  thr %4lu %4lu  dly %6lu %u",
+                c0sk_sval, c0spill_sval, self->thr_c0fill_avg / 1000000,
+                self->thr_c0spill_avg / 1000000, self->thr_c0spill_avgv[0] / 1000000,
+                self->thr_c0spill_avgv[1] / 1000000, self->thr_c0spill_peak / 1000000,
+                self->thr_c0spill_high / 1000000, c0spill_rate / 1000000, rate / 1000000,
+                clamp / 1000000, self->thr_c0fill_pspbpt, self->thr_delay);
+        }
+
+        /* Apply the clamped resource rate limit only if the application's
+         * average put rate exceeds both it and the throttle sensor rate
+         * limit.
+         */
+        if (self->thr_c0fill_avg > lwm) {
+            if (self->thr_c0fill_avg >= clamp && rate >= clamp) {
+                rate = (rate * 31 + clamp) / 32;
+
+                self->thr_delay = throttle_rate_to_raw(rate);
+                self->thr_delay_prev = self->thr_delay;
+                self->thr_delay_test = self->thr_delay;
+                throttle_reset_state(self);
+
+                if (max_sval < THROTTLE_SENSOR_SCALE)
+                    max_sval = THROTTLE_SENSOR_SCALE;
+                ev_debug(1);
+            } else {
+                if (rate > lwm && max_sval < 900) {
+                    uint sval;
+
+                    /* Reduce the throttle decrease rate as we approach the clamp rate.
+                     */
+                    sval = min_t(uint, (rate * 900) / clamp, 900);
+
+                    if (max_sval < sval)
+                        max_sval = sval;
+                    ev_debug(1);
+                }
+            }
+        }
+
+        assert(rate > 0);
+
+        /* If the put rate in the last interval is less than half the throttle rate
+         * then reduce the per-byte delay amount.
+         */
+        if (c0spill_sval < THROTTLE_SENSOR_SCALE / 2 && self->thr_c0fill_avg < rate / 2) {
+            ev_debug(1);
+            rate *= 2;
+        }
+    }
+
+    /* Convert rate to picoseconds-per-byte-per-thread (scaling 1000 picoseconds
+     * to 1024 via tdcnt for conversion efficiency).  The extra precision allows
+     * combinations tdcnt and rate that would otherwise yield zero nanoseconds.
+     */
+    pspbpt = (NSEC_PER_SEC * self->thr_c0fill_tdcnt) / rate;
+
+    self->thr_c0fill_pspbpt = (self->thr_c0fill_pspbpt * 31 + pspbpt) / 32;
 
     if (self->thr_skip_cnt > 0) {
         /*
@@ -338,8 +559,8 @@ throttle_update(struct throttle *self)
         }
 
         assert(idx < THROTTLE_SMAX_CNT);
-        mavg->tm_samples[idx] = max_val;
-        mavg->tm_sum += max_val;
+        mavg->tm_samples[idx] = max_sval;
+        mavg->tm_sum += max_sval;
 
         mavg->tm_idx++;
         if (mavg->tm_idx >= THROTTLE_SMAX_CNT)
@@ -352,17 +573,17 @@ throttle_update(struct throttle *self)
         perfc_set(&self->thr_sensor_perfc, PERFC_BA_THSR_MAVG, mavg->tm_curr);
     }
 
-    if (HSE_UNLIKELY(self->thr_rp->throttle_disable))
-        return 0;
+    if (HSE_UNLIKELY(rp->throttle_disable))
+        return;
 
     if (self->thr_state != THROTTLE_NO_CHANGE) {
-        throttle_switch_state(self, self->thr_state, max_val);
+        throttle_switch_state(self, self->thr_state, max_sval);
     } else if (mavg->tm_sample_cnt >= THROTTLE_SMAX_CNT) {
         assert(mavg->tm_sample_cnt == THROTTLE_SMAX_CNT);
         assert(self->thr_skip_cnt == 0);
 
         if (mavg->tm_curr >= THROTTLE_SENSOR_SCALE) {
-            throttle_switch_state(self, THROTTLE_INCREASE, max_val);
+            throttle_switch_state(self, THROTTLE_INCREASE, max_sval);
         } else {
             const uint cmavg_hi = THROTTLE_SENSOR_SCALE * 90 / 100;
             const uint cmavg_mid = THROTTLE_SENSOR_SCALE * 25 / 100;
@@ -371,7 +592,7 @@ throttle_update(struct throttle *self)
             uint cmavg;
 
             if (self->thr_monitor_cnt)
-                self->thr_reduce_sum += max_val;
+                self->thr_reduce_sum += max_sval;
             else
                 self->thr_reduce_sum = mavg->tm_curr;
 
@@ -393,7 +614,7 @@ throttle_update(struct throttle *self)
              * delay based on where cmavg is in the range 0..1000 as
              * follows:
              *
-             *    0..100      reduce delay by pmax (40%)
+             *    0..100      reduce delay by pmax (23%)
              *    101..950    scale from pmax down to pmin (1%)
              *    951..1000   do not start trials (system is happy)
              *
@@ -418,6 +639,9 @@ throttle_update(struct throttle *self)
                 }
 
                 if (delta > 0) {
+                    if (self->thr_delay - delta < THROTTLE_DELAY_MIN)
+                        delta = self->thr_delay - THROTTLE_DELAY_MIN;
+
                     self->thr_delay_prev = self->thr_delay;
                     self->thr_delay -= delta;
                     self->thr_delay_test = self->thr_delay;
@@ -425,10 +649,10 @@ throttle_update(struct throttle *self)
                     self->thr_num_tries = 0;
                     self->thr_monitor_cnt = 0;
 
-                    if (debug & THROTTLE_DEBUG_REDUCE)
+                    if (rp->throttle_debug & THROTTLE_DEBUG_REDUCE)
                         throttle_reduce_debug(self, 0, cmavg);
 
-                    throttle_switch_state(self, THROTTLE_DECREASE, max_val);
+                    throttle_switch_state(self, THROTTLE_DECREASE, max_sval);
 
                     throttle_reset_mavg(self);
                 }
@@ -439,14 +663,71 @@ throttle_update(struct throttle *self)
     perfc_set(&self->thr_sleep_perfc, PERFC_BA_THR_SVAL, self->thr_delay);
 
     self->thr_cycles++;
-    if (debug & THROTTLE_DEBUG_DELAYV) {
-        uint32_t debug_intvl_cycles = 40U * self->thr_rp->throttle_debug_intvl_s;
+    if (rp->throttle_debug & THROTTLE_DEBUG_DELAYV) {
+        uint32_t debug_intvl_cycles = 40U * rp->throttle_debug_intvl_s;
 
         if (self->thr_cycles % debug_intvl_cycles == 0)
             throttle_debug(self);
     }
+}
 
-    return self->thr_delay;
+void
+throttle(struct throttle_sensor *self, struct throttle_tls *tls, uint64_t bytes)
+{
+    uint64_t delay, gen, now, lag;
+
+    tls->bytes += bytes;
+
+    /* If the throttle task has advanced the put-counter generation
+     * then we need to update the current generation with this thread's
+     * cumulative byte count and presence since the previous generation.
+     * The cumulative byte count is added to the upper 44 bits and the
+     * the lower 20 bits is incremented to inform the throttle task
+     * of this thread's presence within the generation window.
+     */
+    gen = atomic_read_acq(self->ts_cntrgenp);
+    if (gen > tls->cntrgen) {
+        atomic_ulong *cntrp = &self->ts_cntrv[gen % NELEM(self->ts_cntrv)];
+
+        /* Average out the byte count if we missed a generation.
+         */
+        if (gen - tls->cntrgen > 1)
+            tls->bytes /= (gen - tls->cntrgen);
+
+        if (tls->bytes > 1024)
+            atomic_add(cntrp, (tls->bytes << 20) | 1);
+
+        tls->bytes = 0;
+        tls->cntrgen = gen;
+        tls->slack = timer_slack;
+    }
+
+    /* Convert from picoseconds-per-byte-per-thread to nanoseconds
+     * (throttle task scales 1000 picoseconds to 1024 picoseconds).
+     */
+    delay = (bytes * *self->ts_pspbptp) / 1024 + tls->resid;
+
+    now = get_time_ns();
+
+    lag = now - tls->tprev;
+    tls->resid = delay;
+    tls->tprev = now;
+
+    if (delay > lag) {
+        delay -= lag;
+
+        if (delay > tls->slack * 16) {
+            struct timespec req;
+
+            tls->resid = 0;
+            delay -= tls->slack;
+
+            req.tv_sec = delay / NSEC_PER_SEC;
+            req.tv_nsec = delay % NSEC_PER_SEC;
+
+            nanosleep(&req, NULL);
+        }
+    }
 }
 
 void

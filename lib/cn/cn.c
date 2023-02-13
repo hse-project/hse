@@ -71,7 +71,6 @@
 
 #define ENDPOINT_FMT_CN_TREE "/kvdbs/%s/kvs/%s/cn/tree"
 
-struct tbkt;
 struct mclass_policy;
 
 static struct kmem_cache *cn_cursor_cache;

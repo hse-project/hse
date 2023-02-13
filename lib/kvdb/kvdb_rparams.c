@@ -1275,7 +1275,7 @@ static const struct param_spec pspecs[] = {
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 25 * 1000 * 1000,
+            .as_uscalar = 10 * 1000 * 1000,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -1348,43 +1348,43 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "throttle_burst",
-        .ps_description = "initial throttle burst size (bytes)",
+        .ps_name = "throttle_rate_limit",
+        .ps_description = "application streaming put rate limit (bytes/sec)",
         .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, throttle_burst),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_burst),
+        .ps_offset = offsetof(struct kvdb_rparams, throttle_rate_limit),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_rate_limit),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 1ul << 20,
+            .as_uscalar = 8000ul * 1000 * 1000,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
+                .ps_min = 1000ul * 1000,
                 .ps_max = UINT64_MAX,
             },
         },
     },
     {
-        .ps_name = "throttle_rate",
-        .ps_description = "initial throttle rate (bytes/sec)",
+        .ps_name = "throttle_rate_fastmedia",
+        .ps_description = "fast media rate low watermark",
         .ps_flags = PARAM_EXPERIMENTAL | PARAM_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, throttle_rate),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_rate),
+        .ps_offset = offsetof(struct kvdb_rparams, throttle_rate_fastmedia),
+        .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_rate_fastmedia),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
         .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
-            .as_uscalar = 10ul << 20,
+            .as_uscalar = 1000ul * 1000 * 1000,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
+                .ps_min = 1000ul * 1000,
                 .ps_max = UINT64_MAX,
             },
         },
