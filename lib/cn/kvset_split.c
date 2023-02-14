@@ -409,7 +409,7 @@ struct vgroup_split_metadata {
  *
  * Return values:
  *     v >= start and overlap = false: left: [start, v - 1], right [v, end]
- *     v >= start and overlap = true : left: [start, punched(v)], right [clone(v), end]
+ *     v >= start and overlap = true : left: [start, punch(v)], right [clone(v), end]
  *
  * NOTES:
  *     v = start and overlap = false:   All vblocks go to the right
@@ -652,59 +652,67 @@ vblocks_split(
             split, metadata->overlaps, metadata->offset, overlapping_access);
 
         if (!move_left) {
+            // Clone a vblock with an overlapping access
+            if (overlapping_access) {
+                off_t off;
+                uint32_t alen;
+                struct mblock_props props;
+                uint64_t src_mbid, cloned_mbid;
+
+                src_mbid = kvset_get_nth_vblock_id(ks, split);
+
+                /* We want clone more than enough data in the event the offset
+                 * doesn't fall right on a page boundary.
+                 */
+                off = metadata->offset;
+                off = off < PAGE_SIZE ? 0 : roundup(off - PAGE_SIZE, PAGE_SIZE);
+
+                err = mpool_mblock_clone(ks->ks_mp, src_mbid, off, 0, &cloned_mbid);
+                if (!err) {
+                    err = blk_list_append(&blks_right->vblks, cloned_mbid);
+                    if (!err)
+                        err = blk_list_append(result->ks[RIGHT].blks_commit, cloned_mbid);
+                }
+
+                if (err)
+                    goto out;
+
+                log_debug("Cloned mblock (0x%" PRIx64 ") starting at offset %jd", src_mbid, off);
+
+                err = mpool_mblock_props_get(ks->ks_mp, cloned_mbid, &props);
+                if (ev(err))
+                    goto out;
+
+                perfc_rwc++;
+                if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) ||
+                    perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
+                    perfc_rwb += props.mpr_write_len - off;
+
+                alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
+                log_debug(
+                    "right: cloned id=0x%lx vgidx=%u vblkidx=%u alen=%u", cloned_mbid, i, split,
+                    alen);
+
+                vbcnt++;
+                blks_right->bl_vtotal += alen;
+                boundary = split + 1;
+            } else {
+                boundary = metadata->overlaps ? split + 1 : split;
+            }
+
             /* Add the vblocks in [boundary, end] to the right kvset */
-            boundary = (overlapping_access || move_right) ? split : split + 1;
             for (uint16_t j = boundary; j <= end; j++) {
                 uint32_t alen;
                 uint64_t mbid;
 
                 mbid = kvset_get_nth_vblock_id(ks, j);
 
-                if (j == split && overlapping_access) {
-                    off_t off;
-                    uint64_t clone_mbid;
-                    struct mblock_props props;
+                err = blk_list_append(&blks_right->vblks, mbid);
+                if (err)
+                    goto out;
 
-                    /* We want clone more than enough data in the event the
-                     * offset doesn't fall right on a page boundary.
-                     */
-                    off = metadata->offset;
-                    off = off < PAGE_SIZE ? 0 : roundup(off - PAGE_SIZE, PAGE_SIZE);
-
-                    err = mpool_mblock_clone(ks->ks_mp, mbid, off, 0, &clone_mbid);
-                    if (!err) {
-                        err = blk_list_append(&blks_right->vblks, clone_mbid);
-                        if (!err)
-                            err = blk_list_append(result->ks[RIGHT].blks_commit, clone_mbid);
-                    }
-
-                    if (err)
-                        goto out;
-
-                    log_debug("Cloned mblock (0x%" PRIx64 ") starting at offset %jd", mbid, off);
-
-                    err = mpool_mblock_props_get(ks->ks_mp, clone_mbid, &props);
-                    if (ev(err))
-                        goto out;
-
-                    perfc_rwc++;
-                    if (perfc_ison(pc, PERFC_RA_CNCOMP_RBYTES) ||
-                        perfc_ison(pc, PERFC_RA_CNCOMP_WBYTES))
-                        perfc_rwb += props.mpr_write_len - off;
-
-                    alen = props.mpr_alloc_cap - VBLOCK_FOOTER_LEN;
-                    log_debug(
-                        "right: cloned id=0x%lx vgidx=%u vblkidx=%u alen=%u", clone_mbid, i, j,
-                        alen);
-                } else {
-                    err = blk_list_append(&blks_right->vblks, mbid);
-                    if (err)
-                        goto out;
-
-                    alen = kvset_get_nth_vblock_alen(ks, j);
-                    log_debug(
-                        "right: moved id=0x%lx vgidx=%u vblkidx=%u alen=%u", mbid, i, j, alen);
-                }
+                alen = kvset_get_nth_vblock_alen(ks, j);
+                log_debug("right: moved id=0x%lx vgidx=%u vblkidx=%u alen=%u", mbid, i, j, alen);
 
                 vbcnt++;
                 blks_right->bl_vtotal += alen;
@@ -722,10 +730,13 @@ vblocks_split(
         }
 
         if (!move_right) {
-            /* Add vblocks in [start, boundary] to the left kvset */
+            /* Add vblocks in [start, boundary) to the left kvset */
             vbcnt = 0; /* reset vbcnt for the left kvset */
-            boundary = min(split, end);
-            for (uint16_t j = start; j <= boundary; j++) {
+            boundary =
+                (overlapping_access || move_left || (metadata->overlaps && metadata->offset == -1))
+                ? split + 1
+                : split;
+            for (uint16_t j = start; j < boundary; j++) {
                 uint32_t alen;
                 uint64_t mbid;
 
@@ -774,7 +785,8 @@ vblocks_split(
             if (vbcnt > 0) {
                 vbidx_left += vbcnt;
 
-                err = vgmap_vbidx_set(vgmap_src, boundary, vgmap_left, vbidx_left - 1, vgidx_left);
+                err = vgmap_vbidx_set(
+                    vgmap_src, boundary - 1, vgmap_left, vbidx_left - 1, vgidx_left);
                 if (err)
                     goto out;
 
