@@ -42,6 +42,27 @@ rules:
     then:
       field: x-options
       function: truthy
+  x-alias-schema:
+    description: x-alias must have the correct schema.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].x-alias"
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: string
+          pattern: "^[a-z][a-z-]*[a-z]$"
+  x-hide-schema:
+    description: x-hide must have the correct schema.
+    message: "{{description}} {{error}}"
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].x-hide"
+    severity: error
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: boolean
   x-options-schema:
     description: x-options must have the correct schema.
     message: "{{description}} {{error}}"

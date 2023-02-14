@@ -23,6 +23,7 @@
       "get": {
         "description": "Get all event counter information.",
         "operationId": "events-get",
+        "x-alias": "events",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -95,6 +96,7 @@
       "get": {
         "description": "Get all event counter information for file.",
         "operationId": "events-in-file-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -170,6 +172,7 @@
       "get": {
         "description": "Get all event counter information for function in file.",
         "operationId": "events-in-file-in-function-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -248,6 +251,7 @@
       "get": {
         "description": "Get all event counter information for function on line number of file.",
         "operationId": "events-in-file-in-function-on-lineno-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -315,6 +319,7 @@
       "get": {
         "description": "Get virtual memory statistics.",
         "operationId": "kmc-vmstat-get",
+        "x-alias": "vmstat",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -642,6 +647,7 @@
       "get": {
         "description": "Get all performance counter information.",
         "operationId": "perfc-get",
+        "x-alias": "perfc",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -691,6 +697,7 @@
       "get": {
         "description": "Get all performance counter information for group.",
         "operationId": "perfc-in-group-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -743,6 +750,7 @@
       "get": {
         "description": "Get all performance counter information for group in set.",
         "operationId": "perfc-in-group-in-set-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -798,6 +806,7 @@
       "get": {
         "description": "Get all performance counter information for group in set with name.",
         "operationId": "perfc-in-group-in-set-with-name-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -842,6 +851,7 @@
       "get": {
         "description": "Get the process' `/proc/self/task/[tid]/stat` information.",
         "operationId": "workqueues-get",
+        "x-alias": "ps",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1181,6 +1191,7 @@
       "get": {
         "description": "Get information about all current KVDB compaction jobs.",
         "operationId": "kvdb-csched-get",
+        "x-alias": "csched",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1433,6 +1444,7 @@
       "get": {
         "description": "Get KVDB home.",
         "operationId": "kvdb-home-get",
+        "x-alias": "home",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1745,6 +1757,7 @@
       "get": {
         "description": "Get all KVS names.",
         "operationId": "kvdb-kvs-get",
+        "x-alias": "kvs",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1860,6 +1873,7 @@
       "get": {
         "description": "Get all performance counter information.",
         "operationId": "kvdb-perfc-in-set-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1915,6 +1929,7 @@
       "get": {
         "description": "Get all performance counter information.",
         "operationId": "kvdb-perfc-in-set-with-name-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -1967,6 +1982,7 @@
       "get": {
         "description": "Get information about the KVS's cN tree.",
         "operationId": "kvs-cn-tree-get",
+        "x-alias": "tree",
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -2335,6 +2351,7 @@
       "get": {
         "description": "Get all performance counter information.",
         "operationId": "kvs-perfc-in-set-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
@@ -2393,6 +2410,7 @@
       "get": {
         "description": "Get all performance counter information.",
         "operationId": "kvs-perfc-in-set-with-name-get",
+        "x-hide": true,
         "x-options": [
           {
             "$ref": "#/components/x-options/format"
