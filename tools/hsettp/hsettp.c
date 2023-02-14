@@ -144,6 +144,8 @@ handle_error(
     assert(cJSON_IsNumber(entry));
     err = cJSON_GetNumberValue(entry);
 
+    cJSON_Delete(body);
+
     fprintf(
         stderr, "%s: %s:%d: %s (%ld): %s (%d)\n", progname, file, lineno, title, status, detail,
         err);
