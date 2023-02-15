@@ -41,50 +41,54 @@ optimize performance and endurance
 The HSE [project documentation](https://hse-project.github.io/)
 contains all the information you need to get started with HSE.
 
-## Building and Installing
+### Building
 
-Follow the steps below to build and install HSE.
+Grab a copy of the HSE source code from either a release tarball or cloning the
+repo.
 
-### Dependencies
-
-You may need to install additional packages to build or run HSE for your
-particular Linux distribution and environment.
-See [`INSTALL.md`](https://github.com/hse-project/hse/blob/master/INSTALL.md)
-for examples of the packages required for several common Linux distributions.
-
-### Building HSE
-
-<!--If you change the name of this header, please update all links to it as well-->
-
-Clone the [`hse`](https://github.com/hse-project/hse) repo and checkout
-the latest release tag. This tag must be for HSE version 2.0 or higher.
-
-For example:
-
-```shell
-git clone https://github.com/hse-project/hse.git
-cd hse
-git checkout <release tag>
-```
-
-Build and install using Meson and Ninja.
-
-The minimum version of Meson required to build HSE can be found in the root
-[meson.build](./meson.build). In there, you will find a `meson_version`
-keyword argument to the `project()` function at the beginnging of the file.
-
-If your system doesn't supply a Meson version new enough to build HSE, refer to
-the Meson
+HSE uses the Meson build system. The minimum version of Meson required to build
+HSE can be found in the root [meson.build](./meson.build). In there, you will
+find a `meson_version` keyword argument to the `project()` function at the
+beginning of the file. If your system doesn't supply a Meson version new enough
+to build HSE, refer to the Meson
 [installation instructions](https://mesonbuild.com/Getting-meson.html).
 
 ```shell
 meson setup build
 meson compile -C build
 meson install -C build
+
+# To uninstall
+ninja -C build uninstall
 ```
 
 The default install directory is `/opt/hse`. This can be overridden by
 configuring the build with either `-Dprefix=$prefix` or `--prefix=$prefix`.
+
+#### Dependencies
+
+You may need to install additional packages to build or run HSE for your
+particular Linux distribution and environment.
+See [`INSTALL.md`](https://github.com/hse-project/hse/blob/master/INSTALL.md)
+for examples of the packages required for several common Linux distributions.
+
+#### Configuring
+
+HSE comes with many build options. Run the following command to view all
+available build options:
+
+```shell
+meson configure
+```
+
+##### For Distribution Maintainers
+
+The following HSE-specific build options are recommended for distributing HSE:
+
+```shell
+meson setup build -Dbuildtype=release -Dexperimental=false -Dtools=disabled \
+    -Dsamples=false -Dbindings=none
+```
 
 ## Additional References
 
