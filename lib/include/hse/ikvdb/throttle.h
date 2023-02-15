@@ -101,6 +101,16 @@ enum {
 #define THROTTLE_SENSOR_SCALE    1000
 #define THROTTLE_MAX_RUN           15
 
+/* struct throttle_tls - thread-local-storage for managing per-thread throttling
+ */
+struct throttle_tls {
+    uint64_t bytes;     // bytes accumulated in current generation
+    uint64_t cntrgen;   // current generation
+    uint64_t resid;     // accumulated residual delay
+    uint64_t tprev;     // time in ns of last throttle update
+    uint64_t slack;     // timer slack (cached from last update)
+};
+
 /* clang-format on */
 
 /**
@@ -156,14 +166,6 @@ throttle_sensor_get(struct throttle_sensor *ts)
 
 enum throttle_state { THROTTLE_NO_CHANGE, THROTTLE_DECREASE, THROTTLE_INCREASE };
 
-struct throttle_tls {
-    uint64_t bytes;
-    uint64_t cntrgen;
-    uint64_t resid;
-    uint64_t tprev;
-    uint64_t slack;
-};
-
 /**
  * struct throttle_mavg - throttle mavg
  * @thr_samples   :     array of last THROTTLE_SAMPLE_CNT max sensor values
@@ -172,7 +174,6 @@ struct throttle_tls {
  * @thr_curr      :     current moving average
  * @thr_sample_cnt:     number of samples in mavg
  */
-
 struct throttle_mavg {
     uint tm_samples[THROTTLE_SMAX_CNT];
     uint tm_idx;

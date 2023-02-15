@@ -722,6 +722,10 @@ c0sk_ingest_worker(struct work_struct *work)
     if (ev(err))
         goto health_err;
 
+    /* Prevent any other thread from accessing this thread's local storage via c0iw_thr_tls.
+     */
+    ingest->c0iw_thr_tls = NULL;
+
     ingest->t7 = get_time_ns();
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
