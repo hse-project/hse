@@ -100,7 +100,15 @@ hse_timer_fini(void) HSE_COLD;
 typedef void
 hse_timer_cb_func_t(void *arg);
 
+/* hse_timer_cb_register() exists for the exclusive purpose of registering
+ * throttle_update() to run within the context of the jiffy clock update.
+ * Attempts to use it for any other purpose should trigger an assert, and
+ * will require extending the implementation to accomodate the new use-case.
+ */
 void
 hse_timer_cb_register(hse_timer_cb_func_t *func, void *arg, ulong period_ms);
+
+void
+hse_timer_cb_unregister(void);
 
 #endif /* HSE_PLATFORM_TIMER_H */

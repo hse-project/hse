@@ -34,11 +34,11 @@ init(void)
         sv[i] = throttle_sensor(t, i);
     throttle_init_params(t, &kvdb_rp);
 
-    /* throttle_update() is periodicaly called by the jiffy timer,
-     * so we must unregister it so that these tests can directly
-     * call it.
+    /* throttle_update() is periodically called by the jiffy timer,
+     * so we must unregister it so that these tests can call it
+     * directly (i.e., it's not thread safe).
      */
-    hse_timer_cb_register(NULL, NULL, 0);
+    hse_timer_cb_unregister();
 }
 
 int
@@ -111,6 +111,8 @@ MTF_DEFINE_UTEST_PRE(test, t_basic, pre_test)
         sval = throttle_sensor_get(sv[i]);
         ASSERT_EQ(sval, 0);
     }
+
+    throttle_fini(t);
 }
 
 MTF_DEFINE_UTEST_PRE(test, t_dur_params, pre_test)

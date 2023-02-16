@@ -142,7 +142,7 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 void
 throttle_fini(struct throttle *self)
 {
-    hse_timer_cb_register(NULL, NULL, 0);
+    hse_timer_cb_unregister();
     perfc_free(&self->thr_sleep_perfc);
     perfc_free(&self->thr_sensor_perfc);
 }

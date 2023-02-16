@@ -207,11 +207,26 @@ del_timer(struct timer_list *timer)
 void
 hse_timer_cb_register(hse_timer_cb_func_t *func, void *arg, ulong period_ms)
 {
+    assert(func);
+
     timer_lock();
+    assert(!hse_timer_cb_func);
+
     hse_timer_cb_arg = arg;
     hse_timer_cb_func = func;
     hse_timer_cb_period = period_ms * 1000000;
-    hse_timer_cb_next = func ? nsecs_to_jiffies(get_time_ns() + hse_timer_cb_period) : ULONG_MAX;
+    hse_timer_cb_next = nsecs_to_jiffies(get_time_ns() + hse_timer_cb_period);
+    timer_unlock();
+}
+
+void
+hse_timer_cb_unregister(void)
+{
+    timer_lock();
+    hse_timer_cb_arg = NULL;
+    hse_timer_cb_func = NULL;
+    hse_timer_cb_period = 0;
+    hse_timer_cb_next = ULONG_MAX;
     timer_unlock();
 
     /* Wait for at least one tick of the jiffy clock to ensure that
