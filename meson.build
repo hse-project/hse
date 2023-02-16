@@ -144,7 +144,6 @@ endif
 add_project_arguments(
     cc.get_supported_arguments(
         '-D_GNU_SOURCE',
-        '-D_LGPL_SOURCE',
         '-Wdeclaration-after-statement',
         '-Wlogical-op',
         '-Wmaybe-uninitialized',
@@ -176,7 +175,15 @@ liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',
     default_options: [
-        'default_library=static',
+        # Use shared here to protect users and distributors from potential LGPL
+        # violations.
+        #
+        # Meson can't properly encode the rpath for the shared library (likely a
+        # bug or an impossibility), which causes linking to fail for anything
+        # that links against the shared library, like the CLI, so we have to use
+        # static in CI, which is fine since we don't intend to distribute CI
+        # build artifacts anyways.
+        'default_library=@0@'.format(ci ? 'static' : 'shared'),
         'warning_level=0',
         'werror=false',
     ]
