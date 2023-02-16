@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 
 #include <hse/util/xrand.h>
@@ -14,58 +15,50 @@
 #include <hse/test/support/random_buffer.h>
 
 void
-randomize_buffer(void *buf, size_t len, unsigned int seed)
+randomize_buffer(char *buf, size_t len, unsigned int seed)
 {
-    unsigned int *tmp = (unsigned int *)buf;
-    uint last;
-    long int remain = len;
-    int i;
+    size_t remain;
     struct xrand xr;
+    uint64_t rand_val;
 
     if (len == 0)
         return;
 
     xrand_init(&xr, seed);
-    for (i = 0; remain > 0; i++, remain -= sizeof(*tmp)) {
-        if (remain > sizeof(*tmp)) { /* likely */
-            tmp[i] = xrand64(&xr);
-        } else { /* unlikely */
-            last = xrand64(&xr);
-            memcpy(&tmp[i], &last, remain);
-        }
+    for (remain = len; remain >= sizeof(rand_val); remain -= sizeof(rand_val)) {
+        rand_val = xrand64(&xr);
+        memcpy(buf + len - remain, &rand_val, sizeof(rand_val));
+    }
+
+    if (remain != 0) {
+        rand_val = xrand64(&xr);
+        memcpy(buf + len - remain, &rand_val, remain);
     }
 }
 
 int
-validate_random_buffer(void *buf, size_t len, unsigned int seed)
+validate_random_buffer(char *buf, size_t len, unsigned int seed)
 {
-    unsigned int *tmp = (unsigned int *)buf;
-    unsigned int val;
-    char *expect = (char *)&val;
-    char *found;
-    long int remain = len;
-    int i;
+    size_t remain;
     struct xrand xr;
+    uint64_t rand_val;
 
     if (len == 0)
         return -1; /* success... */
 
     xrand_init(&xr, seed);
-    for (i = 0; remain > 0; i++, remain -= sizeof(*tmp)) {
-        val = xrand64(&xr);
-        if ((remain >= sizeof(*tmp)) && (val != tmp[i])) { /* Likely */
-            return ((int)(len - remain));
-        } else if (remain < sizeof(*tmp)) { /* Unlikely */
-            found = (char *)&tmp[i];
-            if (memcmp(expect, found, remain)) {
-                /*
-                 * [HSE_REVISIT]
-                 * Miscompare offset might be off here
-                 */
-                return ((int)(len - remain));
-            }
-        }
+    for (remain = len; remain > sizeof(rand_val); remain -= sizeof(rand_val)) {
+        rand_val = xrand64(&xr);
+        if (memcmp(&rand_val, buf + len - remain, sizeof(rand_val)) != 0)
+            return (int)(len - remain);
     }
+
+    if (remain != 0) {
+        rand_val = xrand64(&xr);
+        if (memcmp(&rand_val, buf + len - remain, remain) != 0)
+            return (int)(len - remain);
+    }
+
     /* -1 is success, because 0..n are valid offsets for an error */
     return -1;
 }

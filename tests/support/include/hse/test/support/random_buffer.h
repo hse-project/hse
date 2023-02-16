@@ -14,7 +14,7 @@
  * Write pseudo-random data to a buffer, based on a specified seed
  */
 void
-randomize_buffer(void *buf, size_t len, unsigned int seed);
+randomize_buffer(char *buf, size_t len, unsigned int seed);
 
 /*
  * validate_random_buffer
@@ -23,7 +23,7 @@ randomize_buffer(void *buf, size_t len, unsigned int seed);
  * the same pseudo-random data, for an easy way to validate a buffer
  */
 int
-validate_random_buffer(void *buf, size_t len, unsigned int seed);
+validate_random_buffer(char *buf, size_t len, unsigned int seed);
 
 /* generate_random_u32
  *
