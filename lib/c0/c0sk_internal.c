@@ -46,7 +46,7 @@
 static void
 c0sk_adjust_throttling(struct c0sk_impl *self, int amt)
 {
-    const uint sensorv[] = { 100, 100, 300, 600, 925, 1000, 1100, 1200, 1300, 1400, 1500 };
+    static const uint sensorv[] = { 100, 100, 300, 600, 925, 1000, 1100, 1200, 1300, 1400, 1500 };
     int cnt, sval;
 
     if (!self->c0sk_sensor)
@@ -359,7 +359,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 
             gen = atomic_read_acq(ts->ts_cntrgenp);
             if (gen > tls->cntrgen) {
-                atomic_ulong *cntrp = &ts->ts_cntrv[gen % NELEM(ts->ts_cntrv)];
+                atomic_ulong *cntrp;
                 uint64_t pct;
 
                 pct = (ingest->c0iw_kbytes * 100) / (ingest->c0iw_kbytes + ingest->c0iw_vbytes);
@@ -375,6 +375,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
                 if (gen - tls->cntrgen > 1)
                     tls->bytes /= (gen - tls->cntrgen);
 
+                cntrp = &ts->ts_cntrv[gen % NELEM(ts->ts_cntrv)];
                 atomic_add(cntrp, (tls->bytes << 20) | 1);
 
                 tls->bytes = 0;
