@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+#include <urcu/list.h>
+
 #include <hse/error/merr.h>
 #include <hse/ikvdb/c0_kvset.h>
 #include <hse/ikvdb/kvs.h>
