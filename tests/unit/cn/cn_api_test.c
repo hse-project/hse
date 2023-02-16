@@ -51,7 +51,6 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     struct kvs_cparams cp = { 0 };
     struct mpool *ds = (void *)-1;
     struct cndb *cndb = (void *)-1;
-    uint64_t dummy_ikvdb[32] = { 0 };
 
     enum key_lookup_res res;
     struct kvs_rparams *rp_out;
@@ -61,12 +60,13 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     kt.kt_data = "123";
     kt.kt_len = 3;
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
     kk.kk_cparams = &cp;
 
     mapi_inject(mapi_idx_ikvdb_get_csched, 0);
     mapi_inject(mapi_idx_mpool_props_get, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
+    mapi_inject_ptr(mapi_idx_ikvdb_kvdb_handle, NULL);
+    mapi_inject_ptr(mapi_idx_kvdb_kvs_parent, NULL);
 
     err = cn_kvdb_create(4, 4, &cn_kvdb);
     ASSERT_EQ(0, err);

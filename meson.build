@@ -55,19 +55,16 @@ relative_dir = run_command(
 # Strip relative path prefixes from the code if possible, otherwise hide them.
 # The following snippet is inspired by the SwayWM Project under the MIT license.
 add_project_arguments(
-    cc.first_supported_argument([
+    cc.first_supported_argument(
         '-fmacro-prefix-map=@0@='.format(relative_dir),
-        '-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
-    ]),
+        '-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir)
+    ),
     language: 'c'
 )
 
 if get_option('b_sanitize').contains('undefined')
     add_project_arguments(
-        cc.get_supported_arguments([
-            '-fno-sanitize-recover=undefined',
-            '-fsanitize-recover=alignment',
-        ]),
+        cc.get_supported_arguments('-fno-sanitize-recover=undefined'),
         language: 'c'
     )
 endif
@@ -92,10 +89,10 @@ if get_option('debug')
 
     if get_option('buildtype') == 'debug'
         add_project_arguments(
-            cc.get_supported_arguments([
+            cc.get_supported_arguments(
                 '-DDEBUG_RCU',
-                '-fstack-protector-all',
-            ]),
+                '-fstack-protector-all'
+            ),
             language: 'c'
         )
     endif
@@ -152,7 +149,7 @@ add_project_arguments(
         '-Wno-unused-parameter',
         '-DLOG_DEFAULT=@0@'.format(log_pri_default),
         '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
-        '-DURCU_INLINE_SMALL_FUNCTIONS',
+        '-DURCU_INLINE_SMALL_FUNCTIONS'
     ),
     language: 'c'
 )

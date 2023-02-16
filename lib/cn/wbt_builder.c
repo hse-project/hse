@@ -298,9 +298,15 @@ wbt_leaf_publish(struct wbb *wbb)
         assert((void *)entry < sfxp);
 
         if (key_extra) {
+            uint32_t kmd_off_omf;
+
+            static_assert(
+                sizeof(kmd_off_omf) == WBT_LFE_INLINE_KMD_OFF_SIZE, "An LE32 is a 32-bit integer");
+
             /* kmdoff is too large for u16 */
             omf_set_lfe_kmd(entry, UINT16_MAX);
-            *(uint32_t *)sfxp = cpu_to_omf32(kin->kmd_off);
+            kmd_off_omf = cpu_to_omf32(kin->kmd_off);
+            memcpy(sfxp, &kmd_off_omf, WBT_LFE_INLINE_KMD_OFF_SIZE);
         } else {
             omf_set_lfe_kmd(entry, (uint16_t)(kin->kmd_off));
         }

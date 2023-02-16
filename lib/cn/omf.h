@@ -92,6 +92,9 @@ struct wbt_lfe_omf {
     uint16_t lfe_kmd;
 } HSE_PACKED;
 
+/* Size of an LE32 */
+#define WBT_LFE_INLINE_KMD_OFF_SIZE 4
+
 OMF_SETGET(struct wbt_lfe_omf, lfe_koff, 16)
 OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 

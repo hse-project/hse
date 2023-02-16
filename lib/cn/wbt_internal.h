@@ -60,9 +60,8 @@ wbt_lfe_kmd(const struct wbt_node_hdr_omf *node, const struct wbt_lfe_omf *lfe)
 
     /* Offset stored in front of key when its too large for 16-bits */
     if (kmd_off == UINT16_MAX) {
-        const uint32_t *p = (void *)node + omf_lfe_koff(lfe);
-
-        kmd_off = omf32_to_cpu(*p);
+        memcpy(&kmd_off, (void *)node + omf_lfe_koff(lfe), WBT_LFE_INLINE_KMD_OFF_SIZE);
+        kmd_off = omf32_to_cpu(kmd_off);
     }
 
     return omf_wbn_kmd(node) + kmd_off;
