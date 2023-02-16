@@ -20,6 +20,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/atomic.h>
@@ -112,53 +113,7 @@ struct thread_info {
 };
 
 static void
-syntax(const char *fmt, ...);
-static void
-quit(const char *fmt, ...);
-static void
 usage(void);
-
-static void
-quit(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    if (fmt && *fmt) {
-        va_start(ap, fmt);
-        vsnprintf(msg, sizeof(msg), fmt, ap);
-        va_end(ap);
-        fprintf(stderr, "%s: %s\n", progname, msg);
-        fflush(stderr);
-    }
-    exit(-1);
-}
-
-static void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s\nUse -h for help.\n", progname, msg);
-    exit(EX_USAGE);
-}
-
-static void
-_error_quit(const char *detail, hse_err_t err, const char *file, int line)
-{
-    char err_buf[300];
-
-    hse_strerror(err, err_buf, sizeof(err_buf));
-
-    quit("%s:%d: %s: %s", file, line, (detail && *detail) ? detail : "", err_buf);
-}
-
-#define error_quit(detail, err) _error_quit(detail, err, REL_FILE(__FILE__), __LINE__)
 
 void
 announce_header(void)
@@ -471,7 +426,7 @@ test_open_kvdb(void)
 
     rc = hse_kvdb_open(opt.mpool, db_oparm.strc, db_oparm.strv, &kvdb);
     if (rc)
-        error_quit("hse_kvdb_open failed", rc);
+        fatal(rc, "hse_kvdb_open failed");
 
     assert(kvdb);
 }
@@ -486,7 +441,7 @@ test_close_kvdb(void)
 
     rc = hse_kvdb_close(kvdb);
     if (rc)
-        error_quit("hse_kvdb_close failed", rc);
+        fatal(rc, "hse_kvdb_close failed");
 
     kvdb = NULL;
 }
@@ -501,7 +456,7 @@ test_open_kvs(char *kvs_name, struct hse_kvs **kvs)
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name, kv_oparm.strc, kv_oparm.strv, kvs);
     if (rc)
-        error_quit("hse_kvdb_kvs_open failed", rc);
+        fatal(rc, "hse_kvdb_kvs_open failed");
 }
 
 void
@@ -514,7 +469,7 @@ test_close_kvs(char *kvs_name, struct hse_kvs *kvs)
 
     rc = hse_kvdb_kvs_close(kvs);
     if (rc)
-        error_quit("hse_kvdb_kvs_close failed", rc);
+        fatal(rc, "hse_kvdb_kvs_close failed");
 }
 
 void
@@ -523,7 +478,7 @@ fmt_string(char *str, int len, int max_len, char fill, char *fmt, uint64_t fmt_a
     int i;
 
     if (len > max_len)
-        quit("key or value too large: %u (limit is %u)", len, max_len);
+        fatalx("key or value too large: %u (limit is %u)", len, max_len);
 
     snprintf(str, len, fmt, fmt_arg1, fmt_arg2);
     i = strlen(str);
@@ -644,7 +599,7 @@ test_put_impl(struct thread_info *ti, uint salt, uint64_t time)
             kvs_h[idx], 0, NULL, (char *)ti->ref_key, ti->ref_klen, (char *)ti->ref_val,
             ti->ref_vlen);
         if (err)
-            error_quit("kvdb_put failed", err);
+            fatal(err, "kvdb_put failed");
 
         ti->ops++;
         cnt++;
@@ -700,7 +655,7 @@ thread_main(void *arg)
     test_put(ti, salt);
 
     if (errors >= opt.errcnt)
-        quit("Exiting, because %u error(s) were encountered\n", errors);
+        fatalx("Exiting, because %u error(s) were encountered\n", errors);
 
     announce("Successful");
 
@@ -735,7 +690,7 @@ extract_fields(char *str, uint max, char **fields, uint *out)
             }
         } else {
             if (count == 0)
-                quit("Invalid kvs name: %s", opt.kvs);
+                fatalx("Invalid kvs name: %s", opt.kvs);
             break;
         }
         count++;
@@ -762,15 +717,15 @@ run_test(struct thread_info *threads, char *kvs, char *weight)
 
     extract_fields(kvs, 1024, kvs_names, &kvsc);
     if (!kvsc)
-        quit("Zero kvs");
+        fatalx("Zero kvs");
 
     if (kvsc > 1024)
-        quit("Too many kvses");
+        fatalx("Too many kvses");
 
     kvswtc = 0;
     extract_fields(weight, 1024, kvswt_param, &kvswtc);
     if (kvswtc && (kvsc != kvswtc))
-        quit("Improper weights");
+        fatalx("Improper weights");
 
     for (i = 0; i < kvsc; i++) {
         if (!kvswtc)
@@ -792,7 +747,7 @@ run_test(struct thread_info *threads, char *kvs, char *weight)
         ti->get_val = calloc(VLEN_MAX, VLEN_MAX);
         ti->ref_val = calloc(VLEN_MAX, VLEN_MAX);
         if (!ti->ref_key || !ti->get_val || !ti->ref_val)
-            quit("Out of memory");
+            fatalx("Out of memory");
     }
 
     announce_header();
@@ -879,7 +834,7 @@ main(int argc, char **argv)
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
-        quit("pg_create");
+        fatalx("pg_create");
 
     options_default(&opt);
     options_parse(argc, argv, &opt);
@@ -899,13 +854,13 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            quit("unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        quit("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
-        quit("error processing parameter %s\n", argv[optind]);
+        fatalx("error processing parameter %s\n", argv[optind]);
         break;
     }
 
@@ -913,7 +868,7 @@ main(int argc, char **argv)
     rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, NULL);
     if (rc)
-        quit("svec_apppend_pg failed: %d", rc);
+        fatalx("svec_apppend_pg failed: %d", rc);
 
     if (!opt.keys)
         syntax("number of keys must be > 0");
@@ -928,23 +883,23 @@ main(int argc, char **argv)
 
     threads = calloc(opt.threads, sizeof(*threads));
     if (!threads)
-        quit("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
+        fatalx("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
 
     kvs_h = calloc(1024 * sizeof(*kvs_h), 1024 * sizeof(*kvs_h));
     if (!kvs_h)
-        quit("Out of memory");
+        fatalx("Out of memory");
 
     kvs_names = malloc(1024 * sizeof(*kvs_names));
     if (!kvs_names)
-        quit("Out of memory");
+        fatalx("Out of memory");
 
     kvswt_param = malloc(1024 * sizeof(*kvswt_param));
     if (!kvswt_param)
-        quit("Out of memory");
+        fatalx("Out of memory");
 
     kvs_weight = malloc(1024 * sizeof(*kvs_weight));
     if (!kvs_weight)
-        quit("Out of memory");
+        fatalx("Out of memory");
 
     gettimeofday(&tv_start, NULL);
 
@@ -962,7 +917,7 @@ main(int argc, char **argv)
 
     err = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
     if (err)
-        quit("failed to initialize kvdb");
+        fatalx("failed to initialize kvdb");
 
     time = get_time_ns();
 
@@ -983,7 +938,7 @@ main(int argc, char **argv)
         kvs = strdup(opt.kvs);
         weight = strdup(opt.weight);
         if (!kvs || !weight)
-            quit("Out of memory");
+            fatalx("Out of memory");
 
         runtime = get_time_ns();
         run_test(threads, kvs, weight);

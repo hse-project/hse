@@ -46,6 +46,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/param.h>
 #include <hse/cli/program.h>
 #include <hse/util/arch.h>
@@ -534,19 +535,6 @@ reader(void *arg)
 }
 
 void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
-
-void
 usage(void)
 {
     printf(
@@ -681,10 +669,10 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            fatal(0, "unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

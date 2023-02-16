@@ -19,6 +19,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/arch.h>
 #include <hse/util/base.h>
@@ -114,37 +115,6 @@ eprint(const char *fmt, ...)
     va_end(ap);
 
     fprintf(stderr, "%s: %s", progname, msg);
-}
-
-__attribute__((format(printf, 1, 2))) void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
-
-__attribute__((format(printf, 2, 3), __noreturn__)) void
-fatal(uint64_t err, const char *fmt, ...)
-{
-    char msg[128], errbuf[300];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    if (err) {
-        hse_strerror(err, errbuf, sizeof(errbuf));
-        fprintf(stderr, "%s: %s: %s\n", progname, msg, errbuf);
-    }
-
-    exit(1);
 }
 
 void
@@ -1074,10 +1044,10 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            fatal(0, "unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);

@@ -32,6 +32,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/error/merr.h>
 #include <hse/mpool/mcache.h>
@@ -125,19 +126,6 @@ int debug;
 
 volatile sig_atomic_t sigalrm;
 volatile sig_atomic_t sigint;
-
-void HSE_PRINTF(1, 2)
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
 
 /* Error print.
  */

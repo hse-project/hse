@@ -3,11 +3,11 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
+#include <hse/cli/output.h>
 #include <hse/util/page.h>
 
 #include "cndb/omf.h"
 #include "cndb_record.h"
-#include "fatal.h"
 
 const char *
 cndb_rec_type_name(enum cndb_rec_type rtype)
@@ -54,7 +54,7 @@ cndb_rec_resize(struct cndb_rec *rec, size_t reclen)
 
     p = realloc(rec->buf, newsz);
     if (!p)
-        fatal("realloc", merr(ENOMEM));
+        fatal(merr(ENOMEM), "realloc");
 
     rec->bufsz = newsz;
     rec->buf = p;
@@ -69,7 +69,7 @@ cndb_rec_clone(struct cndb_rec *rec, struct cndb_rec *clone)
         clone->bufsz = rec->bufsz;
         clone->buf = malloc(rec->bufsz);
         if (!clone->buf)
-            fatal("malloc", merr(ENOMEM));
+            fatal(merr(ENOMEM), "malloc");
         memcpy(clone->buf, rec->buf, rec->bufsz);
         cndb_rec_parse(clone);
     } else {

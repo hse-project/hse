@@ -14,6 +14,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/compiler.h>
 
@@ -22,41 +23,6 @@ uint kmax = 100;
 
 struct hse_kvdb *kvdb;
 struct hse_kvs *kvs;
-
-void HSE_PRINTF(1, 2)
-syntax(const char *fmt, ...)
-{
-    char msg[2048];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
-
-void HSE_PRINTF(2, 3)
-fatal(hse_err_t err, const char *fmt, ...)
-{
-    char msgbuf[1024];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msgbuf, sizeof(msgbuf) - 128, fmt, ap);
-    va_end(ap);
-
-    if (err) {
-        size_t len = strlen(strcat(msgbuf, ": "));
-
-        hse_strerror(err, msgbuf + len, sizeof(msgbuf) - len);
-    }
-
-    fprintf(stderr, "%s: %s\n", progname, msgbuf);
-
-    hse_kvdb_close(kvdb);
-    exit(EX_SOFTWARE);
-}
 
 void
 usage(void)

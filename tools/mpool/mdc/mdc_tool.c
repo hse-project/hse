@@ -18,6 +18,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/ikvdb/kvdb_meta.h>
 #include <hse/logging/logging.h>
@@ -30,29 +31,6 @@
  * and I/O is always page sized.
  */
 static char buf[8192];
-
-void
-fatal(char *who, hse_err_t err)
-{
-    char buf[ERROR_BUF_SIZE];
-
-    hse_strerror(err, buf, sizeof(buf));
-    log_err("mdc_tool: %s: %s", who, buf);
-    exit(1);
-}
-
-void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
 
 int
 dump(char *buf, size_t sz)
@@ -74,11 +52,11 @@ eopen_mdc(struct mpool * const mp, const struct kvdb_meta * const meta, struct m
 
     err = mpool_mdc_open(mp, meta->km_cndb.oid1, meta->km_cndb.oid2, false, mdc);
     if (err)
-        fatal("mpool_mdc_open", err);
+        fatal(err, "mpool_mdc_open");
 
     err = mpool_mdc_rewind(*mdc);
     if (err)
-        fatal("mpool_mdc_rewind", err);
+        fatal(err, "mpool_mdc_rewind");
 }
 
 void
@@ -162,25 +140,25 @@ main(int argc, char **argv)
 
     err = hse_init(config, 0, NULL);
     if (err)
-        fatal("hse_init", err);
+        fatal(err, "hse_init");
 
     fp = 0;
     if (wpath) {
         fp = fopen(wpath, "w");
         if (!fp)
-            fatal(wpath, errno);
+            fatal(errno, "%s", wpath);
     }
 
     err = kvdb_meta_deserialize(&meta, home);
     if (err)
-        fatal("kvdb_meta_deserialize", err);
+        fatal(err, "kvdb_meta_deserialize");
 
     for (int i = HSE_MCLASS_BASE; i < HSE_MCLASS_CAPACITY; i++)
         strlcpy(params.mclass[i].path, meta.km_storage[i].path, sizeof(params.mclass[i].path));
 
     err = mpool_open(home, &params, O_RDWR, &mp);
     if (err)
-        fatal("mpool_open", err);
+        fatal(err, "mpool_open");
 
     eopen_mdc(mp, &meta, &mdc);
 
@@ -203,7 +181,7 @@ fini:
         fclose(fp);
 
     if (err)
-        fatal("mpool_mdc_read", err);
+        fatal(err, "mpool_mdc_read");
 
     hse_fini();
 

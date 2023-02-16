@@ -22,52 +22,6 @@
 
 struct app_opts Opts;
 
-static void
-error(hse_err_t err, char *fmt, va_list ap)
-{
-    char user_msg[128];
-    char err_msg[128];
-    bool user_msg_empty, need_newline;
-    size_t off;
-
-    off = 0;
-
-    vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
-
-    if (err) {
-        off += hse_strerror(err, err_msg + off, sizeof(err_msg) - (ulong)off);
-        off += (size_t)snprintf(err_msg + off, sizeof(err_msg) - (ulong)off, " (0x%lx)", err);
-    }
-
-    user_msg_empty = user_msg[0] == '\0';
-    need_newline = off > 0 && err_msg[off - 1] != '\n';
-
-    fprintf(
-        stderr, "%s%s%s%s", user_msg, user_msg_empty ? "" : " ", err_msg, need_newline ? "\n" : "");
-}
-
-void
-warn(hse_err_t err, char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    error(err, fmt, ap);
-    va_end(ap);
-}
-
-void
-fatal(hse_err_t err, char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    error(err, fmt, ap);
-    va_end(ap);
-
-    exit(1);
-}
-
 static inline unsigned char
 atobin(char c)
 {

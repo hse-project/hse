@@ -24,6 +24,8 @@ hse_cli = static_library(
     ],
     dependencies: [
         cjson_dep,
+        # TODO: Remove when the cli can depend on libhse-util
+        hse_internal_dep,
         hse_error_dep,
         libcurl_dep,
         rbtree_dep,

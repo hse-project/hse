@@ -21,6 +21,7 @@
 #include <hse/hse.h>
 #include <hse/version.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/atomic.h>
 #include <hse/util/parse_num.h>
@@ -147,8 +148,6 @@
 
 /* == Section: Command Line Processing ================ */
 
-static void
-syntax(const char *fmt, ...);
 static void
 usage(void);
 
@@ -711,20 +710,6 @@ usage(void)
         "    DEL_REM  = 1 << 8\n"
         "    VER_VREM = 1 << 9\n"
         "\n");
-}
-
-static void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-    exit(EX_USAGE);
 }
 
 /* get time of day as a count of micro seconds */

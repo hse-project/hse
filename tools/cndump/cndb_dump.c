@@ -11,13 +11,13 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/ikvdb/diag_kvdb.h>
 
 #include "cndb_reader.h"
 #include "cndb_record.h"
 #include "commands.h"
-#include "fatal.h"
 #include "globals.h"
 
 /* command line options for cndb sub-command */
@@ -103,11 +103,11 @@ cndb_cmd(int argc, char **argv)
 
     err = hse_init(0, NELEM(paramv), paramv);
     if (err)
-        fatal("hse_init", err);
+        fatal(err, "hse_init");
 
     err = diag_kvdb_open(opts.home, 0, 0, &kvdb);
     if (err)
-        fatal("diag_kvdb_open", err);
+        fatal(err, "diag_kvdb_open");
 
     cndb_iter_init(kvdb, &reader);
     cndb_rec_init(&rec);
@@ -117,7 +117,7 @@ cndb_cmd(int argc, char **argv)
 
     err = diag_kvdb_close(kvdb);
     if (err)
-        fatal("diag_kvdb_close", err);
+        fatal(err, "diag_kvdb_close");
 
     hse_fini();
 }

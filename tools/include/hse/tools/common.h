@@ -18,16 +18,9 @@
 
 #include <hse/util/compiler.h>
 
-void
-warn(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
-void
-fatal(hse_err_t err, char *fmt, ...) HSE_PRINTF(2, 3);
-
 /*
  * key/value formatting
  */
-char *
-fmt(void *out, int max, const void *data, int len);
 size_t
 fmt_data(char *out, char *in);
 

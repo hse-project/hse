@@ -23,6 +23,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/atomic.h>
 #include <hse/util/compiler.h>
@@ -122,43 +123,7 @@ struct thread_info {
 };
 
 static void
-syntax(const char *fmt, ...);
-static void
-quit(const char *fmt, ...);
-static void
 usage(void);
-
-static void HSE_PRINTF(1, 2)
-quit(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    if (fmt && *fmt) {
-        va_start(ap, fmt);
-        vsnprintf(msg, sizeof(msg), fmt, ap);
-        va_end(ap);
-        fprintf(stderr, "%s: %s\n", progname, msg);
-        fflush(stderr);
-    }
-}
-
-static void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help.\n", progname, msg);
-    exit(EX_USAGE);
-}
-
-#define merr_quit(detail, err) \
-    quit("%s:%d: %s: %ld", REL_FILE(__FILE__), __LINE__, (detail), (err));
 
 void
 announce_header(void)
@@ -585,11 +550,11 @@ test_kvdb_open(void)
 
     rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
     if (rc)
-        quit("svec_append_pg: rc %d", (int)rc);
+        fatal(rc, "svec_append_pg");
 
     rc = hse_kvdb_open(opt.kvdb, sv.strc, sv.strv, &kvdb);
     if (rc)
-        merr_quit("hse_kvdb_open failed", rc);
+        fatal(rc, "hse_kvdb_open failed");
 
     svec_reset(&sv);
 }
@@ -606,7 +571,7 @@ test_kvs_open(struct thread_info *ti, char *message)
 
     err = hse_kvdb_kvs_open(kvdb, ti->kvs_name, kvs_oparms.strc, kvs_oparms.strv, &ti->kvs);
     if (err)
-        merr_quit("hse_kvdb_kvs_open failed", err);
+        fatal(err, "hse_kvdb_kvs_open failed");
 
     assert(ti->kvs);
 }
@@ -632,7 +597,7 @@ test_start_phase(struct thread_info *ti, char *message)
         if (!opt.dryrun) {
             err = hse_kvdb_kvs_open(kvdb, ti->kvs_name, kvs_oparms.strc, kvs_oparms.strv, &ti->kvs);
             if (err)
-                merr_quit("hse_kvdb_kvs_open failed", err);
+                fatal(err, "hse_kvdb_kvs_open failed");
         } else {
             ti->kvs = (void *)1;
         }
@@ -651,7 +616,7 @@ fmt_string(char *str, int len, int max_len, char fill, char *fmt, uint64_t fmt_a
     int i;
 
     if (len > max_len)
-        quit("key or value too large: %u (limit is %u)", len, max_len);
+        fatalx("key or value too large: %u (limit is %u)", len, max_len);
 
     snprintf(str, len, fmt, fmt_arg1, fmt_arg2);
     i = strlen(str);
@@ -776,7 +741,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
         err = hse_kvs_put(
             ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen, (char *)ti->ref_val, ti->ref_vlen);
         if (err)
-            merr_quit("kvdb_put failed", err);
+            fatal(err, "kvdb_put failed");
 
         atomic_inc(&put_cnt);
 
@@ -785,7 +750,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    merr_quit("Tx calloc failed", merr(ENOMEM));
+                    fatal(merr(ENOMEM), "Tx calloc failed");
                 memcpy(txkey, (char *)ti->ref_key, ti->ref_klen);
                 txkeyp = (uint *)txkey;
             }
@@ -795,7 +760,7 @@ test_put(struct thread_info *ti, uint salt, bool istxn)
             err = hse_kvs_put(
                 ti->kvs, 0, txn, (char *)txkey, ti->ref_klen, (char *)ti->ref_val, ti->ref_vlen);
             if (err)
-                merr_quit("kvdb_put failed", err);
+                fatal(err, "kvdb_put failed");
 
             atomic_inc(&put_cnt);
         }
@@ -838,11 +803,11 @@ test_delete(struct thread_info *ti, bool prefix, bool istxn)
         if (!prefix) {
             err = hse_kvs_delete(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen);
             if (err)
-                merr_quit("kvs_del failed", err);
+                fatal(err, "kvs_del failed");
         } else {
             err = hse_kvs_prefix_delete(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen);
             if (err)
-                merr_quit("kvs_prefix_del failed", err);
+                fatal(err, "kvs_prefix_del failed");
         }
 
         atomic_inc(&del_cnt);
@@ -891,7 +856,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
         err = hse_kvs_get(
             ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
-            merr_quit("hse_kvs_get failed", err);
+            fatal(err, "hse_kvs_get failed");
 
         if (!found) {
             add_error(
@@ -934,7 +899,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    merr_quit("Tx alloc failed", merr(ENOMEM));
+                    fatal(merr(ENOMEM), "Tx alloc failed");
                 memcpy(txkey, ti->ref_key, ti->ref_klen);
                 txkeyp = (uint *)txkey;
             }
@@ -946,7 +911,7 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn)
                 ti->kvs, 0, NULL, txkey, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
             if (err) {
                 free(txkey);
-                merr_quit("hse_kvs_get failed", err);
+                fatal(err, "hse_kvs_get failed");
             }
 
             if (!found && !found_err)
@@ -1005,7 +970,7 @@ test_delete_verify(struct thread_info *ti)
         err = hse_kvs_get(
             ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
-            merr_quit("hse_kvs_get failed", err);
+            fatal(err, "hse_kvs_get failed");
 
         if (found) {
             add_error(
@@ -1074,7 +1039,7 @@ print_result(void)
         printf("waltest : No. of successful verified deletes %ld\n", atomic_read(&del_verify_cnt));
 
     if (atomic_read(&errors) >= opt.errcnt)
-        quit("Exiting, because %lu error(s) were encountered\n", atomic_read(&errors));
+        fatalx("Exiting, because %lu error(s) were encountered\n", atomic_read(&errors));
 
     announce("Successful");
 }
@@ -1108,7 +1073,7 @@ waltest_run(int argc, char **argv)
 
     threads = calloc(opt.threads, sizeof(*threads));
     if (!threads)
-        quit("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
+        fatalx("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
 
     /* Figure each thread's kvs name and kvs prefix.
      * Example input with 5 threads:
@@ -1134,7 +1099,7 @@ waltest_run(int argc, char **argv)
             cp = strchr(ti->kvs_name, '/');
             if (cp) {
                 if (cp[1] == 0)
-                    quit("prefix missing kvs: %s", ti->kvs_name);
+                    fatalx("prefix missing kvs: %s", ti->kvs_name);
                 *cp++ = 0;
                 ti->pfx = ti->kvs_name;
                 ti->pfxlen = strlen(ti->pfx);
@@ -1146,7 +1111,7 @@ waltest_run(int argc, char **argv)
         } else {
             /* use kvs name and prefix from thread i % kvsc */
             if (kvsc == 0)
-                quit("Invalid kvs name: %s", opt.kvs);
+                fatalx("Invalid kvs name: %s", opt.kvs);
             assert(i >= kvsc);
             ti->kvs_name = threads[i % kvsc].kvs_name;
             ti->pfx = threads[i % kvsc].pfx;
@@ -1168,12 +1133,12 @@ waltest_run(int argc, char **argv)
 
         n = asprintf(&ti->kvs_name, cp, i);
         if (n <= 0)
-            quit("cannot format kvs name: '%s'", cp);
+            fatalx("cannot format kvs name: '%s'", cp);
 
         /* Ensure that no two threads are given the same kvs name. */
         for (n = 0; !single_kvs && n < i; n++)
             if (!strcmp(ti->kvs_name, threads[n].kvs_name))
-                quit(
+                fatalx(
                     "no two threads may work"
                     " on the same kvs: %s",
                     ti->kvs_name);
@@ -1185,7 +1150,7 @@ waltest_run(int argc, char **argv)
         ti->get_val = malloc(VLEN_MAX);
         ti->ref_val = malloc(VLEN_MAX);
         if (!ti->ref_key || !ti->get_val || !ti->ref_val)
-            quit("Out of memory");
+            fatalx("Out of memory");
     }
 
     /*open kvdb */
@@ -1293,11 +1258,11 @@ waltest_run(int argc, char **argv)
 int
 waltest_parse(int argc, char **argv)
 {
-    int rc;
+    merr_t rc;
 
     rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
-        quit("pg_create");
+        fatal(rc, "pg_create");
 
     options_default(&opt);
     options_parse(argc, argv, &opt);
@@ -1311,11 +1276,11 @@ waltest_parse(int argc, char **argv)
     if (opt.do_txn) {
         rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
         if (rc)
-            quit("svec_append_pg failed: %d", rc);
+            fatal(rc, "svec_append_pg failed");
     } else {
         rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, NULL);
         if (rc)
-            quit("svec_append_pg failed: %d", rc);
+            fatal(rc, "svec_append_pg failed");
     }
 
     opt.kvdb = argv[optind++];
@@ -1325,15 +1290,15 @@ waltest_parse(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            quit("unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
 
     case EINVAL:
-        quit("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
 
     default:
-        quit("error processing parameter %s\n", argv[optind]);
+        fatalx("error processing parameter %s\n", argv[optind]);
         break;
     }
 

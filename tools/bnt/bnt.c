@@ -36,6 +36,7 @@
 #include <hse/hse.h>
 #include <hse/version.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/bonsai_tree.h>
 #include <hse/util/compiler.h>
@@ -348,18 +349,6 @@ humanize(u_long *nump, char **sufp)
         *nump /= 1000;
         *sufp = "k";
     }
-}
-
-__attribute__((format(printf, 1, 2))) void
-syntax(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(emsg, sizeof(emsg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, emsg);
 }
 
 uint64_t

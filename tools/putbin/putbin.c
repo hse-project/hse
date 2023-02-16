@@ -24,6 +24,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/event_timer.h>
 
@@ -319,13 +320,13 @@ main(int argc, char **argv)
             break;
         case '?': /* fallthru */
         default:
-            fatal(0, "invalid option: -%c\nuse -h for help\n", c);
+            fatalx("invalid option: -%c\nuse -h for help\n", c);
             break;
         }
     }
 
     if (argc - optind < 2)
-        fatal(0, "missing required parameter\nuse -h for help");
+        fatalx("missing required parameter\nuse -h for help");
 
     mpname = argv[optind++];
     kvname = argv[optind++];
@@ -334,10 +335,10 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            fatal(0, "unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);
@@ -369,7 +370,7 @@ main(int argc, char **argv)
 
     info = calloc(tc, sizeof(*info));
     if (!info)
-        fatal(0, "cannot alloc thread info");
+        fatalx("cannot alloc thread info");
 
     /* keys and values share the same data buffer,
      * which is modified to hold the sequence number;
@@ -384,7 +385,7 @@ main(int argc, char **argv)
 
         buf = malloc(len);
         if (!buf)
-            fatal(0, "cannot alloc thread buffers");
+            fatalx("cannot alloc thread buffers");
 
         memcpy(buf, data, len);
 
@@ -420,7 +421,7 @@ main(int argc, char **argv)
 
             rc = pthread_create(&ti->tid, 0, run, ti);
             if (rc)
-                warn(rc, "cannot create thread %d", c);
+                error(rc, "cannot create thread %d", c);
             else
                 ti->joined = 0;
         }
@@ -431,7 +432,7 @@ main(int argc, char **argv)
                 continue;
             rc = pthread_join(ti->tid, 0);
             if (rc)
-                warn(rc, "cannot join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
+                error(rc, "cannot join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
             else
                 ti->joined = 1;
         }
@@ -444,7 +445,7 @@ main(int argc, char **argv)
             }
             rc = pthread_join(ti->tid, 0);
             if (rc) {
-                warn(rc, "repeated join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
+                error(rc, "repeated join tid[%d]=%ld: %d %s", c, ti->tid, rc, strerror(rc));
                 usleep(2000);
             } else
                 ++c;

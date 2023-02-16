@@ -165,6 +165,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <hse/cli/output.h>
 #include <hse/error/merr.h>
 #include <hse/ikvdb/kvs_cparams.h>
 #include <hse/ikvdb/kvs_rparams.h>
@@ -4006,19 +4007,6 @@ struct km_impl km_impl_mongo = {
     .vlenmax = 1024,
     .vlenmax_max = 4ul << 20,
 };
-
-__attribute__((format(printf, 1, 2))) void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
 
 ulong
 cvt_strtoul(

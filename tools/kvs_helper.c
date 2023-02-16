@@ -17,6 +17,8 @@
 #include <hse/hse.h>
 #include <hse/limits.h>
 
+#include <hse/cli/output.h>
+
 #include "kvs_helper.h"
 
 struct test {
