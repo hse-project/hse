@@ -19,9 +19,9 @@ HSE has the following dependencies[^1]:
 * [xxHash](https://github.com/Cyan4973/xxHash) `>= 0.8.0`
 * [libpmem](https://github.com/pmem/pmdk)[^3] `>= 1.4.0`
 
-Note that by default cJSON, lz4, and xxHash are built as a part of HSE using
-Meson subprojects for performance and embedding reasons. To use system pacakges
-for cJSON, lz4, and xxHash, setup your build with the following:
+Note that by default cJSON and lz4 are built as a part of HSE using Meson
+subprojects for performance and embedding reasons. To use system pacakges for
+cJSON and lz4, setup your build with the following:
 
 ```shell
 meson setup build -Dforce_fallback_for=

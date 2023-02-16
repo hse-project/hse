@@ -33,74 +33,26 @@ to get feedback on minor features or enhancements not requiring an RFC.
 [Developer Certificate of Origin](https://developercertificate.org/).
 This is done using the `--signoff` option when committing your changes.
 * Initial commits must be rebased.
-* Use the predefined PR template and specify which issue the commit
-addresses, what the commit does, and provide a concise description of
-the change.
 * All new code must include unit or functional tests.
 * All existing unit and functional tests must pass.
 * For any data path changes, run the benchmark suite before and after
 your PR to verify there is no regression.
 
-### Coding Style
-
-All the C code within HSE conforms to the pre-defined `clang-format` file. All
-Python code you may find in the code base conforms entirely to the `black`
-formatter. For Meson files, try to match the style in other files, but most
-importantly use 4 spaces for indention rather than tabs.
-
-Make sure all contributions adhere to the aforementioned styles.
-
 ## Information on Contributing to this Repo
 
-### Cloning
+### Coding Style
 
-You can clone HSE through both HTTPS and SSH protocols.
+Proper formatting is required for passing continuous integration checks.
 
-```sh
-# HTTPS
-git clone https://github.com/hse-project/hse.git
-# SSH
-git clone git@github.com:hse-project/hse.git
-```
+#### C
 
-### Building
+HSE uses `clang-format` for formatting C code. We include a script at
+[`scripts/dev/clang-format.sh`](./scripts/dev/clang-format.sh) that you can
+use to format either the whole tree or certain files. The script can also be
+used to check formatting. It is recommended that you just hook up your editor to
+format files for you however.
 
-Refer to the [README.md](./README.md#building-hse) to get
-started.
-
-HSE comes with many build options. Refer to the
-[`meson_options.txt` file](./meson_options.txt) for all available build options.
-Alternatively run the following command after successfully configuring HSE:
-
-```shell
-meson configure build
-```
-
-#### For Distribution Maintainers
-
-The following HSE-specific build options are recommended for distributing HSE:
-
-```shell
-meson setup build -Dbuildtype=release -Dexperimental=false -Dtools=disabled \
-    -Dsamples=false -Dbindings=none
-```
-
-#### Sanitized Builds
-
-Meson has built-in support for sanitized builds.
-
-Run `meson configure build` to see what options exist for `b_sanitize`. It
-is important to reduce issues like memory leaks and undefined behavior when
-developing HSE. Common sanitizers you may want to use during development are
-`address` and `undefined`.
-
-HSE maintainers aim to have all tests pass with
-`-Db_sanitize=address,undefined`. Keeping
-that baseline is extremely important. All contributions will be required to meet
-that same standard. Compiling with these options locally can help contributors
-identify issues early on in their work.
-
-#### Documentation
+### Documentation
 
 HSE's public API documentation is generated from the source code with Doxygen.
 The following commands will generate static HTML in `build/docs/doxygen/output/html`.
@@ -118,28 +70,12 @@ environment variable `HSE_DOXYGEN_SERVE_PORT` is set to a port number.
 meson compile -C build doxygen-serve
 ```
 
-### Installing
-
-Refer to the [README.md](./README.md#building-hse) to get
-started.
-
-Meson has various options for controlling where build artifacts will install to
-if you need something other than the defaults.
-
-### Uninstalling
-
-If HSE was installed using Meson, then you can run the following to uninstall:
-
-```shell
-ninja -C build uninstall
-```
-
-If you also install subprojects, then those will also be uninstalled.
-
 ### Testing
 
 If you choose to add a feature or a bug fix to HSE, make sure to add any
-necessary tests to confirm that the contribution works as it should.
+necessary tests to confirm that the contribution works as it should. Please
+refer to the directory structure underneath [`tests`](./tests) for where it
+would be appropriate to add your tests.
 
 Tests can be run using the following:
 
@@ -149,6 +85,12 @@ meson test -C build [tests...]
 
 We recommend running tests through Meson always. There is a lot of
 infrastructure setup through Meson that you would have to duplicate otherwise.
+
+To list tests, run the following:
+
+```shell
+meson test -C build --list
+```
 
 #### Timeouts
 
@@ -164,67 +106,210 @@ through the `-t` option:
 meson test -C build -t 9 [tests...]
 ```
 
-#### Suites
+#### Mocking
 
-To run a specific suite, run the following:
+HSE uses a homegrown mocking framework at the moment. When unit testing, it may
+be necessary to mock various components of HSE.
 
-```shell
-# If running multiple suites, use a comma separated list
-meson test -C build [--suite suite...]
+Relationship between mockable functions, mock groups, and source files:
+
+* Mockable functions are organized into groups.
+* Groups are implemented in `.c` source files and declared in `.h` header files.
+* Each `.c` source file can implement multiple groups.
+* Each `.h` header file declares at most one group.
+
+##### Annotated Template
+
+In this example:
+
+* Source file `foo.c` implements groups `foo` and `foo_print`
+* Header file `foo.h` decalares group `foo`
+* Header file `foo_print.h` decalares group `foo_print`
+
+By convention, the group is named after the header file that declares it.
+
+###### `foo.h`
+
+```c
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
+ */
+
+#ifndef FOO_H
+#define FOO_H
+
+/* Declare that this file contains function protoypes for the "foo" mock group.
+ */
+/* MTF_MOCK_DECL(foo) */
+
+/* Mark mockable functions with an MTF_MOCK comment, which must appear
+ * immediately before the function definition.
+ */
+/* MTF_MOCK */
+struct foo *foo_create(void);
+
+/* MTF_MOCK */
+void
+foo_destroy(struct foo *foo);
+
+/* This function is not mockable because there is no MTF_MOCK comment. */
+void foo_bar(void);
+
+/* Include generated file that defines macros that wrap mockable functions. */
+#if HSE_MOCKING
+#include "foo_ut.h"
+#endif
+
+#endif
 ```
 
-To ignore a suite, run the following:
+###### `foo_print.h`
 
-```shell
-# If running multiple suites, use a comma separated list
-meson test -C build [--no-suite suite...]
+```c
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
+ */
+
+#ifndef FOO_PRINT_H
+#define FOO_PRINT_H
+
+/* MTF_MOCK_DECL(foo_print) */
+
+/* MTF_MOCK */
+void foo_print(void);
+
+#if HSE_MOCKING
+#include "foo_print_ut.h"
+#endif
+
+#endif
 ```
 
-#### GDB
+###### `foo.c`
 
-Meson comes with built-in support for `gdb` using `--gdb` when running
-`meson test`. When using this option with HSE tests, you will want to run the
-following within `gdb`:
+```c
+/* SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ * SPDX-FileCopyrightText: Copyright YYYY Micron Technology, Inc.
+ */
 
-```text
-set follow-fork-mode child
+/* Declare that this file implements functions in the `foo` and `foo_print`
+ * groups. These are typically defined at the top of the file immediately after
+ * the copyright notice.
+ */
+#define MTF_MOCK_IMPL_foo
+#define MTF_MOCK_IMPL_foo_print
+
+/* Header files containing prototypes of mockable functions MUST be included
+ * after the MTF_MOCK_IMPL definitions.
+ */
+#include "abc.h"
+#include "bar.h"
+#include "foo.h"
+#include "foo_print.h"
+#include "xyz.h"
+
+/* This function is mockable by virtue of the MTF_MOCK annotation in foo.h. No
+ * annoation is needed here.
+ */
+struct foo *
+foo_create()
+{
+    // ...
+}
+
+void foo_destroy(struct foo *foo)
+{
+    // ...
+}
+
+void foo_print(void)
+{
+    // ...
+}
+
+/* This function is not mockable since the prototype in foo.h is not annotated
+ * with MTF_MOCK.
+ */
+void foo_bar(void)
+{
+    // ...
+}
+
+/* Must be at end of source file. Shoud have one include for each MTF_MOCK_IMPL
+ * definition at the top of the source file. These generated files define hooks
+ * to access the mocked and real versions of mockable functions.
+ */
+#if HSE_MOCKING
+#include "foo_ut_impl.i"
+#include "foo_print_ut_impl.i"
+#endif
 ```
 
-The HSE [test-runner](./tests/test-runner) will `fork(2)` the actual test.
-Without the above command, you will not actually debug what you think you are.
+##### Troubleshooting
 
-#### Replicating CI Build Checks
+When implementing mocking, you may run into one of the following issues:
 
-The CI runs the builds on ubuntu and fedora system with release and
-debugoptimized build types. To mimic the checks for build validation in CI run
-the following:
+###### `mapi_idx_foo_create undeclared`
+
+Build does not know that `foo.h` contains mock declarations.
+
+Add `foo.h` to the list of mocked headers in
+[`tests/mocks/meson.build`](./tests/mocks/meson.build).
+
+###### `unknown type name mtfm_foo_create_fp`
+
+Indicates the following code is missing from the bottom of `foo.h`:
+
+```c
+#ifdef HSE_MOCKING
+#include "foo_ut.h"
+#endif
+```
+
+###### `multiple definition of mtfm_foo_foo_create_getreal`
+
+More than on source file has `#include "cn_foo_ut_impl.i"`.
+
+###### `undefined reference to mtfm_foo_foo_create_get`
+
+Could indicate one of two things:
+
+* The source file with `foo_create()` is not compiled
+* The source file with `foo_create()` is missing `#include "cn_foo_ut_impl.i"`
+
+###### `in expansion of macro foo_create, expected identifier or '(' before '{' token`
+
+Source file implemeting `foo_create()` is missing `#define MTF_MOCK_IMPL_foo`,
+where `foo` is the mock group containing `foo_create()`.
+
+### Sanitized Builds
+
+Meson has built-in support for sanitized builds.
+
+Run `meson configure` to see what options exist for `b_sanitize`. It is
+important to reduce issues like memory leaks and undefined behavior when
+developing HSE. Common sanitizers you may want to use during development are
+`address` and `undefined`.
+
+HSE maintainers aim to have all tests pass with
+`-Db_sanitize=address,undefined`. Keeping that baseline is extremely important.
+All contributions will be required to meet that same standard. Compiling with
+these options locally can help contributors identify issues early on in their
+work.
+
+### Coverage
+
+HSE uses `gcovr` to get code coverage. To enable coverage and get the coverage
+reports run the following:
 
 ```shell
-meson build -Dbuildtype=${build_type} -Dwerror=true \
-    -Db_sanitize=address,undefined
+meson build --buildtype=debug -Db_coverage=true
+meson compile -C build
 meson test -C build --setup=ci
-```
-
-### Distributing the Source
-
-If you want to distribute HSE as a source tarball, then the following commands
-should create a tar file in `build/meson-dist`.
-
-```shell
-# Read `meson dist -h` for other format options. Tests are disabled as an
-# example, but you may want the test suites to run.
-meson dist -C build --formats gz --no-tests
-```
-
-### Distributing Binaries
-
-If you want to distribute HSE as a binary tarball, then the following commands
-should build a tar file where `--destdir` is specified.
-
-```sh
-meson install -C build --destdir $location
-cd $location
-tar -czf hse.tar.gz hse
+meson compile gcovr-{html,text,json,xml} -C build
 ```
 
 ### Git Hooks
@@ -239,15 +324,3 @@ ninja -C build git-hooks
 
 Either of the above commands will ensure that Git hooks are properly setup for
 the project.
-
-### Coverage
-
-HSE uses `gcovr` to get code coverage. To enable coverage and get the coverage
-reports run the following:
-
-```shell
-meson build --buildtype=debug -Db_coverage=true
-meson compile -C build
-meson test -C build --setup=ci
-meson compile gcovr-{html,text,json,xml} -C build
-```
