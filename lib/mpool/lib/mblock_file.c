@@ -1051,7 +1051,6 @@ mblock_punch(struct mblock_file *mbfp, uint64_t mbid, off_t off, size_t len)
     size_t wlen;
     merr_t err;
     char *addr;
-    int rc;
 
     INVARIANT(mbfp);
 
@@ -1074,12 +1073,6 @@ mblock_punch(struct mblock_file *mbfp, uint64_t mbid, off_t off, size_t len)
     if (err)
         return err;
 
-    rc = fallocate(
-        mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, off + block_off(mbid, mbfp->mblocksz),
-        len);
-    if (rc == -1)
-        return merr(errno);
-
     /* Adjust wlen if the punch range includes the end of an mblock */
     if (off + len >= wlen) {
         wlen = off;
@@ -1098,6 +1091,16 @@ mblock_punch(struct mblock_file *mbfp, uint64_t mbid, off_t off, size_t len)
     omf_mblock_oid_pack(&mbinfo, addr);
     err = mbfp->metaio.msync(addr, omf_mblock_oid_len(MBLOCK_METAHDR_VERSION), MS_SYNC);
     mutex_unlock(&mbfp->meta_lock);
+
+    if (!err) {
+        int rc;
+
+        rc = fallocate(
+            mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+            off + block_off(mbid, mbfp->mblocksz), len);
+
+        err = rc < 0 ? merr(errno) : 0;
+    }
 
     return err;
 }
