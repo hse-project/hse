@@ -20,6 +20,25 @@ description is marked up with extension fields in order to create a useful tool.
 
 ### Specification Extensions
 
+#### `x-alias`
+
+A few of the operations are commonly used, so providing an alias with a more
+memorable value can be convenient.
+
+##### Schmea
+
+String matching `^[a-z]+[a-z-]?[a-z]+$`.
+
+#### `x-hide`
+
+Some of our operations are not particularly useful unless you really need that
+information. If set to `true`, the operation will be hidden from the root help
+output unless verbosity is enabled.
+
+##### Schema
+
+Boolean
+
 #### `x-options`
 
 Used to add options to a particular operation. This can include `help`,

@@ -51,7 +51,7 @@ cJSON *openapi;
 struct options_map *options_map;
 
 const char *fspath;
-int verbosity;
+unsigned int verbosity;
 
 struct {
     enum format type;
@@ -478,8 +478,8 @@ struct search_args {
 static bool
 search(cJSON * const path, cJSON * const method, void * const user_data)
 {
-    cJSON *operation_id;
     struct search_args *args;
+    cJSON *operation_id, *x_alias;
 
     INVARIANT(cJSON_IsObject(path));
     INVARIANT(cJSON_IsObject(method));
@@ -492,17 +492,19 @@ search(cJSON * const path, cJSON * const method, void * const user_data)
 
     if (strcmp(cJSON_GetStringValue(operation_id), args->requested_operation_id) == 0) {
         *args->path = path;
-        *args->method = method; /* exact match */
+        *args->method = method;
         return false;
     }
 
-    if (strstr(cJSON_GetStringValue(operation_id), args->requested_operation_id)) {
-        if (*args->path) {
-            *args->method = NULL; /* ambiguous partial match */
-        } else {
-            *args->path = path;
-            *args->method = method; /* first partial match */
-        }
+    x_alias = cJSON_GetObjectItemCaseSensitive(method, "x-alias");
+    if (!x_alias)
+        return true;
+    assert(cJSON_IsString(x_alias));
+
+    if (strcmp(cJSON_GetStringValue(x_alias), args->requested_operation_id) == 0) {
+        *args->path = path;
+        *args->method = method;
+        return false;
     }
 
     return true;
@@ -529,20 +531,25 @@ find_operation(
     return *args.path && *args.method;
 }
 
+struct operation {
+    const char *id;
+    const char *alias;
+    bool hide;
+    cJSON *path;
+    cJSON *method;
+};
+
 struct collect_args {
     unsigned int offset;
-    struct {
-        const char *operation_id;
-        cJSON *path;
-        cJSON *method;
-    } operations[OPERATIONS_MAX];
+    struct operation operations[OPERATIONS_MAX];
 };
 
 static bool
 collect(cJSON * const path, cJSON * const method, void * const user_data)
 {
-    cJSON *operation_id;
     struct collect_args *args;
+    struct operation *operation;
+    cJSON *operation_id, *x_alias, *x_hide;
 
     INVARIANT(cJSON_IsObject(path));
     INVARIANT(cJSON_IsObject(method));
@@ -553,85 +560,27 @@ collect(cJSON * const path, cJSON * const method, void * const user_data)
     operation_id = cJSON_GetObjectItemCaseSensitive(method, "operationId");
     assert(cJSON_IsString(operation_id));
 
+    x_alias = cJSON_GetObjectItemCaseSensitive(method, "x-alias");
+    assert(!x_alias || cJSON_IsString(x_alias));
+
+    x_hide = cJSON_GetObjectItemCaseSensitive(method, "x-hide");
+    assert(!x_hide || cJSON_IsBool(x_hide));
+
     /* Increment OPERATIONS_MAX by grepping for the number of occurances of
      * "operationId" in docs/openapi.json.
      */
     if (args->offset > OPERATIONS_MAX - 1)
         abort();
 
-    args->operations[args->offset].operation_id = cJSON_GetStringValue(operation_id);
-    args->operations[args->offset].path = path;
-    args->operations[args->offset].method = method;
+    operation = args->operations + args->offset;
+    operation->id = cJSON_GetStringValue(operation_id);
+    operation->alias = x_alias ? cJSON_GetStringValue(x_alias) : NULL;
+    operation->hide = cJSON_IsTrue(x_hide);
+    operation->path = path;
+    operation->method = method;
     args->offset++;
 
     return true;
-}
-
-static void
-print_operations(FILE * const output)
-{
-    struct collect_args args = { .offset = 0 };
-    int widthmax = 0, width;
-
-    foreach_operation(collect, &args);
-
-    for (unsigned int i = 0; i < args.offset; i++) {
-        width = strlen(args.operations[i].operation_id);
-        if (width > widthmax)
-            widthmax = width;
-
-        for (unsigned int j = 0; j < args.offset; j++) {
-            if (strcmp(args.operations[i].operation_id, args.operations[j].operation_id) < 0) {
-                /* In-place swap because we are cool */
-
-                args.operations[i].operation_id = (const char *)
-                    ((uintptr_t)args.operations[i].operation_id ^
-                        (uintptr_t)args.operations[j].operation_id);
-                args.operations[j].operation_id = (const char *)
-                    ((uintptr_t)args.operations[i].operation_id ^
-                        (uintptr_t)args.operations[j].operation_id);
-                args.operations[i].operation_id = (const char *)
-                    ((uintptr_t)args.operations[i].operation_id ^
-                        (uintptr_t)args.operations[j].operation_id);
-
-                args.operations[i].path =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
-                args.operations[j].path =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
-                args.operations[i].path =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].path ^ (uintptr_t)args.operations[j].path);
-
-                args.operations[i].method =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
-                args.operations[j].method =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
-                args.operations[i].method =
-                    (cJSON
-                         *)((uintptr_t)args.operations[i].method ^ (uintptr_t)args.operations[j].method);
-            }
-        }
-    }
-
-    width = (verbosity > 0) ? widthmax : 24;
-
-    for (unsigned int i = 0; i < args.offset; i++) {
-        cJSON *description;
-
-        description = cJSON_GetObjectItemCaseSensitive(args.operations[i].method, "description");
-        assert(cJSON_IsString(description));
-
-        if (strlen(args.operations[i].operation_id) > width)
-            continue;
-
-        fprintf(
-            output, "  %-*s  %s\n", width, args.operations[i].operation_id,
-            cJSON_GetStringValue(description));
-    }
 }
 
 static enum tprint_justify HSE_NONNULL(1)
@@ -943,11 +892,11 @@ operation_usage(FILE * const output, cJSON * const path, cJSON * const method)
 {
     int widthmax = 0;
     size_t columnc = 0;
-    const char **columnv = NULL;
     const char *operation_id;
+    const char **columnv = NULL;
     enum request_body request_body;
     unsigned int operation_arguments;
-    cJSON *description, *x_options, *x_formats, *operation;
+    cJSON *description, *x_alias, *x_options, *x_formats, *operation;
 
     INVARIANT(output);
     INVARIANT(path);
@@ -955,6 +904,9 @@ operation_usage(FILE * const output, cJSON * const path, cJSON * const method)
 
     description = cJSON_GetObjectItemCaseSensitive(method, "description");
     assert(cJSON_IsString(description));
+
+    x_alias = cJSON_GetObjectItemCaseSensitive(method, "x-alias");
+    assert(!x_alias || cJSON_IsString(x_alias));
 
     x_options = cJSON_GetObjectItemCaseSensitive(method, "x-options");
     assert(cJSON_IsArray(x_options));
@@ -967,7 +919,13 @@ operation_usage(FILE * const output, cJSON * const path, cJSON * const method)
     operation_id = cJSON_GetStringValue(operation);
     assert(operation_id);
 
-    fprintf(output, "Usage: hsettp [OPTION ...] %s [OPTION ...]", operation_id);
+    if (x_alias) {
+        const char *alias = cJSON_GetStringValue(x_alias);
+
+        fprintf(output, "Usage: hsettp [OPTION ...] %s|%s [OPTION ...]", operation_id, alias);
+    } else {
+        fprintf(output, "Usage: hsettp [OPTION ...] %s [OPTION ...]", operation_id);
+    }
     if (operation_arguments > 0) {
         cJSON *parameters;
 
@@ -1237,7 +1195,7 @@ operation_usage(FILE * const output, cJSON * const path, cJSON * const method)
     fprintf(output, "\nColumns:\n ");
     for (size_t i = 0; i < columnc; i++)
         fprintf(output, " %s", columnv[i]);
-    fprintf(output, "\n\n");
+    fprintf(output, "\n");
 
     free(columnv);
 }
@@ -1591,10 +1549,86 @@ out:
 }
 
 static void
+print_operations(FILE * const output, const struct collect_args * const args)
+{
+    int widthmax = 0, width;
+
+    INVARIANT(output);
+    INVARIANT(args);
+
+    for (unsigned int i = 0; i < args->offset; i++) {
+        width = strlen(args->operations[i].id);
+        if (width > widthmax && !(args->operations[i].hide && verbosity == 0))
+            widthmax = width;
+    }
+
+    for (unsigned int i = 0; i < args->offset; i++) {
+        cJSON *description;
+
+        description = cJSON_GetObjectItemCaseSensitive(args->operations[i].method, "description");
+        assert(cJSON_IsString(description));
+
+        if (args->operations[i].hide && verbosity == 0)
+            continue;
+
+        fprintf(
+            output, "  %-*s  %s\n", widthmax, args->operations[i].id,
+            cJSON_GetStringValue(description));
+    }
+}
+
+static void
+print_aliases(FILE * const output, const struct collect_args * const args)
+{
+    int widthmax = 0, width;
+
+    INVARIANT(output);
+    INVARIANT(args);
+
+    for (unsigned int i = 0; i < args->offset; i++) {
+        if (!args->operations[i].alias)
+            continue;
+
+        width = strlen(args->operations[i].alias);
+        if (width > widthmax && !(args->operations[i].hide && verbosity == 0))
+            widthmax = width;
+    }
+
+    for (unsigned int i = 0; i < args->offset; i++) {
+        if (!args->operations[i].alias || (args->operations[i].hide && verbosity == 0))
+            continue;
+
+        fprintf(
+            output, "  %-*s  %s\n", widthmax, args->operations[i].alias, args->operations[i].id);
+    }
+}
+
+static void
 root_usage(FILE * const output)
 {
+    struct collect_args args = { 0 };
+
     INVARIANT(openapi);
     INVARIANT(output);
+
+    foreach_operation(collect, &args);
+
+    for (unsigned int i = 0; i < args.offset; i++) {
+        for (unsigned int j = 0; j < args.offset; j++) {
+            struct operation *op1, *op2;
+
+            op1 = args.operations + i;
+            op2 = args.operations + j;
+
+            if (strcmp(op1->id, op2->id) < 0) {
+                struct operation tmp;
+
+                tmp = *op1;
+                *op1 = *op2;
+                *op2 = tmp;
+            }
+        }
+    }
 
     fprintf(
         output, "Usage: %s [OPTION ...] <operation> [OPTION ...] <home/socket> [ARG ...]\n",
@@ -1603,15 +1637,16 @@ root_usage(FILE * const output)
     fprintf(output, "  -h, --help       Show this help output.\n");
     fprintf(output, "  -v, --verbosity  Increase verbosity.\n");
     fprintf(output, "\nOperations:\n");
-
-    print_operations(output);
+    print_operations(output, &args);
+    fprintf(output, "\nAliases:\n");
+    print_aliases(output, &args);
 
     if (verbosity == 0)
-        fprintf(output, "\nUse -hv to show all operations\n\n");
+        fprintf(output, "\nUse -hv to show additional infrequently used operations\n");
 }
 
 static void HSE_PRINTF(1, 2)
-syntax(const char *fmt, ...)
+syntax(const char * const fmt, ...)
 {
     char msg[256];
     va_list ap;
@@ -1626,7 +1661,7 @@ syntax(const char *fmt, ...)
 int
 main(const int argc, char ** const argv)
 {
-    const struct option program_opts[] = {
+    static const struct option program_opts[] = {
         { "help", no_argument, NULL, 'h' },
         { "verbosity", no_argument, NULL, 'v' },
         { NULL },
@@ -1779,14 +1814,14 @@ main(const int argc, char ** const argv)
         goto out;
 
     rc = stat(fspath, &sb);
-    if (-1 == rc) {
+    if (rc == -1) {
         fprintf(stderr, "%s: Unable to stat '%s': %s\n", progname, fspath, strerror(errno));
         rc = EX_OSERR;
         goto out;
     }
 
     if (S_ISDIR(sb.st_mode)) {
-        static struct pidfile content;
+        struct pidfile content;
 
         err = pidfile_deserialize(fspath, &content);
         if (err) {
