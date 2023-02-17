@@ -38,7 +38,7 @@ extern "C" {
 #define HSE_KVS_NAME_LEN_MAX 32
 
 /** @brief Maximum key prefix length. */
-#define HSE_KVS_PFX_LEN_MAX 32
+#define HSE_KVS_PFX_LEN_MAX 64
 
 /** @brief Maximum value length.
  *
