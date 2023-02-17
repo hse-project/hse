@@ -658,7 +658,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_update_ns, test_pre)
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(25 * 1000 * 1000, params.throttle_update_ns);
+    ASSERT_EQ(10 * 1000 * 1000, params.throttle_update_ns);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
@@ -707,41 +707,41 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
     ASSERT_EQ(6, needed_sz);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_rate_fastmedia, test_pre)
 {
-    const struct param_spec *ps = ps_get("throttle_burst");
+    const struct param_spec *ps = ps_get("throttle_rate_fastmedia");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_burst), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_rate_fastmedia), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(1ul << 20, params.throttle_burst);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(1000ul * 1000 * 1000, params.throttle_rate_fastmedia);
+    ASSERT_EQ(1000ul * 1000, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_rate, test_pre)
+MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_rate_limit, test_pre)
 {
-    const struct param_spec *ps = ps_get("throttle_rate");
+    const struct param_spec *ps = ps_get("throttle_rate_limit");
 
     ASSERT_NE(NULL, ps);
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_EXPERIMENTAL | PARAM_WRITABLE, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_rate), ps->ps_offset);
+    ASSERT_EQ(offsetof(struct kvdb_rparams, throttle_rate_limit), ps->ps_offset);
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
-    ASSERT_EQ(10UL << 20, params.throttle_rate);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(8000ul * 1000 * 1000, params.throttle_rate_limit);
+    ASSERT_EQ(1000ul * 1000, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 

@@ -46,73 +46,38 @@
 static void
 c0sk_adjust_throttling(struct c0sk_impl *self, int amt)
 {
-    const uint sensorv[] = { 0, 0, 300, 700, 900, 1000, 1100, 1300, 1500, 1700 };
-    const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    uint finlat, new;
-    uint tfill = 0;
-    int cnt;
+    static const uint sensorv[] = { 100, 100, 300, 600, 925, 1000, 1100, 1200, 1300, 1400, 1500 };
+    int cnt, sval;
 
     if (!self->c0sk_sensor)
         return;
-
-    finlat = self->c0sk_ingest_finlat;
-    cnt = self->c0sk_kvmultisets_cnt;
-
-    /* Throttle heavily until the first ingest completes.
-     */
-    if (finlat == UINT_MAX && cnt > 0) {
-        new = 1000 + ((cnt / 2) + 1) * 100;
-        throttle_sensor_set(self->c0sk_sensor, new);
-        return;
-    }
-
-    /* Use the ingest finish latency (i.e., the running average time it takes
-     * to process and write k/v tuples to media) to adjust the hwm to try and
-     * maintain a max backlog of between 2.9 and 5.2 c0kvms (based upon the
-     * default value of throttle_c0_hi_th=3.5).
-     */
 
     /* If (amt > 0) it means a new ingest was enqueued, so the time taken
      * to fill the kvms buffer is now minus the last time we did this...
      */
     if (amt > 0) {
-        tfill = (jclock_ns - self->c0sk_ingest_ctime) / 1000000;
         self->c0sk_ingest_ctime = jclock_ns;
     }
 
-    /* Adjust the throttle depending upon the kvms backlog and whether we
-     * are adding to or removing from the backlog.  The backlog of inflight
-     * ingests is always (cnt - 1), where "cnt" is used to select throttle
-     * sensor.  Use the ingest finish latency (i.e., the running average
-     * time it takes to process and write k/v tuples to media) and the
-     * fill rate to increase or decrease the sensor value.
+    /* Wait until the first ingest completes.
      */
-    if ((amt < 0 && (cnt + amt) < 2) || cnt < 1) {
-        cnt = 0;
-    } else if (amt > 0 && (cnt + amt) == 2) {
-        if (tfill < finlat * 110 / 100 || finlat > 8000) {
-            if (tfill < finlat * 90 / 100) {
-                cnt = 3; /* (fill rate > ingest rate), high throttle */
-            } else {
-                cnt = 2; /* (fill rate == ingest rate), low throttle */
-            }
-        } else {
-            cnt = 0; /* (fill rate < ingest rate), disengage throttle */
-        }
-    } else {
-        cnt += amt; /* normal kvms count based throttling */
-
-        if (finlat > 8000 && cnt > rp->c0_ingest_threads)
-            cnt++;
-    }
+    if (self->c0sk_ingest_finlat == UINT_MAX)
+        return;
 
     /* Use sensor trigger values from throttle.c, where values of 1000
      * and above increase throttling, and values below 1000 decrease
      * throttling faster inversely proportional to the value.
      */
-    new = (cnt < NELEM(sensorv)) ? sensorv[cnt] : 1800;
+    cnt = self->c0sk_kvmultisets_cnt + amt;
+    sval = (cnt < NELEM(sensorv)) ? sensorv[cnt] : 1800;
 
-    throttle_sensor_set(self->c0sk_sensor, new);
+    /* Add 50 when a new kvms is ready to spill, and subtract 50 once
+     * a kvms has been spilled.
+     */
+    sval = sval + (amt * 50) + amt;
+    assert(sval >= 0 && sval <= 1851);
+
+    throttle_sensor_set(self->c0sk_sensor, sval);
 }
 
 static uint64_t
@@ -312,6 +277,7 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     struct cn *cn = c0sk->c0sk_cnv[skidx];
     struct kvset_builder **kvbldrs = ingest->c0iw_bldrs;
     struct kvset_builder *bldr = kvbldrs[skidx];
+    size_t klen, vlen;
 
     assert(bkv);
     assert(vlist);
@@ -339,7 +305,9 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
 
     seqno_prev = UINT64_MAX;
     pt_seqno_prev = UINT64_MAX;
-    key2kobj(&ko, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
+    klen = key_imm_klen(&bkv->bkv_key_imm);
+    vlen = 0;
+    key2kobj(&ko, bkv->bkv_key, klen);
 
     for (val = vlist; val; val = val->bv_priv) {
         enum hse_seqno_state state HSE_MAYBE_UNUSED;
@@ -361,6 +329,8 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
         else
             seqno_prev = seqno;
 
+        vlen += bonsai_val_vlen(val);
+
         err = kvset_builder_add_val(
             bldr, &ko, val->bv_value, bonsai_val_ulen(val), seqno, bonsai_val_clen(val));
 
@@ -371,6 +341,50 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     err = kvset_builder_add_key(bldr, &ko);
     if (ev(err))
         return err;
+
+    ingest->c0iw_kbytes += klen;
+    ingest->c0iw_vbytes += vlen;
+
+    if (ingest->c0iw_kbytes + ingest->c0iw_vbytes > ingest->c0iw_mask) {
+        struct throttle_tls *tls = ingest->c0iw_thr_tls;
+
+        tls->bytes += klen + vlen;
+
+        if (tls->bytes > ingest->c0iw_mask) {
+            struct throttle_sensor *ts = ingest->c0iw_thr_sensor;
+            uint64_t resid = tls->bytes & ingest->c0iw_mask;
+            uint64_t gen;
+
+            tls->bytes -= resid;
+
+            gen = atomic_read_acq(ts->ts_cntrgenp);
+            if (gen > tls->cntrgen) {
+                atomic_ulong *cntrp;
+                uint64_t pct;
+
+                pct = (ingest->c0iw_kbytes * 100) / (ingest->c0iw_kbytes + ingest->c0iw_vbytes);
+                if (pct < 10) {
+                    ingest->c0iw_mask = (32ul << 20) - 1;
+                } else {
+                    tls->bytes += (tls->bytes * pct) / 100;
+                    ingest->c0iw_mask = (16ul << 20) - 1;
+                }
+
+                /* Average out the byte count for each missed generation.
+                 */
+                if (gen - tls->cntrgen > 1)
+                    tls->bytes /= (gen - tls->cntrgen);
+
+                cntrp = &ts->ts_cntrv[gen % NELEM(ts->ts_cntrv)];
+                atomic_add(cntrp, (tls->bytes << 20) | 1);
+
+                tls->bytes = 0;
+                tls->cntrgen = gen;
+            }
+
+            tls->bytes += resid;
+        }
+    }
 
     return 0;
 }
@@ -691,9 +705,27 @@ c0sk_ingest_worker(struct work_struct *work)
 
     ingest->t6 = get_time_ns();
 
+    /* Initialize the per-thread throttle state so that c0sk_cningest_cb() (called
+     * repeatedly by bkv_collection_finish_pair()) can update the c0sk throttle
+     * sensor with the observed spill rate.
+     */
+    if (c0sk->c0sk_sensor) {
+        ingest->c0iw_thr_sensor = c0sk->c0sk_sensor;
+        ingest->c0iw_thr_tls = &hse_throttle_tls;
+        ingest->c0iw_thr_tls->bytes = 0;
+        ingest->c0iw_thr_tls->cntrgen = atomic_read_acq(ingest->c0iw_thr_sensor->ts_cntrgenp);
+        ingest->c0iw_mask = (32ul << 20) - 1;
+    } else {
+        ingest->c0iw_mask = UINT64_MAX;
+    }
+
     err = bkv_collection_finish_pair(cn_list[0], cn_list[1]);
     if (ev(err))
         goto health_err;
+
+    /* Prevent any other thread from accessing this thread's local storage via c0iw_thr_tls.
+     */
+    ingest->c0iw_thr_tls = NULL;
 
     ingest->t7 = get_time_ns();
 
@@ -1068,6 +1100,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
     struct c0_kvmultiset *new;
     void *_Atomic *stashp;
     merr_t err;
+    uint width;
 
     c0kvms_ingesting(old);
 
@@ -1092,7 +1125,9 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 
     stashp = HSE_LIKELY(atomic_read(&self->c0sk_replaying) == 0) ? &self->c0sk_stash : NULL;
 
-    err = c0kvms_create(self->c0sk_ingest_width, self->c0sk_kvdb_seq, stashp, &new);
+    width = atomic_read(&self->c0sk_ingest_width);
+
+    err = c0kvms_create(width, self->c0sk_kvdb_seq, stashp, &new);
     if (!err) {
         c0kvms_getref(new);
 

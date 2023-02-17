@@ -63,7 +63,6 @@
 #include <hse/util/log2.h>
 #include <hse/util/page.h>
 #include <hse/util/seqno.h>
-#include <hse/util/token_bucket.h>
 #include <hse/util/vlb.h>
 #include <hse/util/xrand.h>
 
@@ -130,7 +129,6 @@ static atomic_uint ikvdb_txn_idx;
  * @ikdb_handle:        handle for users of struct ikvdb_impl's
  * @ikdb_allow_writes:  bool indicating whether puts and dels are allowed
  * @ikdb_work_stop:     used to control maint and throttle threads
- * @ikdb_tb_dbg:        token bucket debug flags
  * @ikdb_ctxn_set:      kvdb transaction set
  * @ikdb_ctxn_op:       transaction performance counters
  * @ikdb_keylock:       handle to the KVDB keylock
@@ -161,7 +159,6 @@ struct ikvdb_impl {
     struct ikvdb            ikdb_handle;
     bool                    ikdb_allow_writes;
     bool                    ikdb_work_stop;
-    uint32_t                ikdb_tb_dbg;
     bool                    ikdb_pmem_only;
     struct kvdb_ctxn_set   *ikdb_ctxn_set;
     struct c0snr_set       *ikdb_c0snr_set;
@@ -182,22 +179,14 @@ struct ikvdb_impl {
     struct kvdb_callback    ikdb_wal_cb;
     struct kvdb_health      ikdb_health;
     struct throttle         ikdb_throttle;
-    struct tbkt             ikdb_tb;
+    struct throttle_sensor *ikdb_sensor;
 
     struct kvdb_ctxn_bkt    ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     atomic_int              ikdb_curcnt HSE_ACP_ALIGNED;
     uint32_t                ikdb_curcnt_max;
 
-    atomic_ulong            ikdb_tb_dbg_ops HSE_L1X_ALIGNED;
-    atomic_ulong            ikdb_tb_dbg_bytes;
-    atomic_ulong            ikdb_tb_dbg_sleep_ns;
-    uint64_t                ikdb_tb_dbg_next;
-    uint64_t                ikdb_tb_burst;
-    uint64_t                ikdb_tb_rate;
-
     atomic_ulong            ikdb_seqno HSE_ACP_ALIGNED;
-    struct work_struct      ikdb_throttle_work;
     struct work_struct      ikdb_maint_work;
 
     uint64_t ikdb_cndb_oid1;
@@ -761,96 +750,6 @@ ikvdb_mclass_reconfigure(const char *kvdb_home, enum hse_mclass mclass, const ch
     return 0;
 }
 
-static inline void
-ikvdb_tb_configure(struct ikvdb_impl *self, uint64_t burst, uint64_t rate, bool initialize)
-{
-    if (initialize)
-        tbkt_init(&self->ikdb_tb, burst, rate);
-    else
-        tbkt_adjust(&self->ikdb_tb, burst, rate);
-}
-
-static void
-ikvdb_rate_limit_set(struct ikvdb_impl *self, uint64_t rate)
-{
-    uint64_t burst = rate / 2;
-
-    /* cache debug params from KVDB runtime params */
-    self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
-
-    /* debug: manual control: get burst and rate from params  */
-    if (HSE_UNLIKELY(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
-        burst = self->ikdb_rp.throttle_burst;
-        rate = self->ikdb_rp.throttle_rate;
-    }
-
-    if (burst != self->ikdb_tb_burst || rate != self->ikdb_tb_rate) {
-        self->ikdb_tb_burst = burst;
-        self->ikdb_tb_rate = rate;
-        ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, false);
-    }
-
-    if (self->ikdb_tb_dbg) {
-
-        uint64_t now = get_time_ns();
-
-        if (now > self->ikdb_tb_dbg_next) {
-
-            /* periodic debug output */
-            long dbg_ops = atomic_read(&self->ikdb_tb_dbg_ops);
-            long dbg_bytes = atomic_read(&self->ikdb_tb_dbg_bytes);
-            long dbg_sleep_ns = atomic_read(&self->ikdb_tb_dbg_sleep_ns);
-
-            log_info(
-                "tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10u",
-                (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
-                (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT), dbg_ops, dbg_bytes,
-                dbg_sleep_ns, self->ikdb_tb_burst, self->ikdb_tb_rate,
-                throttle_delay(&self->ikdb_throttle));
-
-            atomic_sub(&self->ikdb_tb_dbg_ops, dbg_ops);
-            atomic_sub(&self->ikdb_tb_dbg_bytes, dbg_bytes);
-            atomic_sub(&self->ikdb_tb_dbg_sleep_ns, dbg_sleep_ns);
-
-            self->ikdb_tb_dbg_next = now + NSEC_PER_SEC;
-        }
-    }
-}
-
-static void
-ikvdb_throttle_task(struct work_struct *work)
-{
-    struct ikvdb_impl *self;
-
-    pthread_setname_np(pthread_self(), "hse_throttle");
-
-    self = container_of(work, struct ikvdb_impl, ikdb_throttle_work);
-
-    while (!self->ikdb_work_stop) {
-        uint64_t tstart = get_time_ns();
-        uint64_t rate;
-        uint raw;
-
-        raw = throttle_update(&self->ikdb_throttle);
-        rate = throttle_raw_to_rate(raw);
-        ikvdb_rate_limit_set(self, rate);
-
-        end_stats_work();
-
-        tstart = get_time_ns() - tstart + timer_slack;
-        if (tstart < self->ikdb_rp.throttle_update_ns) {
-            struct timespec req = {
-                .tv_nsec = self->ikdb_rp.throttle_update_ns - tstart,
-            };
-
-            hse_nanosleep(&req, NULL, "throtslp");
-        }
-
-        begin_stats_work();
-    }
-}
-
 static void
 ikvdb_maint_task(struct work_struct *work)
 {
@@ -928,6 +827,8 @@ ikvdb_init_throttle_params(struct ikvdb_impl *self)
         return;
 
     /* Hand out throttle sensors */
+
+    self->ikdb_sensor = throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_KVDB);
 
     csched_throttle_sensor(
         self->ikdb_csched, throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_CNROOT));
@@ -1165,13 +1066,6 @@ ikvdb_maint_start(struct ikvdb_impl *self)
     if (!queue_work(self->ikdb_workqueue, &self->ikdb_maint_work)) {
         err = merr(EBUG);
         log_errx("%s cannot start kvdb maintenance", err, self->ikdb_home);
-        return err;
-    }
-
-    INIT_WORK(&self->ikdb_throttle_work, ikvdb_throttle_task);
-    if (!queue_work(self->ikdb_workqueue, &self->ikdb_throttle_work)) {
-        err = merr(EBUG);
-        log_errx("%s cannot start kvdb throttle", err, self->ikdb_home);
         return err;
     }
 
@@ -1458,11 +1352,6 @@ ikvdb_open(const char *kvdb_home, struct kvdb_rparams *params, struct ikvdb **ha
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp, self->ikdb_alias);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
-
-    self->ikdb_tb_burst = self->ikdb_rp.throttle_burst;
-    self->ikdb_tb_rate = self->ikdb_rp.throttle_rate;
-
-    ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
     if (self->ikdb_allow_writes) {
         err =
@@ -2356,31 +2245,6 @@ ikvdb_close(struct ikvdb *handle)
     return ret;
 }
 
-static void
-ikvdb_throttle(struct ikvdb_impl *self, uint64_t bytes, uint64_t tstart)
-{
-    uint64_t sleep_ns, now;
-
-    sleep_ns = tbkt_request(&self->ikdb_tb, bytes, &now);
-    if (sleep_ns > 0) {
-        uint64_t dly = now - tstart;
-
-        if (sleep_ns > dly) {
-            if (sleep_ns - dly > timer_slack / 2) {
-                tbkt_delay(sleep_ns - dly);
-            } else {
-                sched_yield();
-            }
-        }
-
-        if (HSE_UNLIKELY(self->ikdb_tb_dbg)) {
-            atomic_inc(&self->ikdb_tb_dbg_ops);
-            atomic_add(&self->ikdb_tb_dbg_bytes, bytes);
-            atomic_add(&self->ikdb_tb_dbg_sleep_ns, sleep_ns);
-        }
-    }
-}
-
 static inline bool
 is_write_allowed(struct ikvs *kvs, struct hse_kvdb_txn * const txn)
 {
@@ -2421,7 +2285,6 @@ ikvdb_kvs_put(
     merr_t err;
     size_t vbufsz;
     uint vlen, clen;
-    uint64_t tstart;
     uint64_t seqnoref;
     struct kvdb_kvs *kk;
     struct kvs_ktuple ktbuf;
@@ -2442,8 +2305,6 @@ ikvdb_kvs_put(
     err = kvdb_health_check(&parent->ikdb_health, KVDB_HEALTH_FLAG_ALL);
     if (err)
         return err;
-
-    tstart = (flags & HSE_KVS_PUT_PRIO || parent->ikdb_rp.throttle_disable) ? 0 : get_time_ns();
 
     ktbuf = *kt;
     vtbuf = *vt;
@@ -2485,8 +2346,8 @@ ikvdb_kvs_put(
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
-    if (tstart > 0)
-        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen), tstart);
+    if (!(flags & HSE_KVS_PUT_PRIO || parent->ikdb_rp.throttle_disable))
+        throttle(parent->ikdb_sensor, &hse_throttle_tls, kt->kt_len + (clen ? clen : vlen));
 
     return err;
 }

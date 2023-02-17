@@ -110,10 +110,10 @@ struct c0sk_impl {
     atomic_int   c0sk_ingest_ldrcnt;
     sem_t        c0sk_sync_sema;
 
-    uint32_t   c0sk_ingest_width HSE_L1D_ALIGNED;
-    int        c0sk_boost;
-    char      *c0sk_kvdb_alias;
-    void * _Atomic c0sk_stash;
+    atomic_uint     c0sk_ingest_width HSE_L1D_ALIGNED;
+    int             c0sk_boost;
+    char           *c0sk_kvdb_alias;
+    void * _Atomic  c0sk_stash;
 
     struct {
         atomic_int refcnt HSE_ACP_ALIGNED;

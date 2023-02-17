@@ -27,6 +27,11 @@ unsigned long timer_slack HSE_READ_MOSTLY;
 
 struct timer_jclock timer_jclock;
 
+static ulong hse_timer_cb_next;
+static ulong hse_timer_cb_period;
+static void *hse_timer_cb_arg;
+static hse_timer_cb_func_t *hse_timer_cb_func;
+
 static HSE_ALWAYS_INLINE void
 timer_lock(void)
 {
@@ -67,18 +72,24 @@ timer_jclock_cb(struct work_struct *work)
         tune_next = ULONG_MAX;
 
     while (timer_running) {
+        hse_timer_cb_func_t *cb_func;
         struct timer_list *first;
         unsigned long now, jnow;
         struct timespec ts;
         __uint128_t freq;
+        void *cb_arg;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 
+        jnow = nsecs_to_jiffies(now);
+        timer_jclock.jc_jiffies = jnow;
+        timer_jclock.jc_jclock_ns = now;
+
         /* Periodically refine hse_tsc_freq until it converges
          * on the measured value.
          */
-        if (now >= tune_next) {
+        if (jnow >= tune_next) {
             atomic_thread_fence(memory_order_seq_cst);
 
             freq = get_cycles() - timer_jclock.jc_cstart;
@@ -88,24 +99,31 @@ timer_jclock_cb(struct work_struct *work)
             if (freq != hse_tsc_freq) {
                 hse_tsc_mult = (NSEC_PER_SEC << HSE_TSC_SHIFT) / freq;
                 hse_tsc_freq = freq;
-                tune_next = now + NSEC_PER_SEC / 100;
+                tune_next = nsecs_to_jiffies(now + NSEC_PER_SEC / 100);
             } else {
-                tune_next = now + NSEC_PER_SEC;
+                tune_next = nsecs_to_jiffies(now + NSEC_PER_SEC);
             }
         }
-
-        jnow = nsecs_to_jiffies(now);
-        timer_jclock.jc_jiffies = jnow;
-        timer_jclock.jc_jclock_ns = now;
 
         timer_lock();
         first = timer_first();
         if (first && first->expires >= jnow)
             first = NULL;
+
+        if (jnow >= hse_timer_cb_next) {
+            hse_timer_cb_next = nsecs_to_jiffies(now + hse_timer_cb_period);
+            cb_func = hse_timer_cb_func;
+            cb_arg = hse_timer_cb_arg;
+        } else {
+            cb_func = NULL;
+        }
         timer_unlock();
 
         if (first)
             queue_work(timer_wq, &timer_dispatch_work);
+
+        if (cb_func)
+            cb_func(cb_arg);
 
         ts.tv_sec = 0;
         ts.tv_nsec = roundup(now, NSEC_PER_JIFFY) - now;
@@ -186,6 +204,39 @@ del_timer(struct timer_list *timer)
     return pending;
 }
 
+void
+hse_timer_cb_register(hse_timer_cb_func_t *func, void *arg, ulong period_ms)
+{
+    assert(func);
+
+    timer_lock();
+    assert(!hse_timer_cb_func);
+
+    hse_timer_cb_arg = arg;
+    hse_timer_cb_func = func;
+    hse_timer_cb_period = period_ms * 1000000;
+    hse_timer_cb_next = nsecs_to_jiffies(get_time_ns() + hse_timer_cb_period);
+    timer_unlock();
+}
+
+void
+hse_timer_cb_unregister(void)
+{
+    timer_lock();
+    hse_timer_cb_arg = NULL;
+    hse_timer_cb_func = NULL;
+    hse_timer_cb_period = 0;
+    hse_timer_cb_next = ULONG_MAX;
+    timer_unlock();
+
+    /* Wait for at least one tick of the jiffy clock to ensure that
+     * the previously registered hse_timer_cb_func() isn't running
+     * and can no longer be invoked.
+     */
+    for (ulong j = jiffies; jiffies == j; /* do nothing */)
+        usleep(1000);
+}
+
 merr_t
 hse_timer_init(void)
 {
@@ -198,6 +249,7 @@ hse_timer_init(void)
     INIT_LIST_HEAD(&timer_list);
     INIT_WORK(&timer_jclock_work, timer_jclock_cb);
     INIT_WORK(&timer_dispatch_work, timer_dispatch_cb);
+    hse_timer_cb_next = ULONG_MAX;
 
     /* Try to obtain cstart and tstart close in time to improve
      * the accuracy of our measured TSC frequency.

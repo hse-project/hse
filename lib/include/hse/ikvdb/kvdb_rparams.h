@@ -82,11 +82,11 @@ struct kvdb_rparams {
     uint8_t dur_mclass;
 
     uint64_t throttle_update_ns;
-    uint throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
+    uint64_t throttle_rate_limit;
+    uint64_t throttle_rate_fastmedia;
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
-    uint64_t throttle_burst;
-    uint64_t throttle_rate;
+    uint throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
 
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.

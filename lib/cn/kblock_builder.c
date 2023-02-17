@@ -41,8 +41,6 @@
 #include "wbt_builder.h"
 #include "wbt_reader.h"
 
-extern struct tbkt sp3_tbkt;
-
 /* The max number of keys in a struct hash_set_part is sized such that the allocation
  * size of a hash_set_part is one page less than VLB_ALLOCSZ_MAX so that vlb_free()
  * can cache it.  This eliminates many trips into the kernel that would otherwise

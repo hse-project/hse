@@ -899,7 +899,7 @@ sp3_dirty_node_locked(struct sp3 *sp, struct cn_tree_node *tn)
                 sp3_node_unlink(sp, spn);
                 sp3_node_insert(sp, spn, wtype_garbage, weight);
                 ev_debug(1);
-            } else if (garbage > 0) {
+            } else if (garbage > 0 && nkvsets > 1) {
                 weight = ((uint64_t)garbage << 32) | (cn_ns_alen(ns) >> 20);
 
                 sp3_node_insert(sp, spn, wtype_garbage, weight);

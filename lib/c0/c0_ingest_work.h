@@ -38,7 +38,8 @@
  * [HSE_REVISIT]
  */
 struct c0_ingest_work {
-    struct work_struct       c0iw_work;
+    struct throttle_sensor  *c0iw_thr_sensor;
+    struct throttle_tls     *c0iw_thr_tls;
     struct c0sk             *c0iw_c0sk;
     struct element_source   *c0iw_kvms_sourcev[HSE_C0_INGEST_WIDTH_MAX];
     struct c0_kvset_iterator c0iw_kvms_iterv[HSE_C0_INGEST_WIDTH_MAX];
@@ -64,10 +65,16 @@ struct c0_ingest_work {
     uint64_t t0, t3, t4, t5, t6, t7, t8, t9, t10;
     uint64_t gencur, gen;
 
+    uint64_t c0iw_kbytes;
+    uint64_t c0iw_vbytes;
+    uint64_t c0iw_mask;
+
     /* Establishing view for ingest */
     uint64_t c0iw_ingest_max_seqno;
     uint64_t c0iw_ingest_min_seqno;
     uint64_t c0iw_ingest_order;
+
+    struct work_struct c0iw_work;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().
