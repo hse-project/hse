@@ -306,9 +306,9 @@ jobs:
             MESON_ARGS="-Db_lundef=false"
           fi
 
-          meson setup builddir --werror --buildtype=${{ matrix.buildtype }} \
-            -Db_sanitize=address,undefined $MESON_ARGS -Dtools=enabled \
-            -Ddocs=disabled -Dbindings=none
+          meson setup builddir --fatal-meson-warnings --werror \
+            --buildtype=${{ matrix.buildtype }} -Db_sanitize=address,undefined \
+            $MESON_ARGS -Dtools=enabled -Ddocs=disabled -Dbindings=none
 
       - name: Build
         run: |
