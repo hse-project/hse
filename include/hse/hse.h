@@ -875,6 +875,8 @@ hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @brief Free a transaction object.
  *
+ * This function can be called when the transaction is in any state.
+ *
  * @warning After invoking this function, calling any other transaction
  * functions with this handle will result in undefined behavior.
  *
