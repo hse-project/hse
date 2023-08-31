@@ -12,6 +12,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/ikvdb/diag_kvdb.h>
 #include <hse/ikvdb/ikvdb.h>
@@ -26,7 +27,6 @@
 #include "cndb_reader.h"
 #include "cndb_record.h"
 #include "commands.h"
-#include "fatal.h"
 #include "globals.h"
 
 bool dumping_mblock;
@@ -182,7 +182,7 @@ fmt_data(
     if (bufsz < output_len) {
         void *p = realloc(buf, output_len);
         if (!p)
-            fatal("realloc", merr(ENOMEM));
+            fatal(merr(ENOMEM), "realloc");
         buf = *buf_ptr = p;
         bufsz = *bufsz_ptr = output_len;
     }
@@ -518,7 +518,7 @@ bloom_dump(struct dump_mblock *mblk)
 
     cntv = calloc(bktmax, sizeof(*cntv));
     if (!cntv)
-        fatal("calloc", merr(ENOMEM));
+        fatal(merr(ENOMEM), "calloc");
 
     cntmax = cntsum = cntempty = cntfull = 0;
     cntmin = UINT_MAX;
@@ -774,7 +774,7 @@ get_props(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 
     err = mpool_mblock_props_get(mp, mbid, props);
     if (err)
-        fatal("mpool_mblock_props_get", err);
+        fatal(err, "mpool_mblock_props_get");
 }
 
 static void
@@ -789,7 +789,7 @@ read_mblock(struct mpool *mp, struct dump_mblock *mblk)
 
     data = aligned_alloc(PAGE_SIZE, ALIGN(wlen, PAGE_SIZE));
     if (!data)
-        fatal("aligned_alloc", merr(errno));
+        fatal(merr(errno), "aligned_alloc");
 
     memset(data, 0xbe, wlen);
 
@@ -798,7 +798,7 @@ read_mblock(struct mpool *mp, struct dump_mblock *mblk)
 
     err = mpool_mblock_read(mp, mblk->props.mpr_objid, &iov, 1, 0);
     if (err)
-        fatal("mpool_mblock_read", err);
+        fatal(err, "mpool_mblock_read");
 
     mblk->data = data;
 }
@@ -811,7 +811,7 @@ dkvset_read_props(struct mpool *mp, struct dump_kvset *kvset)
     kvset->kblkv = calloc(rec->kblkc, sizeof(kvset->kblkv[0]));
     kvset->vblkv = calloc(rec->vblkc, sizeof(kvset->vblkv[0]));
     if (!kvset->kblkv || !kvset->vblkv)
-        fatal("calloc", merr(ENOMEM));
+        fatal(merr(ENOMEM), "calloc");
 
     get_props(mp, rec->hblkid, &kvset->hblk.props);
 
@@ -876,11 +876,11 @@ kvset_cmd(int argc, char **argv)
 
     err = hse_init(0, NELEM(paramv), paramv);
     if (err)
-        fatal("hse_init", err);
+        fatal(err, "hse_init");
 
     err = diag_kvdb_open(opts.home, 0, 0, &kvdb);
     if (err)
-        fatal("diag_kvdb_open", err);
+        fatal(err, "diag_kvdb_open");
 
     printf("# Kvset ID %lu\n", opts.kvset_id);
 
@@ -895,7 +895,7 @@ kvset_cmd(int argc, char **argv)
                 continue;
 
             if (found)
-                fatal("CDNB log has two kvsets with same ID", merr(EPROTO));
+                fatal(merr(EPROTO), "CDNB log has two kvsets with same ID");
 
             found = true;
             dkvset_init(&kvset, &rec);
@@ -903,12 +903,12 @@ kvset_cmd(int argc, char **argv)
         } else if (rec.type == CNDB_TYPE_KVSET_DEL) {
 
             if (rec.rec.kvset_del.kvsetid == opts.kvset_id)
-                fatal("kvset no longer exists", merr(EINVAL));
+                fatal(merr(EINVAL), "kvset no longer exists");
         }
     }
 
     if (!found)
-        fatal("no such kvset", merr(EINVAL));
+        fatal(merr(EINVAL), "no such kvset");
 
     cndb_rec_fini(&rec);
 
@@ -927,7 +927,7 @@ kvset_cmd(int argc, char **argv)
 
     err = diag_kvdb_close(kvdb);
     if (err)
-        fatal("diag_kvdb_close", err);
+        fatal(err, "diag_kvdb_close");
 
     hse_fini();
 }
@@ -950,11 +950,11 @@ mblock_cmd(int argc, char **argv)
 
     err = hse_init(0, NELEM(paramv), paramv);
     if (err)
-        fatal("hse_init", err);
+        fatal(err, "hse_init");
 
     err = diag_kvdb_open(opts.home, 0, 0, &kvdb);
     if (err)
-        fatal("diag_kvdb_open", err);
+        fatal(err, "diag_kvdb_open");
 
     mp = ikvdb_mpool_get((struct ikvdb *)kvdb);
 
@@ -966,7 +966,7 @@ mblock_cmd(int argc, char **argv)
 
     err = diag_kvdb_close(kvdb);
     if (err)
-        fatal("diag_kvdb_close", err);
+        fatal(err, "diag_kvdb_close");
 
     hse_fini();
 }

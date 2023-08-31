@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright 2021 Micron Technology, Inc.
 
 cli_sources = files(
+    'output.c',
     'param.c',
     'program.c',
     'rest/api.c',

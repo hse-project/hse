@@ -16,6 +16,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/arch.h>
 
@@ -51,18 +52,6 @@ herr_print(uint64_t herr, char *fmt, ...)
 
 __attribute__((format(printf, 1, 2))) void
 eprint(char *fmt, ...)
-{
-    va_list ap;
-
-    fprintf(stderr, "%s: ", progname);
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
-
-__attribute__((format(printf, 1, 2))) void
-syntax(const char *fmt, ...)
 {
     va_list ap;
 

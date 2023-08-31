@@ -21,6 +21,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/compiler.h>
 #include <hse/util/parse_num.h>
@@ -108,52 +109,7 @@ struct thread_info {
 };
 
 static void
-syntax(const char *fmt, ...) HSE_PRINTF(1, 2);
-static void
-quit(const char *fmt, ...) HSE_PRINTF(1, 2);
-static void
 usage(void);
-
-static void
-quit(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    if (fmt && *fmt) {
-        va_start(ap, fmt);
-        vsnprintf(msg, sizeof(msg), fmt, ap);
-        va_end(ap);
-        fprintf(stderr, "%s: %s\n", progname, msg);
-        fflush(stderr);
-    }
-    exit(-1);
-}
-
-static void
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s\nUse -h for help.\n", progname, msg);
-    exit(EX_USAGE);
-}
-
-static void
-merr_quit_impl(const char *detail, hse_err_t err, const char *file, int line)
-{
-    char errbuf[128];
-
-    hse_strerror(err, errbuf, sizeof(errbuf));
-    quit("%s:%d: %s: %s", file, line, detail, errbuf);
-}
-
-#define merr_quit(_detail, _err) merr_quit_impl((_detail), (_err), REL_FILE(__FILE__), __LINE__)
 
 void
 announce_header(void)
@@ -529,22 +485,20 @@ void
 bar_sync_init(uint count)
 {
     int rc;
-    char buf[64];
 
     rc = pthread_barrier_init(&barrier, NULL, count);
     if (rc)
-        quit("Error: pthread_barrier_init: %s", strerror_r(rc, buf, sizeof(buf)));
+        fatal(rc, "pthread_barrier_init");
 }
 
 void
 bar_sync(void)
 {
     int rc;
-    char buf[64];
 
     rc = pthread_barrier_wait(&barrier);
     if (rc && rc != PTHREAD_BARRIER_SERIAL_THREAD)
-        quit("Error: pthread_barrier_wait: %s", strerror_r(rc, buf, sizeof(buf)));
+        fatal(rc, "pthread_barrier_wait");
 }
 
 void
@@ -568,10 +522,10 @@ test_start_phase(struct thread_info *ti, char *message)
                 struct svec sv = { 0 };
                 rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
                 if (rc)
-                    quit("svec_append_pg: rc %d", rc);
+                    fatal(rc, "svec_append_pg");
                 err = hse_kvdb_open(opt.mpool, sv.strc, sv.strv, &kvdb);
                 if (err)
-                    merr_quit("hse_kvdb_open failed", err);
+                    fatal(err, "hse_kvdb_open failed");
                 svec_reset(&sv);
             } else {
                 kvdb = (void *)1;
@@ -588,10 +542,10 @@ test_start_phase(struct thread_info *ti, char *message)
             struct svec sv = { 0 };
             rc = svec_append_pg(&sv, pg, PG_KVS_OPEN, NULL);
             if (rc)
-                quit("svec_append_pg: rc %d", rc);
+                fatal(rc, "svec_append_pg");
             err = hse_kvdb_kvs_open(kvdb, ti->kvs_name, sv.strc, sv.strv, &ti->kvs);
             if (err)
-                merr_quit("hse_kvdb_kvs_open failed", err);
+                fatal(err, "hse_kvdb_kvs_open failed");
             svec_reset(&sv);
         } else {
             ti->kvs = (void *)1;
@@ -613,7 +567,7 @@ test_end_phase(struct thread_info *ti, bool final)
         if (!opt.dryrun) {
             err = hse_kvdb_sync(kvdb, 0);
             if (err)
-                merr_quit("hse_kvdb_sync failed", err);
+                fatal(err, "hse_kvdb_sync failed");
         }
     }
 
@@ -623,7 +577,7 @@ test_end_phase(struct thread_info *ti, bool final)
         if (!opt.dryrun) {
             err = hse_kvdb_kvs_close(ti->kvs);
             if (err)
-                merr_quit("hse_kvdb_kvs_close failed", err);
+                fatal(err, "hse_kvdb_kvs_close failed");
         }
         ti->kvs = 0;
     }
@@ -636,7 +590,7 @@ test_end_phase(struct thread_info *ti, bool final)
             if (!opt.dryrun) {
                 err = hse_kvdb_close(kvdb);
                 if (err)
-                    merr_quit("hse_kvdb_close failed", err);
+                    fatal(err, "hse_kvdb_close failed");
             }
             kvdb = 0;
         }
@@ -651,7 +605,7 @@ fmt_string(char *str, int len, int max_len, char fill, char *fmt, uint64_t fmt_a
     int i;
 
     if (len > max_len)
-        quit("key or value too large: %u (limit is %u)", len, max_len);
+        fatalx("key or value too large: %u (limit is %u)", len, max_len);
 
     snprintf(str, len, fmt, fmt_arg1, fmt_arg2);
     i = strlen(str);
@@ -761,7 +715,7 @@ test_put(struct thread_info *ti, uint salt)
 
         err = hse_kvs_put(ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen, ti->ref_val, ti->ref_vlen);
         if (err)
-            merr_quit("kvdb_put failed", err);
+            fatal(err, "kvdb_put failed");
     }
 
     test_end_phase(ti, false);
@@ -783,7 +737,7 @@ test_delete(struct thread_info *ti)
         if (!err)
             goto done;
 
-        merr_quit("hse_kvs_prefix_delete failed", err);
+        fatal(err, "hse_kvs_prefix_delete failed");
     }
 
     for (i = opt.kstart; i < last_key; i++) {
@@ -798,7 +752,7 @@ test_delete(struct thread_info *ti)
 
         err = hse_kvs_delete(ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen);
         if (err)
-            merr_quit("kvs_del failed", err);
+            fatal(err, "kvs_del failed");
     }
 done:
     test_end_phase(ti, false);
@@ -838,7 +792,7 @@ test_put_verify(struct thread_info *ti, uint salt)
         err = hse_kvs_get(
             ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
-            merr_quit("hse_kvs_get failed", err);
+            fatal(err, "hse_kvs_get failed");
 
         if (!found) {
             add_error(
@@ -907,7 +861,7 @@ test_delete_verify(struct thread_info *ti)
         err = hse_kvs_get(
             ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
-            merr_quit("hse_kvs_get failed", err);
+            fatal(err, "hse_kvs_get failed");
 
         if (found) {
             add_error(
@@ -947,7 +901,7 @@ thread_main(void *arg)
     test_end_phase(ti, true);
 
     if (errors >= opt.errcnt)
-        quit("Exiting, because %u error(s) were encountered\n", errors);
+        fatalx("Exiting, because %u error(s) were encountered\n", errors);
 
     announce("Successful");
 
@@ -973,7 +927,7 @@ main(int argc, char **argv)
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
-        quit("pg_create");
+        fatal(rc, "pg_create");
 
     options_default(&opt);
     options_parse(argc, argv, &opt);
@@ -991,19 +945,19 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            quit("unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        quit("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
-        quit("error processing parameter %s\n", argv[optind]);
+        fatalx("error processing parameter %s\n", argv[optind]);
         break;
     }
 
     rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     if (rc)
-        quit("failed to parse hse-gparams");
+        fatalx("failed to parse hse-gparams");
 
     if (!opt.keys)
         syntax("number of keys must be > 0");
@@ -1018,7 +972,7 @@ main(int argc, char **argv)
 
     threads = calloc(opt.threads, sizeof(*threads));
     if (!threads)
-        quit("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
+        fatalx("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
 
     bar_sync_init(opt.threads);
 
@@ -1046,7 +1000,7 @@ main(int argc, char **argv)
             cp = strchr(ti->kvs_name, '/');
             if (cp) {
                 if (cp[1] == 0)
-                    quit("prefix missing kvs: %s", ti->kvs_name);
+                    fatalx("prefix missing kvs: %s", ti->kvs_name);
                 *cp++ = 0;
                 ti->pfx = ti->kvs_name;
                 ti->pfxlen = strlen(ti->pfx);
@@ -1058,7 +1012,7 @@ main(int argc, char **argv)
         } else {
             /* use kvs name and prefix from thread i % kvsc */
             if (kvsc == 0)
-                quit("Invalid kvs name: %s", opt.kvs);
+                fatalx("Invalid kvs name: %s", opt.kvs);
             assert(i >= kvsc);
             ti->kvs_name = threads[i % kvsc].kvs_name;
             ti->pfx = threads[i % kvsc].pfx;
@@ -1075,12 +1029,12 @@ main(int argc, char **argv)
 
         n = asprintf(&ti->kvs_name, cp, i);
         if (n <= 0)
-            quit("cannot format kvs name: '%s'", cp);
+            fatalx("cannot format kvs name: '%s'", cp);
 
         /* Ensure that no two threads are given the same kvs name. */
         for (n = 0; n < i; n++)
             if (!strcmp(ti->kvs_name, threads[n].kvs_name))
-                quit(
+                fatalx(
                     "no two threads may work"
                     " on the same kvs: %s",
                     ti->kvs_name);
@@ -1092,7 +1046,7 @@ main(int argc, char **argv)
         ti->get_val = malloc(VLEN_MAX);
         ti->ref_val = malloc(VLEN_MAX);
         if (!ti->ref_key || !ti->get_val || !ti->ref_val)
-            quit("Out of memory");
+            fatalx("Out of memory");
     }
 
     announce_header();
@@ -1100,7 +1054,7 @@ main(int argc, char **argv)
     /* Start HSE */
     err = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
     if (err)
-        quit("failed to initialize kvdb");
+        fatalx("failed to initialize kvdb");
 
     /* Start the threads */
     for (i = 0, ti = threads; i < opt.threads; i++, ti++) {

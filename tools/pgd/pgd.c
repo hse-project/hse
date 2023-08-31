@@ -28,6 +28,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/fmt.h>
 
@@ -141,7 +142,7 @@ main(int argc, char **argv)
         usage();
 
     if (argc - optind < 2)
-        fatal(0, "missing required params: kvdb and kvs");
+        fatalx("missing required params: kvdb and kvs");
 
     mpname = argv[optind++];
     kvsname = argv[optind++];
@@ -151,10 +152,10 @@ main(int argc, char **argv)
     switch (rc) {
     case 0:
         if (optind < argc)
-            fatal(0, "unknown parameter: %s", argv[optind]);
+            fatalx("unknown parameter: %s", argv[optind]);
         break;
     case EINVAL:
-        fatal(0, "missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
+        fatalx("missing group name (e.g. %s) before parameter %s\n", PG_KVDB_OPEN, argv[optind]);
         break;
     default:
         fatal(rc, "error processing parameter %s\n", argv[optind]);
@@ -220,12 +221,12 @@ main(int argc, char **argv)
             if (err)
                 break;
             if (!fnd)
-                warn(ENOENT, "cannot find key %s", key);
+                error(ENOENT, "cannot find key %s", key);
             else if (action == GET)
                 show(kbuf, klen, gbuf, glen, 0);
             else if (glen != vlen || memcmp(vbuf, gbuf, vlen)) {
                 fmt_pe(obuf, sizeof(gbuf), gbuf, glen);
-                warn(EIO, "wanted %d/%s, got %ld/%s", vlen, val, glen, obuf);
+                error(EIO, "wanted %d/%s, got %ld/%s", vlen, val, glen, obuf);
             }
             break;
         }

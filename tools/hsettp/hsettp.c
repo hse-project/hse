@@ -21,6 +21,7 @@
 #include <curl/curl.h>
 #include <sys/stat.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/cli/rest/client.h>
 #include <hse/cli/tprint.h>
@@ -1643,19 +1644,6 @@ root_usage(FILE * const output)
 
     if (verbosity == 0)
         fprintf(output, "\nUse -hv to show additional infrequently used operations\n");
-}
-
-static void HSE_PRINTF(1, 2)
-syntax(const char * const fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
 }
 
 int

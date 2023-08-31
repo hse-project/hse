@@ -8,6 +8,7 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/ikvdb/cndb.h>
 #include <hse/ikvdb/diag_kvdb.h>
@@ -17,7 +18,6 @@
 #include "cndb/omf.h"
 #include "cndb_reader.h"
 #include "commands.h"
-#include "fatal.h"
 #include "globals.h"
 
 /* globals */

@@ -29,36 +29,9 @@
 
 #include <hse/hse.h>
 
+#include <hse/cli/output.h>
 #include <hse/cli/program.h>
 #include <hse/util/compiler.h>
-
-void HSE_PRINTF(2, 3)
-fatal(hse_err_t err, char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    if (err)
-        fprintf(stderr, ": %ld\n", (long)err);
-    else
-        fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
-
-void HSE_PRINTF(1, 2)
-syntax(const char *fmt, ...)
-{
-    char msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s, use -h for help\n", progname, msg);
-}
 
 void
 usage(void)

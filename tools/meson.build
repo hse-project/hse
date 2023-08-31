@@ -26,7 +26,6 @@ tools = {
         'dependencies': [hse_internal_dep],
         'sources': files(
             'boundcur/boundcur.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -38,7 +37,6 @@ tools = {
         ],
         'sources': files(
             'capput/capput.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -47,7 +45,6 @@ tools = {
         'dependencies': [hse_internal_dep],
         'sources': files(
             'cn_metrics/cn_metrics.c',
-            'common.c',
             'parm_groups.c'
         ),
     },
@@ -58,7 +55,6 @@ tools = {
             'cndump/cndb_reader.c',
             'cndump/cndb_record.c',
             'cndump/cndump.c',
-            'cndump/fatal.c',
             'cndump/kvset_dump.c',
         ),
     },
@@ -193,7 +189,6 @@ tools = {
         ],
         'sources': files(
             'multicursor/multicursor.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -205,7 +200,6 @@ tools = {
         ],
         'sources': files(
             'pfx_probe/pfx_probe.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -236,7 +230,6 @@ tools = {
         ],
         'sources': files(
             'ptree-overload/ptree-overload.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -248,7 +241,6 @@ tools = {
         ],
         'sources': files(
             'put_flush/put_flush.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -260,7 +252,6 @@ tools = {
         ],
         'sources': files(
             'put_txget/put_txget.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -272,7 +263,6 @@ tools = {
         ],
         'sources': files(
             'putbin/putbin.c',
-            'common.c',
             'parm_groups.c'
         ),
     },
@@ -295,7 +285,6 @@ tools = {
         ],
         'sources': files(
             'range_read/range_read.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -325,7 +314,6 @@ tools = {
         ],
         'sources': files(
             'txn_thrash/txn_thrash.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -337,7 +325,6 @@ tools = {
         ],
         'sources': files(
             'txput_flush/txput_flush.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         )
@@ -349,7 +336,6 @@ tools = {
         ],
         'sources': files(
             'upsert/upsert.c',
-            'common.c',
             'kvs_helper.c',
             'parm_groups.c'
         ),
@@ -372,7 +358,6 @@ tools = {
         ],
         'sources': files(
             'wscan/wscan.c',
-            'common.c',
             'parm_groups.c'
         ),
     },

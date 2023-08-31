@@ -3,12 +3,12 @@
  * SPDX-FileCopyrightText: Copyright 2022 Micron Technology, Inc.
  */
 
+#include <hse/cli/output.h>
 #include <hse/ikvdb/diag_kvdb.h>
 #include <hse/mpool/mpool.h>
 
 #include "cndb_reader.h"
 #include "cndb_record.h"
-#include "fatal.h"
 
 static void
 read_record(struct cndb_dump_reader *reader, struct cndb_rec *rec)
@@ -23,7 +23,7 @@ read_record(struct cndb_dump_reader *reader, struct cndb_rec *rec)
     }
 
     if (err)
-        fatal("mpool_mdc_read", err);
+        fatal(err, "mpool_mdc_read");
 
     if (reclen) {
         rec->type = omf_cnhdr_type(rec->buf);
@@ -42,14 +42,14 @@ cndb_iter_init(struct hse_kvdb *kvdb, struct cndb_dump_reader *r)
 
     err = diag_kvdb_get_cndb(kvdb, &cndb);
     if (err)
-        fatal("diag_kvdb_get_cndb", err);
+        fatal(err, "diag_kvdb_get_cndb");
 
     r->mdc = cndb_mdc_get(cndb);
     r->eof = false;
 
     err = mpool_mdc_rewind(r->mdc);
     if (err)
-        fatal("mpool_mdc_rewind", err);
+        fatal(err, "mpool_mdc_rewind");
 }
 
 bool
