@@ -115,7 +115,7 @@ jobs:
 
       - name: Checkout HSE
         if: ${{ steps.to-skip.outputs.skip == 'false' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Determine branches
         id: determine-branches
@@ -149,7 +149,7 @@ jobs:
 
       - name: Checkout hse-java
         if: ${{ steps.to-skip.outputs.skip == 'false' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
@@ -157,7 +157,7 @@ jobs:
 
       - name: Checkout hse-python
         if: ${{ steps.to-skip.outputs.skip == 'false' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
@@ -278,7 +278,7 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Meson packagecache
         uses: actions/cache@v3
@@ -340,7 +340,7 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Meson packagecache
         uses: actions/cache@v3

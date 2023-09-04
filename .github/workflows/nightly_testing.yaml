@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout HSE
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
 
@@ -91,14 +91,14 @@ jobs:
           done
 
       - name: Checkout hse-java
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hse-project/hse-java
           path: subprojects/hse-java
           ref: ${{ steps.determine-branches.outputs.hse-java }}
 
       - name: Checkout hse-python
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hse-project/hse-python
           path: subprojects/hse-python
